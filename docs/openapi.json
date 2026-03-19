@@ -1,0 +1,1555 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Verde App API",
+    "version": "1.0.0",
+    "description": "API documentation for Verde App"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000/api/v1",
+      "description": "Local development server"
+    },
+    {
+      "url": "https://azure-badger-979820.hostingersite.com/api/v1",
+      "description": "Production server"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    },
+    "schemas": {
+      "Role": {
+        "type": "string",
+        "enum": ["ADMIN", "STORE_KEEPER", "INTERNAL_REQUESTER", "CUSTOMER"]
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string", "example": "John Doe" },
+          "email": { "type": "string", "example": "john.doe@example.com" },
+          "role": { "$ref": "#/components/schemas/Role" },
+          "isActive": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" },
+          "updatedAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" }
+        }
+      },
+      "StandardResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "message": { "type": "string" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string", "example": "Electronics" },
+          "description": { "type": "string", "nullable": true, "example": "Electronic devices and accessories" },
+          "isActive": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" }
+        }
+      },
+      "Product": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "woocommerceId": { "type": "integer", "nullable": true, "example": 123 },
+          "name": { "type": "string", "example": "Laptop Pro 14" },
+          "sku": { "type": "string", "example": "LP-14-PRO" },
+          "price": { "type": "string", "example": "1299.99" },
+          "stockQuantity": { "type": "integer", "example": 50 },
+          "reservedQuantity": { "type": "integer", "example": 5 },
+          "availableQuantity": { "type": "integer", "example": 45 },
+          "categoryId": { "type": "string", "nullable": true },
+          "category": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "id": { "type": "string" },
+              "name": { "type": "string", "example": "Electronics" }
+            }
+          },
+          "imageUrl": { "type": "string", "nullable": true, "example": "https://example.com/image.jpg" },
+          "isActive": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" },
+          "updatedAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" }
+        }
+      },
+      "StockMovement": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "productId": { "type": "string" },
+          "type": { 
+            "type": "string", 
+            "enum": ["PURCHASE", "CUSTOMER_ORDER", "INTERNAL_USE", "ADJUSTMENT", "RETURN"],
+            "example": "PURCHASE"
+          },
+          "delta": { "type": "integer", "example": 10 },
+          "referenceId": { "type": "string", "nullable": true },
+          "note": { "type": "string", "nullable": true, "example": "Stock restock from supplier" },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string", "example": "Verde HQ Construction" },
+          "description": { "type": "string", "nullable": true, "example": "Main office building project" },
+          "isActive": { "type": "boolean", "example": true },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" }
+        }
+      },
+      "RequestStatus": {
+        "type": "string",
+        "enum": ["PENDING", "APPROVED", "REJECTED", "PICKED_UP", "COMPLETED"]
+      },
+      "InternalRequestItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "requestId": { "type": "string" },
+          "productId": { "type": "string" },
+          "quantity": { "type": "integer", "example": 5 }
+        }
+      },
+      "InternalRequest": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "requesterId": { "type": "string" },
+          "projectId": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/RequestStatus" },
+          "notes": { "type": "string", "nullable": true, "example": "Urgent request for construction site" },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" },
+          "updatedAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/InternalRequestItem" }
+          },
+          "requester": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "example": "John Doe" },
+              "email": { "type": "string", "example": "john.doe@example.com" }
+            }
+          },
+          "project": { "$ref": "#/components/schemas/Project" }
+        }
+      },
+      "OrderStatus": {
+        "type": "string",
+        "enum": ["PENDING", "PROCESSING", "SHIPPED", "DELIVERED", "CANCELLED"]
+      },
+      "OrderItem": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "orderId": { "type": "string" },
+          "productId": { "type": "string" },
+          "quantity": { "type": "integer", "example": 2 },
+          "unitPrice": { "type": "string", "example": "150.00" }
+        }
+      },
+      "Order": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "customerId": { "type": "string" },
+          "status": { "$ref": "#/components/schemas/OrderStatus" },
+          "totalAmount": { "type": "string", "example": "300.00" },
+          "notes": { "type": "string", "nullable": true, "example": "Please deliver after 5 PM" },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" },
+          "updatedAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" },
+          "items": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/OrderItem" }
+          }
+        }
+      },
+      "ApprovalEvent": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "requestId": { "type": "string" },
+          "actorId": { "type": "string" },
+          "action": { "$ref": "#/components/schemas/RequestStatus" },
+          "comment": { "type": "string", "nullable": true, "example": "Looks good, proceeding." },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" },
+          "actor": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string", "example": "Admin User" },
+              "role": { "$ref": "#/components/schemas/Role" }
+            }
+          }
+        }
+      },
+      "AuditLog": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "actorId": { "type": "string" },
+          "action": { "type": "string", "example": "UPDATE" },
+          "entity": { "type": "string", "example": "Product" },
+          "entityId": { "type": "string" },
+          "metadata": { "type": "object", "nullable": true, "example": { "field": "price", "old": "100", "new": "120" } },
+          "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" }
+        }
+      }
+    }
+  },
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "summary": "User Login",
+        "tags": ["Authentication"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": { 
+                    "type": "string", 
+                    "format": "email",
+                    "example": "admin@verde.ly"
+                  },
+                  "password": { 
+                    "type": "string",
+                    "example": "adminpassword123"
+                  }
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "token": { "type": "string" },
+                        "user": { "$ref": "#/components/schemas/User" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Invalid credentials or inactive account"
+          }
+        }
+      }
+    },
+    "/auth/register-admin": {
+      "post": {
+        "summary": "Register Initial Admin",
+        "description": "Requires a secret code from environment variables",
+        "tags": ["Authentication"],
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Admin User" },
+                  "email": { "type": "string", "format": "email", "example": "admin@verde.ly" },
+                  "password": { "type": "string", "minLength": 8, "example": "adminpass123" },
+                  "secretCode": { "type": "string", "example": "your-secret-code" }
+                },
+                "required": ["name", "email", "password", "secretCode"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Admin registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": { "$ref": "#/components/schemas/User" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": { "description": "Invalid secret code" },
+          "409": { "description": "User already exists" }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "summary": "User Logout",
+        "tags": ["Authentication"],
+        "responses": {
+          "200": {
+            "description": "Logout successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "message": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "summary": "Get Current User",
+        "tags": ["Authentication"],
+        "responses": {
+          "200": {
+            "description": "Current user profile",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "user": { "$ref": "#/components/schemas/User" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/password": {
+      "patch": {
+        "summary": "Change Password",
+        "tags": ["Authentication"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "oldPassword": { "type": "string", "example": "oldpassword123" },
+                  "newPassword": { "type": "string", "minLength": 8, "example": "newpassword456" }
+                },
+                "required": ["oldPassword", "newPassword"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Password updated",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/StandardResponse" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "summary": "List Users (Admin)",
+        "tags": ["Users"],
+        "responses": {
+          "200": {
+            "description": "Array of users sorted by creation date",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/User" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create User (Admin)",
+        "tags": ["Users"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": "2", "maxLength": "50", "example": "John Smith" },
+                  "email": { "type": "string", "format": "email", "example": "john.smith@example.com" },
+                  "password": { "type": "string", "minLength": "8", "example": "securePass123" },
+                  "role": { "$ref": "#/components/schemas/Role", "example": "STORE_KEEPER" }
+                },
+                "required": ["name", "email", "password", "role"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/User" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation failed" },
+          "409": { "description": "Email already exists" }
+        }
+      }
+    },
+    "/users/{id}": {
+      "get": {
+        "summary": "Get User Profile & Activity (Admin)",
+        "description": "Returns the user's full profile along with all their system activity: internal requests, approval events, orders, and paginated audit logs.",
+        "tags": ["Users"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "User ID"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "schema": { "type": "integer", "default": 1 },
+            "description": "Audit log page number"
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "schema": { "type": "integer", "default": 20 },
+            "description": "Audit logs per page"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Full user profile and activity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "profile": { "$ref": "#/components/schemas/User" },
+                        "requests": {
+                          "type": "array",
+                          "description": "Internal requests submitted by this user",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string" },
+                              "status": { "type": "string" },
+                              "notes": { "type": "string", "nullable": true },
+                              "itemCount": { "type": "integer" },
+                              "project": {
+                                "type": "object",
+                                "properties": {
+                                  "id": { "type": "string" },
+                                  "name": { "type": "string" }
+                                }
+                              },
+                              "createdAt": { "type": "string", "format": "date-time" },
+                              "updatedAt": { "type": "string", "format": "date-time" }
+                            }
+                          }
+                        },
+                        "approvals": {
+                          "type": "array",
+                          "description": "Approval events this user acted on",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string" },
+                              "requestId": { "type": "string" },
+                              "action": { "type": "string" },
+                              "comment": { "type": "string", "nullable": true },
+                              "createdAt": { "type": "string", "format": "date-time" }
+                            }
+                          }
+                        },
+                        "orders": {
+                          "type": "array",
+                          "description": "Orders placed by this user as customer",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string" },
+                              "status": { "type": "string" },
+                              "totalAmount": { "type": "number" },
+                              "notes": { "type": "string", "nullable": true },
+                              "createdAt": { "type": "string", "format": "date-time" },
+                              "updatedAt": { "type": "string", "format": "date-time" }
+                            }
+                          }
+                        },
+                        "auditLogs": {
+                          "type": "object",
+                          "properties": {
+                            "data": {
+                              "type": "array",
+                              "items": {
+                                "type": "object",
+                                "properties": {
+                                  "id": { "type": "string" },
+                                  "action": { "type": "string" },
+                                  "entity": { "type": "string" },
+                                  "entityId": { "type": "string" },
+                                  "metadata": { "type": "object", "nullable": true },
+                                  "createdAt": { "type": "string", "format": "date-time" }
+                                }
+                              }
+                            },
+                            "pagination": {
+                              "type": "object",
+                              "properties": {
+                                "total": { "type": "integer" },
+                                "page": { "type": "integer" },
+                                "limit": { "type": "integer" },
+                                "totalPages": { "type": "integer" }
+                              }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": { "description": "User not found" }
+        }
+      },
+      "patch": {
+        "summary": "Update User (Admin)",
+        "tags": ["Users"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 2, "maxLength": 50, "example": "Jane Doe" },
+                  "email": { "type": "string", "format": "email", "example": "jane.doe@example.com" },
+                  "password": { "type": "string", "minLength": 8, "example": "newpassword123" },
+                  "role": { "$ref": "#/components/schemas/Role", "example": "INTERNAL_REQUESTER" },
+                  "isActive": { "type": "boolean", "example": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "User updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/User" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation failed" },
+          "404": { "description": "User not found" },
+          "409": { "description": "Email conflict" }
+        }
+      },
+      "delete": {
+        "summary": "Delete User (Admin)",
+        "tags": ["Users"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "204": { "description": "User deleted successfully" },
+          "404": { "description": "User not found" }
+        }
+      }
+    },
+    "/categories": {
+      "get": {
+        "summary": "List Categories",
+        "tags": ["Categories"],
+        "responses": {
+          "200": {
+            "description": "Array of active categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Category" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Category (Admin)",
+        "tags": ["Categories"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 2, "maxLength": 50, "example": "Office Supplies" },
+                  "description": { "type": "string", "example": "All office-related materials and supplies" },
+                  "isActive": { "type": "boolean", "example": true }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Category created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Category" }
+                  }
+                }
+              }
+            }
+          },
+          "409": { "description": "Category name already exists" }
+        }
+      }
+    },
+    "/categories/{id}": {
+      "patch": {
+        "summary": "Update Category (Admin)",
+        "tags": ["Categories"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Electronics & Gadgets" },
+                  "description": { "type": "string", "example": "Electronic devices and accessories" },
+                  "isActive": { "type": "boolean", "example": false }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Category updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Category" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deactivate Category (Admin)",
+        "description": "Soft deletes a category. Returns 409 if products are linked.",
+        "tags": ["Categories"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Category deactivated" },
+          "409": { "description": "Conflict - products linked" }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "summary": "List Products",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "categoryId",
+            "schema": { "type": "string" },
+            "description": "Filter by category ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of products",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Product" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Product (Admin)",
+        "tags": ["Products"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Wireless Mouse" },
+                  "sku": { "type": "string", "example": "WM-001-BLK" },
+                  "price": { "type": "number", "example": 29.99 },
+                  "categoryId": { "type": "string", "description": "Skip - reference existing category" },
+                  "stockQuantity": { "type": "integer", "example": 100 },
+                  "imageUrl": { "type": "string", "example": "https://example.com/images/wireless-mouse.jpg" }
+                },
+                "required": ["name", "sku", "price"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Product created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Product" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/{id}": {
+      "get": {
+        "summary": "Get Product Detail",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Product details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Product" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "summary": "Update Product (Admin)",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Wireless Mouse Pro" },
+                  "sku": { "type": "string", "example": "WM-001-PRO" },
+                  "price": { "type": "number", "example": 39.99 },
+                  "categoryId": { "type": "string", "nullable": true, "description": "Skip - reference existing category" },
+                  "isActive": { "type": "boolean", "example": true },
+                  "imageUrl": { "type": "string", "example": "https://example.com/images/wireless-mouse-pro.jpg" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Product updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Product" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Deactivate Product (Admin)",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": { "description": "Product deactivated" }
+        }
+      }
+    },
+    "/products/{id}/stock": {
+      "patch": {
+        "summary": "Adjust Stock (Admin/Store Keeper)",
+        "tags": ["Products"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "delta": { "type": "integer", "description": "Positive to add, negative to deduct", "example": 50 },
+                  "note": { "type": "string", "example": "Restocking from supplier delivery" }
+                },
+                "required": ["delta"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Stock adjusted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Product" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/{id}/movements": {
+      "get": {
+        "summary": "Get Stock Movements",
+        "tags": ["Products"],
+        "security": [{ "bearerAuth": [] }],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of stock movements",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/StockMovement" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "summary": "List Projects",
+        "tags": ["Projects"],
+        "responses": {
+          "200": {
+            "description": "Array of active projects",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Project" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create Project (Admin)",
+        "tags": ["Projects"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "example": "City Center Mall Construction" },
+                  "description": { "type": "string", "example": "New commercial mall development in city center" }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Project created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Project" }
+                  }
+                }
+              }
+            }
+          },
+          "409": { "description": "Project name already exists" }
+        }
+      }
+    },
+    "/projects/{id}": {
+      "patch": {
+        "summary": "Update Project (Admin)",
+        "tags": ["Projects"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "minLength": 1, "example": "City Center Mall Renamed" },
+                  "description": { "type": "string", "example": "Updated description for the mall project" },
+                  "isActive": { "type": "boolean", "example": false }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Project updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Project" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/requests": {
+      "get": {
+        "summary": "List All Internal Requests (Admin/Store Keeper)",
+        "description": "Allows Admin and Store Keeper to view all submitted requests in the system. Requesters should use /requests/mine.",
+        "tags": ["Requests"],
+        "responses": {
+          "200": {
+            "description": "List of all requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/InternalRequest" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Submit Internal Request (Admin/Employee)",
+        "description": "Create a new material request for a specific project. Accessible by Admin and Employee.",
+        "tags": ["Requests"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "projectId": { "type": "string", "description": "Skip - reference existing project" },
+                  "notes": { "type": "string", "example": "Urgent need for construction materials" },
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": { "type": "string", "description": "Skip - reference existing product" },
+                        "quantity": { "type": "integer", "example": 10 }
+                      },
+                      "required": ["productId", "quantity"]
+                    }
+                  }
+                },
+                "required": ["projectId", "items"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Request submitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/InternalRequest" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/requests/mine": {
+      "get": {
+        "summary": "Get My Requests (Internal Requester)",
+        "description": "Returns a list of requests submitted by the currently authenticated user.",
+        "tags": ["Requests"],
+        "responses": {
+          "200": {
+            "description": "Array of user's own requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/InternalRequest" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/requests/{id}": {
+      "get": {
+        "summary": "Get Request Detail",
+        "tags": ["Requests"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Request detail with items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/InternalRequest" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/requests/{id}/approve": {
+      "post": {
+        "summary": "Approve Request",
+        "tags": ["Requests"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "comment": { "type": "string", "example": "Approved - materials available in stock" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Approved successfully" }
+        }
+      }
+    },
+    "/requests/{id}/reject": {
+      "post": {
+        "summary": "Reject Request",
+        "tags": ["Requests"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "comment": { "type": "string", "example": "Insufficient stock available for this request" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Rejected successfully" }
+        }
+      }
+    },
+    "/requests/{id}/pickup": {
+      "post": {
+        "summary": "Confirm Pickup",
+        "tags": ["Requests"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "comment": { "type": "string", "example": "Items picked up from warehouse" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Pickup confirmed" }
+        }
+      }
+    },
+    "/requests/{id}/complete": {
+      "post": {
+        "summary": "Complete Request",
+        "tags": ["Requests"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": { "comment": { "type": "string", "example": "All items delivered to project site" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Request completed" }
+        }
+      }
+    },
+    "/requests/{id}/history": {
+      "get": {
+        "summary": "Get Request History",
+        "tags": ["Requests"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of approval events",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/ApprovalEvent" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "summary": "List All Orders (Admin/SK)",
+        "tags": ["Orders"],
+        "responses": {
+          "200": {
+            "description": "List of orders",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/Order" }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Place Customer Order",
+        "tags": ["Orders"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": { "type": "string", "description": "Skip - reference existing product" },
+                        "quantity": { "type": "integer", "example": 3 }
+                      },
+                      "required": ["productId", "quantity"]
+                    }
+                  },
+                  "notes": { "type": "string", "example": "Please deliver after 3 PM" }
+                },
+                "required": ["items"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Order placed successfully" }
+        }
+      }
+    },
+    "/orders/mine": {
+       "get": {
+         "summary": "Get My Orders (Customer)",
+         "tags": ["Orders"],
+         "responses": {
+           "200": {
+             "description": "Array of user's own orders",
+             "content": {
+               "application/json": {
+                 "schema": {
+                   "type": "object",
+                   "properties": {
+                     "success": { "type": "boolean" },
+                     "data": {
+                       "type": "array",
+                       "items": { "$ref": "#/components/schemas/Order" }
+                     }
+                   }
+                 }
+               }
+             }
+           }
+         }
+       }
+    },
+    "/orders/{id}": {
+      "get": {
+        "summary": "Get Order Detail",
+        "tags": ["Orders"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Order detail with items",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "$ref": "#/components/schemas/Order" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{id}/status": {
+      "patch": {
+        "summary": "Update Order Status (Admin/SK)",
+        "tags": ["Orders"],
+        "parameters": [
+          { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": { "$ref": "#/components/schemas/OrderStatus", "example": "SHIPPED" }
+                },
+                "required": ["status"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status updated" }
+        }
+      }
+    },
+    "/audit": {
+      "get": {
+        "summary": "Get Audit Logs (Admin)",
+        "tags": ["Audit"],
+        "parameters": [
+          { "in": "query", "name": "page", "schema": { "type": "integer", "default": 1 } },
+          { "in": "query", "name": "limit", "schema": { "type": "integer", "default": 50 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated audit logs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "array",
+                      "items": { "$ref": "#/components/schemas/AuditLog" }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "total": { "type": "integer" },
+                         "page": { "type": "integer" },
+                         "limit": { "type": "integer" },
+                         "totalPages": { "type": "integer" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/events": {
+      "get": {
+        "summary": "SSE Stream for Live Updates",
+        "tags": ["Events"],
+        "description": "Server-Sent Events stream for real-time updates (ADMIN and STORE_KEEPER only)",
+        "responses": {
+          "200": {
+            "description": "Continuous event stream",
+            "content": {
+              "text/event-stream": {
+                "schema": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

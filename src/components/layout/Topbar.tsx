@@ -8,7 +8,7 @@ export function Topbar() {
     <header className="flex h-16 items-center justify-between border-b border-border bg-background px-4 lg:px-6">
       <div>
         <p className="text-sm text-text-secondary">Welcome back</p>
-        <p className="font-heading text-lg font-semibold text-text-primary">{user?.fullName ?? 'Staff'}</p>
+        <p className="font-heading text-lg font-semibold text-text-primary">{user?.name ?? 'Staff'}</p>
       </div>
 
       <div className="flex items-center gap-3">

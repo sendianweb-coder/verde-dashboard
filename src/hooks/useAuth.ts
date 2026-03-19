@@ -1,17 +1,14 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 
-import { apiClient } from '@/api/client'
+import { changePassword, getMe, login, logout as logoutApi } from '@/api/auth.api'
 import { roleRoutes } from '@/routes/roleRoutes'
 import { useAuthStore } from '@/store/authStore'
-import type { AuthUser, LoginPayload } from '@/types/auth'
+import type { AuthUser, ChangePasswordPayload, LoginPayload } from '@/types/auth'
 
 export function useCurrentUser() {
   return useQuery({
     queryKey: ['auth', 'me'],
-    queryFn: async () => {
-      const { data } = await apiClient.get<AuthUser>('/auth/me')
-      return data
-    },
+    queryFn: getMe,
     staleTime: 30_000,
   })
 }
@@ -20,24 +17,25 @@ export function useLogin() {
   const setUser = useAuthStore((state) => state.setUser)
 
   return useMutation({
-    mutationFn: async (payload: LoginPayload) => {
-      const { data } = await apiClient.post<AuthUser>('/auth/login', payload)
-      return data
-    },
-    onSuccess: (user) => {
-      setUser(user)
+    mutationFn: (payload: LoginPayload) => login(payload),
+    onSuccess: (response) => {
+      setUser(response.user)
     },
   })
 }
 
 export function useLogout() {
-  const logout = useAuthStore((state) => state.logout)
+  const clearAuth = useAuthStore((state) => state.logout)
 
   return useMutation({
-    mutationFn: async () => {
-      await apiClient.post('/auth/logout')
-    },
-    onSuccess: logout,
+    mutationFn: () => logoutApi(),
+    onSuccess: clearAuth,
+  })
+}
+
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (payload: ChangePasswordPayload) => changePassword(payload),
   })
 }
 
