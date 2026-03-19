@@ -8,9 +8,12 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
+  const colors = STATUS_COLORS[status]
+  if (!colors) return null
+
   return (
-    <span className={cn('rounded-full px-2.5 py-1 text-xs font-medium', STATUS_COLORS[status])}>
-      {status}
+    <span className={cn('inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium', colors.bg, colors.text)}>
+      {status.replace(/_/g, ' ')}
     </span>
   )
 }

@@ -46,12 +46,16 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
 }
 
-export const STATUS_COLORS = {
-  PENDING: 'bg-amber-100 text-amber-700',
-  APPROVED: 'bg-emerald-100 text-emerald-700',
-  REJECTED: 'bg-rose-100 text-rose-700',
-  COMPLETED: 'bg-sky-100 text-sky-700',
-} as const
+export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
+  PENDING: { bg: 'bg-badge-pending-bg', text: 'text-badge-pending-text' },
+  APPROVED: { bg: 'bg-badge-approved-bg', text: 'text-badge-approved-text' },
+  REJECTED: { bg: 'bg-badge-rejected-bg', text: 'text-badge-rejected-text' },
+  COMPLETED: { bg: 'bg-badge-completed-bg', text: 'text-badge-completed-text' },
+  PICKED_UP: { bg: 'bg-badge-picked-up-bg', text: 'text-badge-picked-up-text' },
+  PROCESSING: { bg: 'bg-badge-processing-bg', text: 'text-badge-processing-text' },
+  SHIPPED: { bg: 'bg-badge-shipped-bg', text: 'text-badge-shipped-text' },
+  CANCELLED: { bg: 'bg-badge-cancelled-bg', text: 'text-badge-cancelled-text' },
+}
 
 export const EVENT_ICON = {
   'new-request': Bell,

@@ -1,0 +1,103 @@
+@layer base {
+  :root {
+    --color-page: #f9fafb;
+    --color-background: #ffffff;
+    --color-surface: #f9fafb;
+    --color-surface-raised: #ffffff;
+
+    --color-border: #e5e7eb;
+    --color-border-strong: #d1d5db;
+
+    --color-brand-50: #f0fdf4;
+    --color-brand-100: #dcfce7;
+    --color-brand-500: #22c55e;
+    --color-brand-600: #16a34a;
+    --color-brand-700: #15803d;
+
+    --color-text-primary: #111827;
+    --color-text-secondary: #6b7280;
+    --color-text-muted: #9ca3af;
+    --color-text-inverse: #ffffff;
+
+    --color-sidebar-bg: #ffffff;
+    --color-sidebar-border: #e5e7eb;
+    --color-nav-default-text: #6b7280;
+    --color-nav-default-icon: #9ca3af;
+    --color-nav-active-icon: #16a34a;
+    --color-nav-active-text: #6b7280;
+
+    --color-stat-icon-bg: #f3f4f6;
+    --color-stat-icon: #6b7280;
+
+    --badge-pending-bg: #fef9c3;
+    --badge-pending-text: #854d0e;
+    --badge-approved-bg: #dbeafe;
+    --badge-approved-text: #1e40af;
+    --badge-rejected-bg: #fee2e2;
+    --badge-rejected-text: #991b1b;
+    --badge-picked-up-bg: #ede9fe;
+    --badge-picked-up-text: #5b21b6;
+    --badge-completed-bg: #dcfce7;
+    --badge-completed-text: #166534;
+    --badge-processing-bg: #dbeafe;
+    --badge-processing-text: #1e40af;
+    --badge-shipped-bg: #e0e7ff;
+    --badge-shipped-text: #3730a3;
+    --badge-cancelled-bg: #fee2e2;
+    --badge-cancelled-text: #991b1b;
+
+    --color-success: #16a34a;
+    --color-warning: #d97706;
+    --color-error: #dc2626;
+    --color-info: #2563eb;
+
+    --radius-sm: 0.25rem;
+    --radius-md: 0.375rem;
+    --radius-lg: 0.5rem;
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
+    --radius-full: 9999px;
+
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.07), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.08), 0 4px 6px -4px rgb(0 0 0 / 0.05);
+
+    --transition-fast: 150ms ease;
+    --transition-normal: 200ms ease;
+    --transition-slow: 300ms ease;
+  }
+
+  .dark {
+    --color-page: #0f172a;
+    --color-background: #1e293b;
+    --color-surface: #1e293b;
+    --color-surface-raised: #334155;
+    --color-border: #334155;
+    --color-border-strong: #475569;
+
+    --color-sidebar-bg: #1e293b;
+    --color-sidebar-border: #334155;
+    --color-nav-default-text: #94a3b8;
+    --color-nav-default-icon: #64748b;
+    --color-nav-active-icon: #22c55e;
+    --color-nav-active-text: #94a3b8;
+
+    --color-stat-icon-bg: #334155;
+    --color-stat-icon: #94a3b8;
+
+    --color-text-primary: #f8fafc;
+    --color-text-secondary: #94a3b8;
+    --color-text-muted: #64748b;
+
+    --badge-pending-bg: #422006;
+    --badge-pending-text: #fde68a;
+    --badge-approved-bg: #1e3a5f;
+    --badge-approved-text: #93c5fd;
+    --badge-rejected-bg: #450a0a;
+    --badge-rejected-text: #fca5a5;
+    --badge-picked-up-bg: #2e1065;
+    --badge-picked-up-text: #c4b5fd;
+    --badge-completed-bg: #052e16;
+    --badge-completed-text: #86efac;
+  }
+}

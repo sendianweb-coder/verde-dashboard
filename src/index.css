@@ -1,7 +1,8 @@
 @import 'tailwindcss';
+@import './tokens.css';
 
 :root {
-  --font-sans: 'Manrope', 'Segoe UI', sans-serif;
+  --font-sans: 'Inter', 'Segoe UI', sans-serif;
   --font-heading: 'Space Grotesk', 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -14,8 +15,9 @@ body {
   margin: 0;
   min-height: 100vh;
   font-family: var(--font-sans);
-  background: radial-gradient(circle at 20% 0%, #f5f7ef 0%, #eef2e8 35%, #e6ecdf 100%);
-  color: #1f2937;
+  background-color: var(--color-page);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {

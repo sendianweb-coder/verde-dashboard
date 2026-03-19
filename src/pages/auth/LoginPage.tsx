@@ -42,39 +42,39 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center p-4">
-      <div className="w-full max-w-md rounded-2xl border border-emerald-100 bg-white/90 p-6 shadow-lg backdrop-blur">
-        <p className="text-sm uppercase tracking-[0.16em] text-emerald-700">Internal Access</p>
-        <h1 className="mt-2 font-[var(--font-heading)] text-3xl text-slate-900">{APP_NAME}</h1>
-        <p className="mt-1 text-sm text-slate-600">Sign in with your company account</p>
+    <div className="flex min-h-screen items-center justify-center bg-page p-4">
+      <div className="w-full max-w-md rounded-2xl border border-border bg-surface-raised p-6 shadow-lg">
+        <p className="text-sm uppercase tracking-[0.16em] text-brand-700">Internal Access</p>
+        <h1 className="mt-2 font-heading text-3xl font-bold text-text-primary">{APP_NAME}</h1>
+        <p className="mt-1 text-sm text-text-secondary">Sign in with your company account</p>
 
         <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="email">
+            <label className="mb-1 block text-sm font-medium text-text-primary" htmlFor="email">
               Email
             </label>
             <input
               id="email"
               type="email"
               autoComplete="email"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none ring-emerald-500 transition focus:ring-2"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600"
               {...register('email')}
             />
-            {errors.email ? <p className="mt-1 text-xs text-rose-600">{errors.email.message}</p> : null}
+            {errors.email ? <p className="mt-1 text-xs text-error">{errors.email.message}</p> : null}
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="password">
+            <label className="mb-1 block text-sm font-medium text-text-primary" htmlFor="password">
               Password
             </label>
             <input
               id="password"
               type="password"
               autoComplete="current-password"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm outline-none ring-emerald-500 transition focus:ring-2"
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600"
               {...register('password')}
             />
-            {errors.password ? <p className="mt-1 text-xs text-rose-600">{errors.password.message}</p> : null}
+            {errors.password ? <p className="mt-1 text-xs text-error">{errors.password.message}</p> : null}
           </div>
 
           <Button type="submit" className="w-full" disabled={isSubmitting}>

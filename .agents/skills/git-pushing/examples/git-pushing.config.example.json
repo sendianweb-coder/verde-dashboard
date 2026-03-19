@@ -1,0 +1,35 @@
+{
+  "_comment": "Place this file as .git-pushing.json in your project root to customize behavior",
+  
+  "build": {
+    "enabled": true,
+    "command": null,
+    "pre_check": null,
+    "timeout": 300
+  },
+  
+  "test": {
+    "enabled": false,
+    "command": null,
+    "timeout": 300
+  },
+  
+  "commit": {
+    "type": null,
+    "scope": null,
+    "auto_detect_type": true,
+    "auto_detect_scope": true,
+    "claude_footer": true
+  },
+  
+  "push": {
+    "auto_set_upstream": true,
+    "confirm_on_protected": true,
+    "protected_branches": ["main", "master", "develop"]
+  },
+  
+  "monorepo": {
+    "enabled": false,
+    "workspaces": []
+  }
+}

@@ -9,26 +9,43 @@ export function Sidebar() {
   const navItems = role ? NAV_ITEMS[role] : []
 
   return (
-    <aside className="w-full border-r border-emerald-100 bg-white/70 p-4 lg:w-64">
-      <nav className="space-y-1">
+    <aside className="flex h-full w-full flex-col border-r border-sidebar-border bg-sidebar-bg p-4 lg:w-64">
+      <nav className="flex flex-col gap-0.5 px-3 py-2">
         {navItems.map((item) => {
-          const Icon = item.icon
-
           return (
             <NavLink
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
                 cn(
-                  'flex items-center gap-3 rounded-md px-3 py-2 text-sm transition',
+                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-fast',
                   isActive
-                    ? 'bg-emerald-100 text-emerald-900'
-                    : 'text-slate-600 hover:bg-emerald-50 hover:text-emerald-900',
+                    ? 'text-nav-active-icon'
+                    : 'text-nav-default-text hover:bg-surface hover:text-text-primary',
                 )
               }
             >
-              <Icon className="h-4 w-4" />
-              {item.label}
+              {({ isActive }) => {
+                const NavIcon = item.icon
+                return (
+                  <>
+                    <NavIcon
+                      className={cn(
+                        'h-4 w-4 transition-colors duration-fast',
+                        isActive ? 'text-nav-active-icon' : 'text-nav-default-icon',
+                      )}
+                    />
+                    <span
+                      className={cn(
+                        'transition-colors duration-fast',
+                        isActive ? 'text-nav-active-text' : 'text-nav-default-text',
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  </>
+                )
+              }}
             </NavLink>
           )
         })}

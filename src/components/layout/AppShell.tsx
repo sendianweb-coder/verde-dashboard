@@ -11,11 +11,11 @@ export function AppShell() {
   useSSE(role === 'ADMIN' || role === 'STORE_KEEPER')
 
   return (
-    <div className="min-h-screen lg:flex">
+    <div className="min-h-screen bg-page lg:flex">
       <Sidebar />
       <div className="flex min-h-screen flex-1 flex-col">
         <Topbar />
-        <main className="flex-1 p-4 lg:p-6">
+        <main className="flex-1 bg-page p-4 lg:p-6">
           <Outlet />
         </main>
       </div>
