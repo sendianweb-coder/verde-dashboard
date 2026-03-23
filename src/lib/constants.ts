@@ -47,14 +47,14 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
 }
 
 export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  PENDING: { bg: 'bg-badge-pending-bg', text: 'text-badge-pending-text' },
-  APPROVED: { bg: 'bg-badge-approved-bg', text: 'text-badge-approved-text' },
-  REJECTED: { bg: 'bg-badge-rejected-bg', text: 'text-badge-rejected-text' },
-  COMPLETED: { bg: 'bg-badge-completed-bg', text: 'text-badge-completed-text' },
-  PICKED_UP: { bg: 'bg-badge-picked-up-bg', text: 'text-badge-picked-up-text' },
-  PROCESSING: { bg: 'bg-badge-processing-bg', text: 'text-badge-processing-text' },
-  SHIPPED: { bg: 'bg-badge-shipped-bg', text: 'text-badge-shipped-text' },
-  CANCELLED: { bg: 'bg-badge-cancelled-bg', text: 'text-badge-cancelled-text' },
+  PENDING: { bg: 'bg-pending-bg', text: 'text-pending-text' },
+  APPROVED: { bg: 'bg-approved-bg', text: 'text-approved-text' },
+  REJECTED: { bg: 'bg-rejected-bg', text: 'text-rejected-text' },
+  COMPLETED: { bg: 'bg-completed-bg', text: 'text-completed-text' },
+  PICKED_UP: { bg: 'bg-picked-up-bg', text: 'text-picked-up-text' },
+  PROCESSING: { bg: 'bg-processing-bg', text: 'text-processing-text' },
+  SHIPPED: { bg: 'bg-shipped-bg', text: 'text-shipped-text' },
+  CANCELLED: { bg: 'bg-cancelled-bg', text: 'text-cancelled-text' },
 }
 
 export const EVENT_ICON = {

@@ -11,8 +11,11 @@ import { Topbar } from './Topbar'
 export function AppShell() {
   const role = useAuthStore((state) => state.user?.role)
   const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const sseEnabled = import.meta.env.VITE_ENABLE_SSE === 'true'
 
-  useSSE(role === 'ADMIN' || role === 'STORE_KEEPER')
+  // SSE is intentionally paused for now due to backend CORS/network constraints.
+  // Re-enable by setting VITE_ENABLE_SSE=true after backend event stream is stable.
+  useSSE(sseEnabled && (role === 'ADMIN' || role === 'STORE_KEEPER'))
 
   return (
     <div className="min-h-screen bg-page lg:flex">

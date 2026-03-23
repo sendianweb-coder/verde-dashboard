@@ -5,9 +5,9 @@ interface EmptyStateProps {
 
 export function EmptyState({ title, description }: EmptyStateProps) {
   return (
-    <div className="rounded-xl border border-dashed border-border bg-surface-raised p-8 text-center">
-      <h3 className="font-heading text-xl font-semibold text-text-primary">{title}</h3>
-      <p className="mt-2 text-sm text-text-secondary">{description}</p>
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <h3 className="mb-2 text-lg font-semibold text-text-primary">{title}</h3>
+      <p className="max-w-sm text-sm text-text-secondary">{description}</p>
     </div>
   )
 }

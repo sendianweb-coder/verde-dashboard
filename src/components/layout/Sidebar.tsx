@@ -17,11 +17,11 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
   return (
     <aside
       className={cn(
-        'flex h-full flex-col border-sidebar-border bg-sidebar-bg',
-        mobile ? 'w-full' : 'hidden w-64 border-r lg:flex',
+        'flex flex-col border-sidebar-border bg-sidebar-bg',
+        mobile ? 'h-full w-full' : 'sticky top-0 hidden h-screen w-64 shrink-0 border-r lg:flex',
       )}
     >
-      <div className="flex items-center gap-2 border-b border-border px-6 py-5">
+      <div className="flex h-15 shrink-0 items-center gap-2 border-b border-border px-6">
         <span className="h-2.5 w-2.5 rounded-full bg-brand-600" aria-hidden />
         <p className="text-sm font-semibold tracking-wide text-text-primary">Verde Support</p>
       </div>
@@ -71,9 +71,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
       </nav>
 
       <div className="mt-auto border-t border-border px-4 py-4">
-        <p className="text-xs uppercase tracking-wider text-text-muted">Signed in</p>
-        <p className="mt-1 truncate text-sm font-medium text-text-primary">{user?.name ?? 'Staff'}</p>
-        <p className="text-xs text-text-secondary">{user?.role ?? 'GUEST'}</p>
+        <p className="truncate text-body-sm font-medium text-text-secondary">{user?.name ?? 'Staff'}</p>
       </div>
     </aside>
   )

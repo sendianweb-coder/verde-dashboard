@@ -1,101 +1,155 @@
-# Verde Frontend — Agent Guidelines
+# Verde Frontend - Agent Playbook
+For coding agents in this repository. Keep this file minimal, practical, and current.
 
-## Code Context: MCP-First
+## Philosophy (Boris-style CLAUDE.md)
+- Treat this as living institutional memory, not a long static prompt.
+- Add rules from real mistakes/review comments; avoid speculative rules.
+- For non-trivial tasks: plan -> execute -> verify.
+- If execution deviates from plan, stop and re-plan.
+- Prefer elegant fixes over hacks.
+- Prune outdated rules regularly, especially after model upgrades.
 
-**Always use MCP tools for code context before falling back to grep/glob.**
+## Repo Snapshot
+- Stack: React 19, TypeScript 5, Vite 8, Tailwind 4.
+- Server state: TanStack Query + Axios.
+- Client state: Zustand (`src/store`).
+- Routing: React Router + role gates (`src/routes`).
+- UI primitives: Radix + shadcn/ui.
+- Alias: `@/* -> src/*` in `tsconfig.app.json`.
 
-MCP tools provide structured graph-based code relationships (callers, callees, imports,
-class hierarchies) that are more accurate and context-aware than text search.
-
-### Priority Order
-
-1. **MCP tools** — `codegraphcontext_*` for code search, relationship analysis, and navigation
-2. **grep/glob** — only when MCP doesn't cover the query or MCP is unavailable
-3. **Task tool (explore agent)** — for broad exploration when neither MCP nor grep/glob suffices
-
-### When to Use MCP
-
-| Task | Use MCP Tool | Instead Of |
-|------|-------------|------------|
-| Find where a function is called | `codegraphcontext_analyze_code_relationships` (find_callers) | `grep "functionName"` |
-| Find what a function calls | `codegraphcontext_analyze_code_relationships` (find_callees) | Manual reading |
-| Search for code by name/content | `codegraphcontext_find_code` | `grep` / `glob` |
-| Understand class hierarchy | `codegraphcontext_analyze_code_relationships` (class_hierarchy) | Reading files |
-| Find dead/unused code | `codegraphcontext_find_dead_code` | Manual grep |
-| Check complexity | `codegraphcontext_calculate_cyclomatic_complexity` | Manual analysis |
-| Navigate imports | `codegraphcontext_analyze_code_relationships` (find_importers) | `grep "import X"` |
-
-### When to Fall Back to grep/glob
-
-- MCP graph doesn't include the file/module yet
-- Searching for string literals, comments, or non-code patterns
-- Quick file name lookups (`glob "*.test.tsx"`)
-- Regex-based content search across many files
-- MCP tools are unavailable or returning errors
-
-### Graph Indexing
-
-If MCP tools return empty results, the code may not be indexed yet:
+## Build / Lint / Test Commands
+Run from: `/Users/farsin/sendiangroup/Verde-app/frontend`
 
 ```bash
-# Index the current project
-codegraphcontext_add_code_to_graph path="."
+# install
+npm install
 
-# Or index a specific directory
-codegraphcontext_add_code_to_graph path="src/"
+# local dev
+npm run dev
+
+# lint
+npm run lint
+
+# production build (tsc -b + vite build)
+npm run build
+
+# preview production build
+npm run preview
 ```
 
-For actively developed code, use `codegraphcontext_watch_directory` to keep the graph in sync.
+## Test Commands (Current Reality + Single-Test Guidance)
+Current state in this repo:
+- No `test` script in `package.json`.
+- No Vitest/Jest/Playwright config file.
+- No `*.test.*` / `*.spec.*` files present.
 
-## Project Conventions
+Implication:
+- There is no runnable repository test command today.
+- Do not claim tests passed unless a runner is added.
 
-### shadcn/ui Components
-
-**Always use the shadcn CLI to generate shadcn/ui components. Never manually write or copy-paste component code.**
-
-When a new component is needed:
+When tests are added, use these patterns:
 
 ```bash
-# Always use CLI — keeps components up-to-date and consistent
+# single file via Vitest
+npx vitest run src/path/to/file.test.ts
+
+# preferred if package.json gets a test script
+npm run test -- src/path/to/file.test.ts
+```
+
+## Required Verification Before Handoff
+For any code change, run:
+
+```bash
+npm run lint && npm run build
+```
+
+Also verify:
+- Behavior matches request and role/route constraints.
+- No obvious regressions in touched flows.
+- No unused imports/symbols or type suppressions.
+
+## Code Context Workflow (MCP-first)
+Use MCP tools first for structural understanding.
+
+Priority:
+1. `codegraphcontext_*` tools.
+2. `grep` / `glob` when MCP is insufficient.
+3. Explore sub-agent for broad discovery.
+
+Use MCP for callers/callees, importers, symbol lookup, and dependency direction.
+If MCP results look unexpectedly empty, refresh/index the graph before fallback search.
+
+## shadcn/ui Rule (Strict)
+Use CLI only when adding a shadcn component:
+
+```bash
 npx shadcn@latest add <component-name>
-
-# Example: adding a label component
-npx shadcn@latest add label
 ```
 
-The `components.json` at the project root maps aliases to `src/` so all components land in `src/components/ui/`.
+Never hand-copy shadcn source into `src/components/ui`.
 
-### Why This Rule
+## Code Style Guidelines
+### Imports
+- Order: external -> blank line -> internal alias/local.
+- Prefer `@/` for internal imports under `src`.
+- Use `import type` for type-only imports.
+- Remove unused imports immediately.
 
-- shadcn components are designed to be owned — `npx shadcn@latest add` fetches the latest stable version
-- Manual rewrites drift from the source and miss updates
-- The project already has this configured correctly (`components.json` aliases map to `src/`)
+### Formatting
+- Follow existing ESLint-driven style.
+- Prefer small focused functions and early returns.
+- Keep hooks/components composable; avoid deeply nested JSX logic.
+- Extract helpers when render logic gets dense.
 
-## Commands
+### TypeScript
+- Preserve strict typing (`strict: true`); do not weaken config.
+- Avoid `any`; if unavoidable, isolate and document.
+- Reuse existing domain types in `src/types/*`.
+- Keep API request/response types near API modules.
+- Preserve backend nullability in frontend types.
 
-### Development
+### Naming
+- Components: `PascalCase`.
+- Hooks: `useXxx`.
+- Stores: `useXxxStore`; actions are verbs (`setUser`, `logout`).
+- API modules: `<domain>.api.ts`; functions are verb-led.
+- Query keys: centralized per domain hook module.
+- Constants: `UPPER_SNAKE_CASE`.
 
-```bash
-npm run dev        # Start dev server
-npm run build      # Production build
-npm run lint       # Run ESLint
-npm run typecheck  # Run TypeScript type checking
-```
+### React / Query Patterns
+- Prefer function components + named exports.
+- Keep side effects in hooks (not scattered in pages).
+- Use TanStack Query for server state; avoid duplicating it in Zustand.
+- Invalidate relevant queries after successful mutations.
+- Keep query keys stable and parameterized.
 
-### Verification
+### Error Handling
+- Let API/helper layers throw; avoid swallowing errors.
+- Centralize common handling (interceptors, boundaries).
+- Preserve current auth behavior: 401 -> logout + `/login` redirect.
+- Expose user-facing error feedback where needed.
+- No silent failures or empty `catch` blocks.
 
-After any code change, run:
+### Routing / Roles / State
+- Respect role boundaries in `src/routes/index.tsx`.
+- New protected routes must be wrapped with correct `ProtectedRoute` roles.
+- Keep fallback navigation deterministic (`Navigate`).
+- Keep auth/session concerns in Zustand store modules.
+- Persist only what is needed with `zustand/persist`.
 
-```bash
-npm run lint && npm run typecheck
-```
+## Git and PR Hygiene
+- Commit at logical checkpoints; avoid unrelated change mixing.
+- Do not rewrite history unless explicitly requested.
+- Do not push directly to `main` unless explicitly instructed.
+- In PR notes, explain why, not only what.
 
-## Git Workflow
 
-Use the global `git-pushing` skill for all commits and pushes:
+## Self-Improvement Loop (Required)
+When a mistake is found:
+1. State root cause in one sentence.
+2. Add/refine one concise rule that prevents recurrence.
+3. Remove stale/duplicate rules in the same edit.
 
-```bash
-bash ~/.opencode/skills/git-pushing/scripts/smart_commit.sh
-```
-
-See `~/.opencode/skills/git-pushing/SKILL.md` for flags and configuration.
+Final quality gate:
+- "Would a staff engineer approve this change and verification evidence?"

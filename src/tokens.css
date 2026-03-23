@@ -99,5 +99,11 @@
     --badge-picked-up-text: #c4b5fd;
     --badge-completed-bg: #052e16;
     --badge-completed-text: #86efac;
+    --badge-processing-bg: #1e3a5f;
+    --badge-processing-text: #93c5fd;
+    --badge-shipped-bg: #1e1b4b;
+    --badge-shipped-text: #a5b4fc;
+    --badge-cancelled-bg: #450a0a;
+    --badge-cancelled-text: #fca5a5;
   }
 }

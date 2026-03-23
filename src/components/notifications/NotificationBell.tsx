@@ -17,7 +17,7 @@ export function NotificationBell() {
         >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 ? (
-            <span className="absolute -right-0.5 -top-0.5 rounded-full bg-error px-1.5 py-0.5 text-[10px] font-semibold text-white">
+            <span className="absolute -right-0.5 -top-0.5 rounded-full bg-error px-1.5 py-0.5 text-[10px] font-semibold text-text-inverse">
               {unreadCount}
             </span>
           ) : null}

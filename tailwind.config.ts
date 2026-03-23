@@ -10,6 +10,17 @@ export default {
         heading: ['Space Grotesk', 'Segoe UI', 'sans-serif'],
         mono: ['JetBrains Mono', 'ui-monospace', 'monospace'],
       },
+      fontSize: {
+        h1: ['1.875rem', { lineHeight: '1.2', fontWeight: '700' }],
+        h2: ['1.5rem', { lineHeight: '1.3', fontWeight: '600' }],
+        h3: ['1.25rem', { lineHeight: '1.4', fontWeight: '600' }],
+        h4: ['1.125rem', { lineHeight: '1.4', fontWeight: '600' }],
+        'body-lg': ['1rem', { lineHeight: '1.5', fontWeight: '400' }],
+        body: ['0.875rem', { lineHeight: '1.5', fontWeight: '400' }],
+        'body-sm': ['0.8125rem', { lineHeight: '1.5', fontWeight: '400' }],
+        caption: ['0.75rem', { lineHeight: '1.5', fontWeight: '400' }],
+        mono: ['0.875rem', { lineHeight: '1.5', fontWeight: '400' }],
+      },
       colors: {
         border: {
           DEFAULT: 'var(--color-border)',
@@ -54,44 +65,26 @@ export default {
             DEFAULT: 'var(--color-stat-icon)',
           },
         },
-        badge: {
-          pending: {
-            bg: 'var(--badge-pending-bg)',
-            text: 'var(--badge-pending-text)',
-          },
-          approved: {
-            bg: 'var(--badge-approved-bg)',
-            text: 'var(--badge-approved-text)',
-          },
-          rejected: {
-            bg: 'var(--badge-rejected-bg)',
-            text: 'var(--badge-rejected-text)',
-          },
-          'picked-up': {
-            bg: 'var(--badge-picked-up-bg)',
-            text: 'var(--badge-picked-up-text)',
-          },
-          completed: {
-            bg: 'var(--badge-completed-bg)',
-            text: 'var(--badge-completed-text)',
-          },
-          processing: {
-            bg: 'var(--badge-processing-bg)',
-            text: 'var(--badge-processing-text)',
-          },
-          shipped: {
-            bg: 'var(--badge-shipped-bg)',
-            text: 'var(--badge-shipped-text)',
-          },
-          cancelled: {
-            bg: 'var(--badge-cancelled-bg)',
-            text: 'var(--badge-cancelled-text)',
-          },
-        },
         success: 'var(--color-success)',
         warning: 'var(--color-warning)',
         error: 'var(--color-error)',
         info: 'var(--color-info)',
+        'pending-bg': 'var(--badge-pending-bg)',
+        'pending-text': 'var(--badge-pending-text)',
+        'approved-bg': 'var(--badge-approved-bg)',
+        'approved-text': 'var(--badge-approved-text)',
+        'rejected-bg': 'var(--badge-rejected-bg)',
+        'rejected-text': 'var(--badge-rejected-text)',
+        'picked-up-bg': 'var(--badge-picked-up-bg)',
+        'picked-up-text': 'var(--badge-picked-up-text)',
+        'completed-bg': 'var(--badge-completed-bg)',
+        'completed-text': 'var(--badge-completed-text)',
+        'processing-bg': 'var(--badge-processing-bg)',
+        'processing-text': 'var(--badge-processing-text)',
+        'shipped-bg': 'var(--badge-shipped-bg)',
+        'shipped-text': 'var(--badge-shipped-text)',
+        'cancelled-bg': 'var(--badge-cancelled-bg)',
+        'cancelled-text': 'var(--badge-cancelled-text)',
       },
       borderRadius: {
         sm: 'var(--radius-sm)',
