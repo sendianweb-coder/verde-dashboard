@@ -7,13 +7,23 @@ import type {
   RequestStatusActionPayload,
 } from '@/types/request'
 
-export async function getRequests(): Promise<InternalRequest[]> {
-  const { data } = await apiClient.get<ApiSuccessResponse<InternalRequest[]>>('/requests')
+export interface GetRequestsParams {
+  status?: InternalRequest['status']
+  projectId?: string
+  requesterId?: string
+  from?: string
+  to?: string
+  page?: number
+  limit?: number
+}
+
+export async function getRequests(params?: GetRequestsParams): Promise<InternalRequest[]> {
+  const { data } = await apiClient.get<ApiSuccessResponse<InternalRequest[]>>('/requests', { params })
   return data.data
 }
 
-export async function getMyRequests(): Promise<InternalRequest[]> {
-  const { data } = await apiClient.get<ApiSuccessResponse<InternalRequest[]>>('/requests/mine')
+export async function getMyRequests(params?: Pick<GetRequestsParams, 'status' | 'page' | 'limit'>): Promise<InternalRequest[]> {
+  const { data } = await apiClient.get<ApiSuccessResponse<InternalRequest[]>>('/requests/mine', { params })
   return data.data
 }
 
@@ -49,5 +59,10 @@ export async function completeRequest(id: string, payload: RequestStatusActionPa
 
 export async function getRequestHistory(id: string): Promise<ApprovalEvent[]> {
   const { data } = await apiClient.get<ApiSuccessResponse<ApprovalEvent[]>>(`/requests/${id}/history`)
+  return data.data
+}
+
+export async function cancelRequest(id: string, payload?: RequestStatusActionPayload): Promise<InternalRequest> {
+  const { data } = await apiClient.post<ApiSuccessResponse<InternalRequest>>(`/requests/${id}/cancel`, payload)
   return data.data
 }

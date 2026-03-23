@@ -16,3 +16,8 @@ export async function updateProject(id: string, payload: UpdateProjectPayload): 
   const { data } = await apiClient.patch<ApiSuccessResponse<Project>>(`/projects/${id}`, payload)
   return data.data
 }
+
+export async function deactivateProject(id: string): Promise<Project> {
+  const { data } = await apiClient.patch<ApiSuccessResponse<Project>>(`/projects/${id}/deactivate`)
+  return data.data
+}

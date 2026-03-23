@@ -12,7 +12,8 @@ export function useSSE(enabled: boolean) {
       return
     }
 
-    const source = new EventSource('/api/v1/events', { withCredentials: true })
+    const base = (import.meta.env.VITE_API_BASE_URL ?? '/api/v1').replace(/\/$/, '')
+    const source = new EventSource(`${base}/events`, { withCredentials: true })
 
     source.addEventListener('new-request', (event) => {
       pushNotification({

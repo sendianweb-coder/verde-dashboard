@@ -2,8 +2,16 @@ import { apiClient } from '@/api/client'
 import type { ApiSuccessResponse } from '@/types/common'
 import type { CreateUserPayload, UpdateUserPayload, User, UserActivityProfile } from '@/types/user'
 
-export async function getUsers(): Promise<User[]> {
-  const { data } = await apiClient.get<ApiSuccessResponse<User[]>>('/users')
+export interface GetUsersParams {
+  role?: User['role']
+  isActive?: boolean
+  search?: string
+  page?: number
+  limit?: number
+}
+
+export async function getUsers(params?: GetUsersParams): Promise<User[]> {
+  const { data } = await apiClient.get<ApiSuccessResponse<User[]>>('/users', { params })
   return data.data
 }
 
@@ -26,4 +34,9 @@ export async function updateUser(id: string, payload: UpdateUserPayload): Promis
 
 export async function deleteUser(id: string): Promise<void> {
   await apiClient.delete(`/users/${id}`)
+}
+
+export async function deactivateUser(id: string): Promise<User> {
+  const { data } = await apiClient.patch<ApiSuccessResponse<User>>(`/users/${id}/deactivate`)
+  return data.data
 }

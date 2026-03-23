@@ -7,6 +7,7 @@ interface NotificationStoreState {
   unreadCount: number
   pushNotification: (notification: AppNotification) => void
   markAllAsRead: () => void
+  clearAll: () => void
 }
 
 export const useNotificationStore = create<NotificationStoreState>((set) => ({
@@ -25,4 +26,9 @@ export const useNotificationStore = create<NotificationStoreState>((set) => ({
       })),
       unreadCount: 0,
     })),
+  clearAll: () =>
+    set({
+      notifications: [],
+      unreadCount: 0,
+    }),
 }))

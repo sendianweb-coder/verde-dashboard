@@ -2,7 +2,15 @@ import { apiClient } from '@/api/client'
 import type { ApiSuccessResponse } from '@/types/common'
 import type { CreateProductPayload, Product, StockAdjustmentPayload, StockMovement, UpdateProductPayload } from '@/types/product'
 
-export async function getProducts(params?: { categoryId?: string }): Promise<Product[]> {
+export interface GetProductsParams {
+  categoryId?: string
+  search?: string
+  isActive?: boolean
+  page?: number
+  limit?: number
+}
+
+export async function getProducts(params?: GetProductsParams): Promise<Product[]> {
   const { data } = await apiClient.get<ApiSuccessResponse<Product[]>>('/products', { params })
   return data.data
 }
@@ -34,5 +42,10 @@ export async function adjustStock(id: string, payload: StockAdjustmentPayload): 
 
 export async function getStockMovements(id: string): Promise<StockMovement[]> {
   const { data } = await apiClient.get<ApiSuccessResponse<StockMovement[]>>(`/products/${id}/movements`)
+  return data.data
+}
+
+export async function deactivateProduct(id: string): Promise<Product> {
+  const { data } = await apiClient.patch<ApiSuccessResponse<Product>>(`/products/${id}/deactivate`)
   return data.data
 }

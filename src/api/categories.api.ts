@@ -21,3 +21,8 @@ export async function deleteCategory(id: string): Promise<Category> {
   const { data } = await apiClient.delete<ApiSuccessResponse<Category>>(`/categories/${id}`)
   return data.data
 }
+
+export async function deactivateCategory(id: string): Promise<Category> {
+  const { data } = await apiClient.patch<ApiSuccessResponse<Category>>(`/categories/${id}/deactivate`)
+  return data.data
+}
