@@ -10,6 +10,7 @@ import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAdjustStock, useProduct, useProductMovements } from '@/hooks/useProducts'
+import { getErrorMessage } from '@/lib/errors'
 import type { StockMovement } from '@/types/product'
 
 export function AdminProductDetailPage() {
@@ -40,23 +41,31 @@ export function AdminProductDetailPage() {
     return <PageSkeleton />
   }
 
+  if (productQuery.isError) {
+    return <EmptyState title="Unable to load product" description={getErrorMessage(productQuery.error, { context: 'load' })} />
+  }
+
   const product = productQuery.data
   if (!product) {
     return <EmptyState title="Product not found" description="The selected product could not be loaded." />
   }
 
   const handleAdjustStock = async () => {
-    await adjustStockMutation.mutateAsync({
-      id: product.id,
-      payload: {
-        delta,
-        note,
-      },
-    })
+    try {
+      await adjustStockMutation.mutateAsync({
+        id: product.id,
+        payload: {
+          delta,
+          note,
+        },
+      })
 
-    toast.success('Stock adjusted successfully')
-    setDelta(0)
-    setNote('')
+      toast.success('Stock adjusted successfully')
+      setDelta(0)
+      setNote('')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'stock' }))
+    }
   }
 
   return (
@@ -103,6 +112,8 @@ export function AdminProductDetailPage() {
           data={movementsQuery.data ?? []}
           columns={movementColumns}
           isLoading={movementsQuery.isLoading}
+          hasError={movementsQuery.isError}
+          errorDescription={getErrorMessage(movementsQuery.error, { context: 'load' })}
           emptyTitle="No movements yet"
           emptyDescription="Stock movement entries will appear after product transactions."
         />

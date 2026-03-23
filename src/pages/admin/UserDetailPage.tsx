@@ -8,6 +8,7 @@ import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useUpdateUser, useUser } from '@/hooks/useUsers'
+import { getErrorMessage } from '@/lib/errors'
 import type { UserRole } from '@/types/auth'
 
 const roleOptions: UserRole[] = ['ADMIN', 'STORE_KEEPER', 'EMPLOYEE']
@@ -26,6 +27,10 @@ export function AdminUserDetailPage() {
     return <PageSkeleton />
   }
 
+  if (userQuery.isError) {
+    return <EmptyState title="Unable to load user" description={getErrorMessage(userQuery.error, { context: 'load' })} />
+  }
+
   const userProfile = userQuery.data?.profile
   if (!userProfile) {
     return <EmptyState title="User not found" description="The selected user could not be loaded." />
@@ -35,15 +40,19 @@ export function AdminUserDetailPage() {
   const initializedRole = role || userProfile.role
 
   const handleSave = async () => {
-    await updateUserMutation.mutateAsync({
-      id: userProfile.id,
-      payload: {
-        name: initializedName,
-        role: initializedRole,
-        isActive,
-      },
-    })
-    toast.success('User updated')
+    try {
+      await updateUserMutation.mutateAsync({
+        id: userProfile.id,
+        payload: {
+          name: initializedName,
+          role: initializedRole,
+          isActive,
+        },
+      })
+      toast.success('User updated')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
+    }
   }
 
   return (

@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -9,6 +10,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { useProducts } from '@/hooks/useProducts'
 import { useCancelRequest, useRequest, useRequestHistory } from '@/hooks/useRequests'
+import { getErrorMessage } from '@/lib/errors'
 
 export function EmployeeRequestDetailPage() {
   const navigate = useNavigate()
@@ -23,6 +25,10 @@ export function EmployeeRequestDetailPage() {
     return <PageSkeleton />
   }
 
+  if (requestQuery.isError || requestHistoryQuery.isError || productsQuery.isError) {
+    return <EmptyState title="Unable to load request" description={getErrorMessage(requestQuery.error ?? requestHistoryQuery.error ?? productsQuery.error, { context: 'load' })} />
+  }
+
   const request = requestQuery.data
 
   if (!request) {
@@ -32,9 +38,14 @@ export function EmployeeRequestDetailPage() {
   const productNameById = new Map((productsQuery.data ?? []).map((product) => [product.id, product.name]))
 
   const handleCancelRequest = async () => {
-    await cancelRequestMutation.mutateAsync({
-      id: request.id,
-    })
+    try {
+      await cancelRequestMutation.mutateAsync({
+        id: request.id,
+      })
+      toast.success('Request cancelled')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'cancel' }))
+    }
   }
 
   return (

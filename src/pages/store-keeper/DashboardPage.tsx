@@ -5,6 +5,7 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { StockIndicator } from '@/components/shared/StockIndicator'
 import { useProducts } from '@/hooks/useProducts'
 import { useRequests } from '@/hooks/useRequests'
+import { getErrorMessage } from '@/lib/errors'
 
 export function StoreKeeperDashboardPage() {
   const requestsQuery = useRequests()
@@ -12,6 +13,10 @@ export function StoreKeeperDashboardPage() {
 
   if (requestsQuery.isLoading || productsQuery.isLoading) {
     return <PageSkeleton />
+  }
+
+  if (requestsQuery.isError || productsQuery.isError) {
+    return <EmptyState title="Unable to load dashboard" description={getErrorMessage(requestsQuery.error ?? productsQuery.error, { context: 'load' })} />
   }
 
   const requests = requestsQuery.data ?? []

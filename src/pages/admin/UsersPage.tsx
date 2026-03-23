@@ -8,6 +8,7 @@ import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { Button } from '@/components/ui/button'
 import { useDeactivateUser, useUsers } from '@/hooks/useUsers'
+import { getErrorMessage } from '@/lib/errors'
 import type { User } from '@/types/user'
 
 export function AdminUsersPage() {
@@ -49,8 +50,12 @@ export function AdminUsersPage() {
               variant="destructive"
               isLoading={deactivateUserMutation.isPending}
               onConfirm={async () => {
-                await deactivateUserMutation.mutateAsync(row.original.id)
-                toast.success('User deactivated')
+                try {
+                  await deactivateUserMutation.mutateAsync(row.original.id)
+                  toast.success('User deactivated')
+                } catch (error) {
+                  toast.error(getErrorMessage(error, { context: 'update' }))
+                }
               }}
               trigger={
                 <Button type="button" variant="destructive" size="sm" disabled={!row.original.isActive}>
@@ -72,6 +77,9 @@ export function AdminUsersPage() {
         data={usersQuery.data ?? []}
         columns={columns}
         isLoading={usersQuery.isLoading}
+        hasError={usersQuery.isError}
+        errorTitle="Unable to load users"
+        errorDescription={getErrorMessage(usersQuery.error, { context: 'load' })}
         emptyTitle="No users found"
         emptyDescription="Users created by admin will appear here."
       />

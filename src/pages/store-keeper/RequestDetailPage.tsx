@@ -19,6 +19,7 @@ import {
   useRequest,
   useRequestHistory,
 } from '@/hooks/useRequests'
+import { getErrorMessage } from '@/lib/errors'
 
 export function StoreKeeperRequestDetailPage() {
   const navigate = useNavigate()
@@ -36,6 +37,10 @@ export function StoreKeeperRequestDetailPage() {
 
   if (requestQuery.isLoading || requestHistoryQuery.isLoading || productsQuery.isLoading) {
     return <PageSkeleton />
+  }
+
+  if (requestQuery.isError || requestHistoryQuery.isError || productsQuery.isError) {
+    return <EmptyState title="Unable to load request" description={getErrorMessage(requestQuery.error ?? requestHistoryQuery.error ?? productsQuery.error, { context: 'load' })} />
   }
 
   const request = requestQuery.data
@@ -67,35 +72,51 @@ export function StoreKeeperRequestDetailPage() {
     .filter((conflict): conflict is { productName: string; requested: number; available: number } => conflict !== null)
 
   const onApprove = async () => {
-    await approveRequestMutation.mutateAsync({
-      id: request.id,
-      payload: { comment },
-    })
-    toast.success('Request approved')
+    try {
+      await approveRequestMutation.mutateAsync({
+        id: request.id,
+        payload: { comment },
+      })
+      toast.success('Request approved')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'approve' }))
+    }
   }
 
   const onReject = async () => {
-    await rejectRequestMutation.mutateAsync({
-      id: request.id,
-      payload: { comment },
-    })
-    toast.success('Request rejected')
+    try {
+      await rejectRequestMutation.mutateAsync({
+        id: request.id,
+        payload: { comment },
+      })
+      toast.success('Request rejected')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'reject' }))
+    }
   }
 
   const onPickup = async () => {
-    await pickupRequestMutation.mutateAsync({
-      id: request.id,
-      payload: { comment },
-    })
-    toast.success('Pickup confirmed')
+    try {
+      await pickupRequestMutation.mutateAsync({
+        id: request.id,
+        payload: { comment },
+      })
+      toast.success('Pickup confirmed')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
+    }
   }
 
   const onComplete = async () => {
-    await completeRequestMutation.mutateAsync({
-      id: request.id,
-      payload: { comment },
-    })
-    toast.success('Request completed')
+    try {
+      await completeRequestMutation.mutateAsync({
+        id: request.id,
+        payload: { comment },
+      })
+      toast.success('Request completed')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
+    }
   }
 
   return (

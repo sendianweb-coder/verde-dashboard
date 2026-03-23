@@ -1,4 +1,5 @@
 import { Menu, Search, User } from 'lucide-react'
+import { toast } from 'sonner'
 
 import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { Button } from '@/components/ui/button'
@@ -11,6 +12,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { useLogout } from '@/hooks/useAuth'
+import { getErrorMessage } from '@/lib/errors'
 import { useAuthStore } from '@/store/authStore'
 
 interface TopbarProps {
@@ -30,7 +32,11 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
       .toUpperCase() ?? 'VS'
 
   const handleSignOut = async () => {
-    await logoutMutation.mutateAsync()
+    try {
+      await logoutMutation.mutateAsync()
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'logout' }))
+    }
   }
 
   return (

@@ -4,12 +4,17 @@ import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { QuickRequestDialog } from '@/components/shared/QuickRequestDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { useMyRequests } from '@/hooks/useRequests'
+import { getErrorMessage } from '@/lib/errors'
 
 export function EmployeeDashboardPage() {
   const myRequestsQuery = useMyRequests()
 
   if (myRequestsQuery.isLoading) {
     return <PageSkeleton />
+  }
+
+  if (myRequestsQuery.isError) {
+    return <EmptyState title="Unable to load dashboard" description={getErrorMessage(myRequestsQuery.error, { context: 'load' })} />
   }
 
   const requests = myRequestsQuery.data ?? []

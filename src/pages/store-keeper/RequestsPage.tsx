@@ -7,6 +7,7 @@ import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { useRequests } from '@/hooks/useRequests'
+import { getErrorMessage } from '@/lib/errors'
 import type { InternalRequest, RequestStatus } from '@/types/request'
 
 const requestStatusFilters: Array<{ label: string; value: 'ALL' | RequestStatus }> = [
@@ -82,6 +83,9 @@ export function StoreKeeperRequestsPage() {
         data={requestsQuery.data ?? []}
         columns={columns}
         isLoading={requestsQuery.isLoading}
+        hasError={requestsQuery.isError}
+        errorTitle="Unable to load requests"
+        errorDescription={getErrorMessage(requestsQuery.error, { context: 'load' })}
         emptyTitle="No requests found"
         emptyDescription="Try another status filter or check back later."
         onRowClick={(row) => navigate(`/store-keeper/requests/${row.id}`)}

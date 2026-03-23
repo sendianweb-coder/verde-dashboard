@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
 
@@ -6,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useLogin } from '@/hooks/useAuth'
 import { APP_NAME } from '@/lib/constants'
+import { getErrorMessage } from '@/lib/errors'
 import { loginSchema, type LoginFormValues } from '@/lib/validators'
 import { roleRoutes } from '@/routes/roleRoutes'
 
@@ -13,6 +15,7 @@ export function LoginPage() {
   const navigate = useNavigate()
   const location = useLocation()
   const loginMutation = useLogin()
+  const [formError, setFormError] = useState<string | null>(null)
 
   const {
     register,
@@ -27,15 +30,20 @@ export function LoginPage() {
   })
 
   const onSubmit = async (values: LoginFormValues) => {
-    const response = await loginMutation.mutateAsync(values)
-    const user = response.user
+    setFormError(null)
 
-    const redirectPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
-    navigate(redirectPath ?? roleRoutes[user.role], { replace: true })
+    try {
+      const response = await loginMutation.mutateAsync(values)
+      const user = response.user
+
+      const redirectPath = (location.state as { from?: { pathname?: string } } | null)?.from?.pathname
+      navigate(redirectPath ?? roleRoutes[user.role], { replace: true })
+    } catch (error) {
+      setFormError(getErrorMessage(error, { context: 'login' }))
+    }
   }
 
   const isSubmitting = loginMutation.isPending
-  const serverError = loginMutation.error instanceof Error ? loginMutation.error.message : null
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-page p-4">
@@ -46,9 +54,9 @@ export function LoginPage() {
           <p className="mt-1 text-body-sm text-text-secondary">Sign in with your company account</p>
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)}>
-            {serverError ? (
+            {formError ? (
               <p className="rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-body-sm text-error" role="alert">
-                {serverError}
+                {formError}
               </p>
             ) : null}
 

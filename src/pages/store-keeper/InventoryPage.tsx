@@ -7,6 +7,7 @@ import { DataTable } from '@/components/shared/DataTable'
 import { StockIndicator } from '@/components/shared/StockIndicator'
 import { Button } from '@/components/ui/button'
 import { useAdjustStock, useProducts } from '@/hooks/useProducts'
+import { getErrorMessage } from '@/lib/errors'
 import type { Product } from '@/types/product'
 
 export function StoreKeeperInventoryPage() {
@@ -50,11 +51,15 @@ export function StoreKeeperInventoryPage() {
               size="sm"
               disabled={adjustStockMutation.isPending}
               onClick={async () => {
-                await adjustStockMutation.mutateAsync({
-                  id: row.original.id,
-                  payload: { delta: 1, note: 'Manual increment from inventory screen' },
-                })
-                toast.success('Stock increased')
+                try {
+                  await adjustStockMutation.mutateAsync({
+                    id: row.original.id,
+                    payload: { delta: 1, note: 'Manual increment from inventory screen' },
+                  })
+                  toast.success('Stock increased')
+                } catch (error) {
+                  toast.error(getErrorMessage(error, { context: 'stock' }))
+                }
               }}
             >
               +1
@@ -65,11 +70,15 @@ export function StoreKeeperInventoryPage() {
               size="sm"
               disabled={adjustStockMutation.isPending || row.original.availableQuantity < 1}
               onClick={async () => {
-                await adjustStockMutation.mutateAsync({
-                  id: row.original.id,
-                  payload: { delta: -1, note: 'Manual decrement from inventory screen' },
-                })
-                toast.success('Stock decreased')
+                try {
+                  await adjustStockMutation.mutateAsync({
+                    id: row.original.id,
+                    payload: { delta: -1, note: 'Manual decrement from inventory screen' },
+                  })
+                  toast.success('Stock decreased')
+                } catch (error) {
+                  toast.error(getErrorMessage(error, { context: 'stock' }))
+                }
               }}
             >
               -1
@@ -89,6 +98,9 @@ export function StoreKeeperInventoryPage() {
         data={productsQuery.data ?? []}
         columns={columns}
         isLoading={productsQuery.isLoading}
+        hasError={productsQuery.isError}
+        errorTitle="Unable to load inventory"
+        errorDescription={getErrorMessage(productsQuery.error, { context: 'load' })}
         emptyTitle="No products found"
         emptyDescription="Products will appear here once available in inventory."
       />

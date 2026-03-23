@@ -6,6 +6,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { useRequests } from '@/hooks/useRequests'
+import { getErrorMessage } from '@/lib/errors'
 import type { InternalRequest } from '@/types/request'
 
 export function AdminRequestsPage() {
@@ -54,6 +55,9 @@ export function AdminRequestsPage() {
         data={requestsQuery.data ?? []}
         columns={columns}
         isLoading={requestsQuery.isLoading}
+        hasError={requestsQuery.isError}
+        errorTitle="Unable to load requests"
+        errorDescription={getErrorMessage(requestsQuery.error, { context: 'load' })}
         emptyTitle="No requests found"
         emptyDescription="Requests will appear once users submit them."
         onRowClick={(row) => navigate(`/admin/requests?requestId=${row.id}`)}

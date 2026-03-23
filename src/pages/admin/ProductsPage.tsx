@@ -9,6 +9,7 @@ import { DataTable } from '@/components/shared/DataTable'
 import { StockIndicator } from '@/components/shared/StockIndicator'
 import { Button } from '@/components/ui/button'
 import { useDeactivateProduct, useProducts } from '@/hooks/useProducts'
+import { getErrorMessage } from '@/lib/errors'
 import type { Product } from '@/types/product'
 
 export function AdminProductsPage() {
@@ -59,8 +60,12 @@ export function AdminProductsPage() {
               variant="destructive"
               isLoading={deactivateProductMutation.isPending}
               onConfirm={async () => {
-                await deactivateProductMutation.mutateAsync(row.original.id)
-                toast.success('Product deactivated')
+                try {
+                  await deactivateProductMutation.mutateAsync(row.original.id)
+                  toast.success('Product deactivated')
+                } catch (error) {
+                  toast.error(getErrorMessage(error, { context: 'update' }))
+                }
               }}
               trigger={
                 <Button type="button" variant="destructive" size="sm" disabled={!row.original.isActive}>
@@ -83,6 +88,9 @@ export function AdminProductsPage() {
         data={productsQuery.data ?? []}
         columns={columns}
         isLoading={productsQuery.isLoading}
+        hasError={productsQuery.isError}
+        errorTitle="Unable to load products"
+        errorDescription={getErrorMessage(productsQuery.error, { context: 'load' })}
         emptyTitle="No products found"
         emptyDescription="Create products to manage them from this page."
       />

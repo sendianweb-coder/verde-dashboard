@@ -8,6 +8,7 @@ import { QuickRequestDialog } from '@/components/shared/QuickRequestDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { useMyRequests } from '@/hooks/useRequests'
+import { getErrorMessage } from '@/lib/errors'
 import type { InternalRequest, RequestStatus } from '@/types/request'
 
 const requestStatusFilters: Array<{ label: string; value: 'ALL' | RequestStatus }> = [
@@ -75,6 +76,9 @@ export function EmployeeRequestsPage() {
         data={requestsQuery.data ?? []}
         columns={columns}
         isLoading={requestsQuery.isLoading}
+        hasError={requestsQuery.isError}
+        errorTitle="Unable to load requests"
+        errorDescription={getErrorMessage(requestsQuery.error, { context: 'load' })}
         emptyTitle="No requests yet"
         emptyDescription="Create your first internal request to get started."
         onRowClick={(row) => navigate(`/employee/requests/${row.id}`)}

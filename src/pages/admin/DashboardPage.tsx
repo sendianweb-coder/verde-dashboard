@@ -7,6 +7,7 @@ import { useOrders } from '@/hooks/useOrders'
 import { useProducts } from '@/hooks/useProducts'
 import { useRequests } from '@/hooks/useRequests'
 import { useUsers } from '@/hooks/useUsers'
+import { getErrorMessage } from '@/lib/errors'
 
 export function AdminDashboardPage() {
   const usersQuery = useUsers()
@@ -17,6 +18,15 @@ export function AdminDashboardPage() {
 
   if (usersQuery.isLoading || productsQuery.isLoading || requestsQuery.isLoading || ordersQuery.isLoading || auditLogQuery.isLoading) {
     return <PageSkeleton />
+  }
+
+  if (usersQuery.isError || productsQuery.isError || requestsQuery.isError || ordersQuery.isError || auditLogQuery.isError) {
+    return (
+      <EmptyState
+        title="Unable to load dashboard"
+        description={getErrorMessage(usersQuery.error ?? productsQuery.error ?? requestsQuery.error ?? ordersQuery.error ?? auditLogQuery.error, { context: 'load' })}
+      />
+    )
   }
 
   const users = usersQuery.data ?? []

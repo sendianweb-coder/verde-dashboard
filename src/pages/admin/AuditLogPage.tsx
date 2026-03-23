@@ -5,6 +5,7 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { DataTable } from '@/components/shared/DataTable'
 import { Button } from '@/components/ui/button'
 import { useAuditLog } from '@/hooks/useAuditLog'
+import { getErrorMessage } from '@/lib/errors'
 import type { AuditLogEntry } from '@/types/audit'
 
 export function AdminAuditLogPage() {
@@ -38,6 +39,9 @@ export function AdminAuditLogPage() {
         data={entries}
         columns={columns}
         isLoading={auditLogQuery.isLoading}
+        hasError={auditLogQuery.isError}
+        errorTitle="Unable to load audit log"
+        errorDescription={getErrorMessage(auditLogQuery.error, { context: 'load' })}
         emptyTitle="No audit entries"
         emptyDescription="Audit events will appear here as actions are performed."
       />

@@ -7,6 +7,7 @@ import { DataTable } from '@/components/shared/DataTable'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { useOrders, useUpdateOrderStatus } from '@/hooks/useOrders'
+import { getErrorMessage } from '@/lib/errors'
 import type { Order, OrderStatus } from '@/types/order'
 
 const statusTransitions: Array<{ label: string; value: OrderStatus }> = [
@@ -56,11 +57,15 @@ export function AdminOrdersPage() {
                 variant={row.original.status === statusOption.value ? 'default' : 'secondary'}
                 disabled={updateOrderStatusMutation.isPending}
                 onClick={async () => {
-                  await updateOrderStatusMutation.mutateAsync({
-                    id: row.original.id,
-                    payload: { status: statusOption.value },
-                  })
-                  toast.success(`Order updated to ${statusOption.label}`)
+                  try {
+                    await updateOrderStatusMutation.mutateAsync({
+                      id: row.original.id,
+                      payload: { status: statusOption.value },
+                    })
+                    toast.success(`Order updated to ${statusOption.label}`)
+                  } catch (error) {
+                    toast.error(getErrorMessage(error, { context: 'update' }))
+                  }
                 }}
               >
                 {statusOption.label}
@@ -80,6 +85,9 @@ export function AdminOrdersPage() {
         data={ordersQuery.data ?? []}
         columns={columns}
         isLoading={ordersQuery.isLoading}
+        hasError={ordersQuery.isError}
+        errorTitle="Unable to load orders"
+        errorDescription={getErrorMessage(ordersQuery.error, { context: 'load' })}
         emptyTitle="No orders found"
         emptyDescription="Orders will appear here once synced from commerce system."
       />

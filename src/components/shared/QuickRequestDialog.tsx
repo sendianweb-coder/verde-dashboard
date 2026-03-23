@@ -18,6 +18,7 @@ import { Input } from '@/components/ui/input'
 import { useProducts } from '@/hooks/useProducts'
 import { useProjects } from '@/hooks/useProjects'
 import { useCreateRequest } from '@/hooks/useRequests'
+import { getErrorMessage } from '@/lib/errors'
 import { createRequestSchema, type CreateRequestFormValues } from '@/lib/validators'
 
 export function QuickRequestDialog() {
@@ -60,22 +61,26 @@ export function QuickRequestDialog() {
   })
 
   const onSubmit = async (values: CreateRequestFormValues) => {
-    await createRequestMutation.mutateAsync({
-      projectId: values.projectId,
-      notes: values.notes,
-      items: values.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-      })),
-    })
+    try {
+      await createRequestMutation.mutateAsync({
+        projectId: values.projectId,
+        notes: values.notes,
+        items: values.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      })
 
-    toast.success('Request submitted successfully')
-    setOpen(false)
-    reset({
-      projectId: '',
-      notes: '',
-      items: [{ productId: '', quantity: 1, availableQuantity: 0 }],
-    })
+      toast.success('Request submitted successfully')
+      setOpen(false)
+      reset({
+        projectId: '',
+        notes: '',
+        items: [{ productId: '', quantity: 1, availableQuantity: 0 }],
+      })
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'create' }))
+    }
   }
 
   const isLoadingDependencies = projectsQuery.isLoading || productsQuery.isLoading
@@ -105,6 +110,10 @@ export function QuickRequestDialog() {
 
         {isLoadingDependencies ? (
           <p className="text-sm text-text-secondary">Loading projects and products...</p>
+        ) : projectsQuery.isError || productsQuery.isError ? (
+          <p className="rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-sm text-error" role="alert">
+            {getErrorMessage(projectsQuery.error ?? productsQuery.error, { context: 'load' })}
+          </p>
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
             <div className="grid gap-4 md:grid-cols-2">

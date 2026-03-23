@@ -21,6 +21,9 @@ interface DataTableProps<TData> {
   data: TData[]
   columns: Array<ColumnDef<TData>>
   isLoading?: boolean
+  hasError?: boolean
+  errorTitle?: string
+  errorDescription?: string
   emptyTitle?: string
   emptyDescription?: string
   onRowClick?: (row: TData) => void
@@ -30,6 +33,9 @@ export function DataTable<TData>({
   data,
   columns,
   isLoading = false,
+  hasError = false,
+  errorTitle = 'Unable to load records',
+  errorDescription = 'Please refresh the page and try again.',
   emptyTitle = 'No records found',
   emptyDescription = 'Try changing your filters or come back later.',
   onRowClick,
@@ -72,6 +78,10 @@ export function DataTable<TData>({
       {isLoading ? (
         <div className="rounded-xl border border-border bg-surface-raised p-6">
           <LoadingSpinner />
+        </div>
+      ) : hasError ? (
+        <div className="rounded-xl border border-border bg-surface-raised px-4 py-2">
+          <EmptyState title={errorTitle} description={errorDescription} />
         </div>
       ) : table.getRowModel().rows.length === 0 ? (
         <div className="rounded-xl border border-border bg-surface-raised px-4 py-2">

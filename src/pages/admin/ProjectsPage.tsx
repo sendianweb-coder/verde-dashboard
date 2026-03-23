@@ -7,6 +7,7 @@ import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { DataTable } from '@/components/shared/DataTable'
 import { Button } from '@/components/ui/button'
 import { useDeactivateProject, useProjects } from '@/hooks/useProjects'
+import { getErrorMessage } from '@/lib/errors'
 import type { Project } from '@/types/project'
 
 export function AdminProjectsPage() {
@@ -42,8 +43,12 @@ export function AdminProjectsPage() {
             variant="destructive"
             isLoading={deactivateProjectMutation.isPending}
             onConfirm={async () => {
-              await deactivateProjectMutation.mutateAsync(row.original.id)
-              toast.success('Project deactivated')
+              try {
+                await deactivateProjectMutation.mutateAsync(row.original.id)
+                toast.success('Project deactivated')
+              } catch (error) {
+                toast.error(getErrorMessage(error, { context: 'update' }))
+              }
             }}
             trigger={
               <Button type="button" size="sm" variant="destructive" disabled={!row.original.isActive}>
@@ -64,6 +69,9 @@ export function AdminProjectsPage() {
         data={projectsQuery.data ?? []}
         columns={columns}
         isLoading={projectsQuery.isLoading}
+        hasError={projectsQuery.isError}
+        errorTitle="Unable to load projects"
+        errorDescription={getErrorMessage(projectsQuery.error, { context: 'load' })}
         emptyTitle="No projects found"
         emptyDescription="Projects will appear here once created."
       />

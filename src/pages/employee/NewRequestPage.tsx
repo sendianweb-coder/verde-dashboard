@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input'
 import { useProducts } from '@/hooks/useProducts'
 import { useProjects } from '@/hooks/useProjects'
 import { useCreateRequest } from '@/hooks/useRequests'
+import { getErrorMessage } from '@/lib/errors'
 import { createRequestSchema, type CreateRequestFormValues } from '@/lib/validators'
 
 export function EmployeeNewRequestPage() {
@@ -56,18 +57,33 @@ export function EmployeeNewRequestPage() {
     return <PageSkeleton />
   }
 
-  const onSubmit = async (values: CreateRequestFormValues) => {
-    await createRequestMutation.mutateAsync({
-      projectId: values.projectId,
-      notes: values.notes,
-      items: values.items.map((item) => ({
-        productId: item.productId,
-        quantity: item.quantity,
-      })),
-    })
+  if (projectsQuery.isError || productsQuery.isError) {
+    return (
+      <section className="space-y-6">
+        <PageHeader title="New Request" subtitle="Select a project and add the products you need" />
+        <p className="rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-sm text-error" role="alert">
+          {getErrorMessage(projectsQuery.error ?? productsQuery.error, { context: 'load' })}
+        </p>
+      </section>
+    )
+  }
 
-    toast.success('Request submitted successfully')
-    navigate('/employee/requests')
+  const onSubmit = async (values: CreateRequestFormValues) => {
+    try {
+      await createRequestMutation.mutateAsync({
+        projectId: values.projectId,
+        notes: values.notes,
+        items: values.items.map((item) => ({
+          productId: item.productId,
+          quantity: item.quantity,
+        })),
+      })
+
+      toast.success('Request submitted successfully')
+      navigate('/employee/requests')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'create' }))
+    }
   }
 
   return (
