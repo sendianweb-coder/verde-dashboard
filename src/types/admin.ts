@@ -26,6 +26,10 @@ export interface AdminDashboardOverview {
     total: number
     byStatus: StatusTotals<OrderStatus>
   }
+  lowStockProducts: Array<{
+    name: string
+    currentAvailability: number
+  }>
 }
 
 export interface AdminRequestQueueParams {

@@ -3,39 +3,34 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { useAdminDashboardOverview } from '@/hooks/useAdmin'
+import { useAdminRequestQueue } from '@/hooks/useAdmin'
 import { useAuditLog } from '@/hooks/useAuditLog'
 import { useOrders } from '@/hooks/useOrders'
-import { useProducts } from '@/hooks/useProducts'
-import { useRequests } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
 
 export function AdminDashboardPage() {
   const overviewQuery = useAdminDashboardOverview()
-  const productsQuery = useProducts()
-  const requestsQuery = useRequests()
+  const requestQueueQuery = useAdminRequestQueue({ status: 'PENDING', page: 1, limit: 5 })
   const ordersQuery = useOrders()
   const auditLogQuery = useAuditLog({ page: 1, limit: 10 })
 
-  if (overviewQuery.isLoading || productsQuery.isLoading || requestsQuery.isLoading || ordersQuery.isLoading || auditLogQuery.isLoading) {
+  if (overviewQuery.isLoading || requestQueueQuery.isLoading || ordersQuery.isLoading || auditLogQuery.isLoading) {
     return <PageSkeleton />
   }
 
-  if (overviewQuery.isError || productsQuery.isError || requestsQuery.isError || ordersQuery.isError || auditLogQuery.isError) {
+  if (overviewQuery.isError || requestQueueQuery.isError || ordersQuery.isError || auditLogQuery.isError) {
     return (
       <EmptyState
         title="Unable to load dashboard"
-        description={getErrorMessage(overviewQuery.error ?? productsQuery.error ?? requestsQuery.error ?? ordersQuery.error ?? auditLogQuery.error, { context: 'load' })}
+        description={getErrorMessage(overviewQuery.error ?? requestQueueQuery.error ?? ordersQuery.error ?? auditLogQuery.error, { context: 'load' })}
       />
     )
   }
 
   const overview = overviewQuery.data
-  const products = productsQuery.data ?? []
-  const requests = requestsQuery.data ?? []
+  const requestQueue = requestQueueQuery.data?.data ?? []
   const orders = ordersQuery.data ?? []
   const auditEntries = auditLogQuery.data?.data ?? []
-
-  const lowStockProducts = products.filter((product) => product.stockQuantity > 0 && product.availableQuantity / product.stockQuantity <= 0.2)
 
   return (
     <section className="space-y-6">
@@ -47,30 +42,35 @@ export function AdminDashboardPage() {
           <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.products.total ?? 0}</p>
         </article>
         <article className="rounded-xl border border-border bg-surface-raised p-5">
-          <p className="text-sm text-text-secondary">Active requests</p>
-          <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.requests.total ?? 0}</p>
+          <p className="text-sm text-text-secondary">Pending requests</p>
+          <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.requests.byStatus.PENDING ?? 0}</p>
         </article>
         <article className="rounded-xl border border-border bg-surface-raised p-5">
           <p className="text-sm text-text-secondary">Pending orders</p>
           <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.orders.byStatus.PENDING ?? 0}</p>
         </article>
         <article className="rounded-xl border border-border bg-surface-raised p-5">
-          <p className="text-sm text-text-secondary">Total users</p>
-          <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.users.total ?? 0}</p>
+          <p className="text-sm text-text-secondary">Active projects</p>
+          <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.projects.active ?? 0}</p>
         </article>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-border bg-surface-raised p-5">
-          <h2 className="text-lg font-semibold text-text-primary">Recent requests</h2>
-          {(requests.length === 0) ? (
-            <EmptyState title="No requests" description="Recent internal requests will appear here." />
+          <h2 className="text-lg font-semibold text-text-primary">Request queue</h2>
+          {(requestQueue.length === 0) ? (
+            <EmptyState title="No requests" description="No pending requests in the queue." />
           ) : (
             <div className="mt-4 space-y-3">
-              {requests.slice(0, 5).map((request) => (
+              {requestQueue.map((request) => (
                 <article key={request.id} className="rounded-lg border border-border bg-background p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-text-primary">{request.project.name}</p>
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{request.project.name}</p>
+                      <p className="text-xs text-text-secondary">
+                        {request.requester?.name ?? 'Unknown requester'} • {request.items.length} items
+                      </p>
+                    </div>
                     <StatusBadge status={request.status} />
                   </div>
                 </article>
@@ -101,14 +101,14 @@ export function AdminDashboardPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-xl border border-border bg-surface-raised p-5">
           <h2 className="text-lg font-semibold text-text-primary">Low stock alerts</h2>
-          {lowStockProducts.length === 0 ? (
+          {overview?.lowStockProducts?.length === 0 ? (
             <EmptyState title="Stock healthy" description="No products are currently in low-stock state." />
           ) : (
             <div className="mt-4 space-y-2">
-              {lowStockProducts.slice(0, 10).map((product) => (
-                <article key={product.id} className="rounded-lg border border-border bg-background p-3">
+              {overview?.lowStockProducts?.slice(0, 10).map((product) => (
+                <article key={product.name} className="rounded-lg border border-border bg-background p-3">
                   <p className="text-sm font-medium text-text-primary">{product.name}</p>
-                  <p className="text-xs text-text-secondary">{product.availableQuantity}/{product.stockQuantity} available</p>
+                  <p className="text-xs text-text-secondary">{product.currentAvailability} available</p>
                 </article>
               ))}
             </div>

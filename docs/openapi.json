@@ -1086,7 +1086,7 @@
         "tags": ["Admin"],
         "responses": {
           "200": {
-            "description": "System metrics for admin dashboard",
+            "description": "System overview metrics, status buckets, and low stock product alerts.",
             "content": {
               "application/json": {
                 "schema": {
@@ -1130,6 +1130,16 @@
                           "properties": {
                             "total": { "type": "integer" },
                             "byStatus": { "type": "object", "additionalProperties": { "type": "integer" } }
+                          }
+                        },
+                        "lowStockProducts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "name": { "type": "string" },
+                              "currentAvailability": { "type": "integer" }
+                            }
                           }
                         }
                       }
