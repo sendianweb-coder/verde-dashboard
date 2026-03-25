@@ -14,18 +14,18 @@ export function useCurrentUser() {
 }
 
 export function useLogin() {
-  const setSession = useAuthStore((state) => state.setSession)
+  const setUser = useAuthStore((state) => state.setUser)
 
   return useMutation({
     mutationFn: (payload: LoginPayload) => login(payload),
     onSuccess: (response) => {
-      setSession(response.user, response.token)
+      setUser(response.user)
     },
   })
 }
 
 export function useLogout() {
-  const clearAuth = useAuthStore((state) => state.logout)
+  const clearAuth = useAuthStore((state) => state.clearAuth)
 
   return useMutation({
     mutationFn: () => logoutApi(),

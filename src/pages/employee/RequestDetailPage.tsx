@@ -1,4 +1,5 @@
 import { ArrowLeft } from 'lucide-react'
+import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
@@ -8,8 +9,9 @@ import { EmptyState } from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { useProducts } from '@/hooks/useProducts'
-import { useCancelRequest, useRequest, useRequestHistory } from '@/hooks/useRequests'
+import { useCancelRequest, useRequest, useRequestHistory, useUpdateRequest } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
 
 export function EmployeeRequestDetailPage() {
@@ -20,6 +22,8 @@ export function EmployeeRequestDetailPage() {
   const requestHistoryQuery = useRequestHistory(id)
   const productsQuery = useProducts()
   const cancelRequestMutation = useCancelRequest()
+  const updateRequestMutation = useUpdateRequest()
+  const [editableNotes, setEditableNotes] = useState<string | null>(null)
 
   if (requestQuery.isLoading || requestHistoryQuery.isLoading || productsQuery.isLoading) {
     return <PageSkeleton />
@@ -35,6 +39,8 @@ export function EmployeeRequestDetailPage() {
     return <EmptyState title="Request not found" description="The request could not be loaded or no longer exists." />
   }
 
+  const currentNotes = editableNotes ?? (request.notes ?? '')
+
   const productNameById = new Map((productsQuery.data ?? []).map((product) => [product.id, product.name]))
 
   const handleCancelRequest = async () => {
@@ -45,6 +51,20 @@ export function EmployeeRequestDetailPage() {
       toast.success('Request cancelled')
     } catch (error) {
       toast.error(getErrorMessage(error, { context: 'cancel' }))
+    }
+  }
+
+  const handleUpdateNotes = async () => {
+    try {
+      await updateRequestMutation.mutateAsync({
+        id: request.id,
+        payload: { notes: currentNotes.trim() || undefined },
+      })
+      toast.success('Request notes updated')
+      setEditableNotes(null)
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
+      throw error
     }
   }
 
@@ -70,7 +90,37 @@ export function EmployeeRequestDetailPage() {
           <StatusBadge status={request.status} />
         </div>
 
-        {request.notes ? (
+        {request.status === 'PENDING' ? (
+          <div className="mt-4 space-y-2">
+            <label htmlFor="request-notes" className="text-sm font-medium text-text-primary">
+              Notes
+            </label>
+              <Input
+                id="request-notes"
+                value={currentNotes}
+                onChange={(event) => setEditableNotes(event.target.value)}
+                placeholder="Add or update notes"
+              />
+            <div className="flex justify-end">
+              <ConfirmDialog
+                title="Save request notes"
+                description="Update notes for this pending request?"
+                confirmLabel="Save notes"
+                isLoading={updateRequestMutation.isPending}
+                onConfirm={handleUpdateNotes}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    disabled={updateRequestMutation.isPending || currentNotes.trim() === (request.notes ?? '').trim()}
+                  >
+                    Save Notes
+                  </Button>
+                }
+              />
+            </div>
+          </div>
+        ) : request.notes ? (
           <p className="mt-4 rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-secondary">{request.notes}</p>
         ) : null}
       </section>
@@ -109,11 +159,11 @@ export function EmployeeRequestDetailPage() {
         </div>
       </section>
 
-      {request.status === 'PENDING' ? (
+      {request.status === 'PENDING' || request.status === 'APPROVED' ? (
         <div className="flex justify-end">
           <ConfirmDialog
             title="Cancel request"
-            description="Are you sure you want to cancel this pending request?"
+            description="Are you sure you want to cancel this request?"
             confirmLabel="Yes, cancel request"
             variant="destructive"
             isLoading={cancelRequestMutation.isPending}

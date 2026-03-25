@@ -2,34 +2,34 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { useAdminDashboardOverview } from '@/hooks/useAdmin'
 import { useAuditLog } from '@/hooks/useAuditLog'
 import { useOrders } from '@/hooks/useOrders'
 import { useProducts } from '@/hooks/useProducts'
 import { useRequests } from '@/hooks/useRequests'
-import { useUsers } from '@/hooks/useUsers'
 import { getErrorMessage } from '@/lib/errors'
 
 export function AdminDashboardPage() {
-  const usersQuery = useUsers()
+  const overviewQuery = useAdminDashboardOverview()
   const productsQuery = useProducts()
   const requestsQuery = useRequests()
   const ordersQuery = useOrders()
   const auditLogQuery = useAuditLog({ page: 1, limit: 10 })
 
-  if (usersQuery.isLoading || productsQuery.isLoading || requestsQuery.isLoading || ordersQuery.isLoading || auditLogQuery.isLoading) {
+  if (overviewQuery.isLoading || productsQuery.isLoading || requestsQuery.isLoading || ordersQuery.isLoading || auditLogQuery.isLoading) {
     return <PageSkeleton />
   }
 
-  if (usersQuery.isError || productsQuery.isError || requestsQuery.isError || ordersQuery.isError || auditLogQuery.isError) {
+  if (overviewQuery.isError || productsQuery.isError || requestsQuery.isError || ordersQuery.isError || auditLogQuery.isError) {
     return (
       <EmptyState
         title="Unable to load dashboard"
-        description={getErrorMessage(usersQuery.error ?? productsQuery.error ?? requestsQuery.error ?? ordersQuery.error ?? auditLogQuery.error, { context: 'load' })}
+        description={getErrorMessage(overviewQuery.error ?? productsQuery.error ?? requestsQuery.error ?? ordersQuery.error ?? auditLogQuery.error, { context: 'load' })}
       />
     )
   }
 
-  const users = usersQuery.data ?? []
+  const overview = overviewQuery.data
   const products = productsQuery.data ?? []
   const requests = requestsQuery.data ?? []
   const orders = ordersQuery.data ?? []
@@ -44,19 +44,19 @@ export function AdminDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <article className="rounded-xl border border-border bg-surface-raised p-5">
           <p className="text-sm text-text-secondary">Total products</p>
-          <p className="mt-2 text-3xl font-bold text-text-primary">{products.length}</p>
+          <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.products.total ?? 0}</p>
         </article>
         <article className="rounded-xl border border-border bg-surface-raised p-5">
           <p className="text-sm text-text-secondary">Active requests</p>
-          <p className="mt-2 text-3xl font-bold text-text-primary">{requests.filter((request) => request.status !== 'COMPLETED').length}</p>
+          <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.requests.total ?? 0}</p>
         </article>
         <article className="rounded-xl border border-border bg-surface-raised p-5">
           <p className="text-sm text-text-secondary">Pending orders</p>
-          <p className="mt-2 text-3xl font-bold text-text-primary">{orders.filter((order) => order.status === 'PENDING').length}</p>
+          <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.orders.byStatus.PENDING ?? 0}</p>
         </article>
         <article className="rounded-xl border border-border bg-surface-raised p-5">
           <p className="text-sm text-text-secondary">Total users</p>
-          <p className="mt-2 text-3xl font-bold text-text-primary">{users.length}</p>
+          <p className="mt-2 text-3xl font-bold text-text-primary">{overview?.users.total ?? 0}</p>
         </article>
       </div>
 

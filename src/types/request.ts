@@ -49,6 +49,11 @@ export interface CreateRequestPayload {
   items: CreateRequestItemPayload[]
 }
 
+export interface UpdateRequestPayload {
+  notes?: string
+  items?: CreateRequestItemPayload[]
+}
+
 export interface RequestStatusActionPayload {
   comment?: string
 }

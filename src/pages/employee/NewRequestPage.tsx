@@ -1,23 +1,30 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useFieldArray, useForm } from 'react-hook-form'
+import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useProducts } from '@/hooks/useProducts'
-import { useProjects } from '@/hooks/useProjects'
+import { useCreateProject, useProjects } from '@/hooks/useProjects'
 import { useCreateRequest } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
 import { createRequestSchema, type CreateRequestFormValues } from '@/lib/validators'
 
 export function EmployeeNewRequestPage() {
   const navigate = useNavigate()
+  const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
+  const [newProjectName, setNewProjectName] = useState('')
+  const [newProjectDescription, setNewProjectDescription] = useState('')
+
   const projectsQuery = useProjects()
   const productsQuery = useProducts({ isActive: true })
   const createRequestMutation = useCreateRequest()
+  const createProjectMutation = useCreateProject()
 
   const {
     control,
@@ -86,6 +93,30 @@ export function EmployeeNewRequestPage() {
     }
   }
 
+  const handleCreateProject = async () => {
+    const trimmedName = newProjectName.trim()
+
+    if (!trimmedName) {
+      toast.error('Project name is required.')
+      return
+    }
+
+    try {
+      const project = await createProjectMutation.mutateAsync({
+        name: trimmedName,
+        description: newProjectDescription.trim() || undefined,
+      })
+
+      setValue('projectId', project.id, { shouldValidate: true })
+      setIsCreateProjectOpen(false)
+      setNewProjectName('')
+      setNewProjectDescription('')
+      toast.success('Project created and selected.')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'create' }))
+    }
+  }
+
   return (
     <section className="space-y-6">
       <PageHeader title="New Request" subtitle="Select a project and add the products you need" />
@@ -93,9 +124,61 @@ export function EmployeeNewRequestPage() {
       <form className="space-y-6 rounded-xl border border-border bg-surface-raised p-6" onSubmit={handleSubmit(onSubmit)}>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label htmlFor="projectId" className="mb-1.5 block text-sm font-medium text-text-primary">
-              Project
-            </label>
+            <div className="mb-1.5 flex items-center justify-between gap-2">
+              <label htmlFor="projectId" className="block text-sm font-medium text-text-primary">
+                Project
+              </label>
+
+              <Dialog open={isCreateProjectOpen} onOpenChange={setIsCreateProjectOpen}>
+                <DialogTrigger asChild>
+                  <Button type="button" variant="secondary" size="sm">
+                    Create project
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create Project</DialogTitle>
+                    <DialogDescription>Add a new project and assign this request to it.</DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label htmlFor="new-project-name" className="mb-1.5 block text-sm font-medium text-text-primary">
+                        Project name
+                      </label>
+                      <Input
+                        id="new-project-name"
+                        value={newProjectName}
+                        onChange={(event) => setNewProjectName(event.target.value)}
+                        placeholder="Enter project name"
+                      />
+                    </div>
+
+                    <div>
+                      <label htmlFor="new-project-description" className="mb-1.5 block text-sm font-medium text-text-primary">
+                        Description (optional)
+                      </label>
+                      <Input
+                        id="new-project-description"
+                        value={newProjectDescription}
+                        onChange={(event) => setNewProjectDescription(event.target.value)}
+                        placeholder="Add project details"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2">
+                      <Button type="button" variant="secondary" onClick={() => setIsCreateProjectOpen(false)}>
+                        Cancel
+                      </Button>
+                      <Button type="button" disabled={createProjectMutation.isPending} onClick={handleCreateProject}>
+                        {createProjectMutation.isPending ? 'Creating...' : 'Create Project'}
+                      </Button>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+
             <select
               id="projectId"
               className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-text-primary focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600"

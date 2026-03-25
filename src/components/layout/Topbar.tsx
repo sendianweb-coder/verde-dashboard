@@ -34,6 +34,7 @@ export function Topbar({ onOpenMobileNav }: TopbarProps) {
   const handleSignOut = async () => {
     try {
       await logoutMutation.mutateAsync()
+      window.location.href = '/login'
     } catch (error) {
       toast.error(getErrorMessage(error, { context: 'logout' }))
     }

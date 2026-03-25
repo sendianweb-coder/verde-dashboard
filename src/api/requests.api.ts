@@ -5,6 +5,7 @@ import type {
   CreateRequestPayload,
   InternalRequest,
   RequestStatusActionPayload,
+  UpdateRequestPayload,
 } from '@/types/request'
 
 export interface GetRequestsParams {
@@ -34,6 +35,11 @@ export async function getRequestById(id: string): Promise<InternalRequest> {
 
 export async function createRequest(payload: CreateRequestPayload): Promise<InternalRequest> {
   const { data } = await apiClient.post<ApiSuccessResponse<InternalRequest>>('/requests', payload)
+  return data.data
+}
+
+export async function updateRequest(id: string, payload: UpdateRequestPayload): Promise<InternalRequest> {
+  const { data } = await apiClient.patch<ApiSuccessResponse<InternalRequest>>(`/requests/${id}`, payload)
   return data.data
 }
 

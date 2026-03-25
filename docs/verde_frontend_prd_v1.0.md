@@ -1,7 +1,7 @@
 # Verde Support App — Frontend Technical PRD
 
-**Version:** 1.0 (MVP)
-**Date:** March 19, 2026
+**Version:** 1.1 (MVP Updates)
+**Date:** March 25, 2026
 **Status:** Draft — Pending Client Approval
 **Prepared by:** Product Discussion Session
 
@@ -21,6 +21,10 @@ Internal staff-only SPA. No customer-facing pages. All customer interactions rem
 - Store Keeper approval workflow and inventory management
 - Employee internal material request submission and tracking
 - Real-time notifications via Server-Sent Events (SSE)
+- Admin dashboard metrics from `/admin/dashboard/overview`
+- Admin request queue filters and bulk status updates via `/admin/requests/*`
+- Employee request cancellation for `PENDING` and `APPROVED`
+- Employee request edits while `PENDING`
 
 ---
 
@@ -133,13 +137,13 @@ Internal staff-only SPA. No customer-facing pages. All customer interactions rem
 
 | Screen | Path | Key Content |
 |---|---|---|
-| Dashboard | `/admin/dashboard` | Stats row, recent requests, recent orders, low stock alerts, activity feed |
+| Dashboard | `/admin/dashboard` | Stats row backed by server overview metrics, recent requests, recent orders, low stock alerts, activity feed |
 | User Management | `/admin/users` | Users table with role filter, add/edit/deactivate actions |
 | User Detail | `/admin/users/:id` | Profile card, activity summary, edit form |
 | Product Management | `/admin/products` | Products table with category filter, stock indicators, add/edit/deactivate |
 | Product Detail | `/admin/products/:id` | Product info, stock summary, manual adjustment form, movement history |
 | Project Management | `/admin/projects` | Projects table, add/edit/deactivate |
-| Request Overview | `/admin/requests` | All requests filterable by status, project, date range |
+| Request Overview | `/admin/requests` | Admin queue with status/project/requester filters, pagination, multi-select, and bulk status actions |
 | Order Overview | `/admin/orders` | All customer orders with status management |
 | Audit Log | `/admin/audit` | Paginated activity log with actor/entity filters and metadata expand |
 
@@ -160,7 +164,7 @@ Internal staff-only SPA. No customer-facing pages. All customer interactions rem
 | Dashboard | `/employee/dashboard` | New Request CTA, active request cards, recent history, monthly stats |
 | New Request | `/employee/requests/new` | Project selector, product search, dynamic item builder with live stock check |
 | My Requests | `/employee/requests` | Own requests tabbed by status |
-| Request Detail | `/employee/requests/:id` | Read-only summary, status badge, approval timeline, cancel button (PENDING only) |
+| Request Detail | `/employee/requests/:id` | Summary, status badge, approval timeline, note edit while pending, cancel button (PENDING/APPROVED) |
 
 ### 6.5 Screen Count Summary
 
@@ -238,11 +242,12 @@ All server state managed through domain-specific hooks. No direct API calls from
 | Products | `useProducts.ts` | 3 | 4 |
 | Categories | `useCategories.ts` | 1 | 3 |
 | Projects | `useProjects.ts` | 1 | 3 |
-| Requests | `useRequests.ts` | 4 | 5 |
+| Requests | `useRequests.ts` | 4 | 6 |
 | Orders | `useOrders.ts` | 3 | 2 |
 | Audit Log | `useAuditLog.ts` | 1 | 0 |
 | SSE | `useSSE.ts` | 1 | — |
-| **Total** | | **18** | **22** |
+| Admin | `useAdmin.ts` | 2 | 1 |
+| **Total** | | **19** | **24** |
 
 ### 8.3 SSE Hook Behavior
 
@@ -451,7 +456,7 @@ All forms use React Hook Form for state and Zod for validation. All forms follow
 - [ ] All 18 screens render correctly for their respective roles
 - [ ] Role-based route guards prevent unauthorized access on all routes
 - [ ] Login flow works end-to-end with JWT cookie and Zustand persistence
-- [ ] Employee can submit a request, see live stock, and track status
+- [ ] Employee can submit a request, edit a pending request, and track status
 - [ ] Store Keeper receives SSE notification on new request without page refresh
 - [ ] Store Keeper can approve, reject, confirm pickup, and complete a request
 - [ ] Admin can manage users, products, categories, and projects
@@ -461,8 +466,11 @@ All forms use React Hook Form for state and Zod for validation. All forms follow
 - [ ] All screens are responsive and usable on mobile devices
 - [ ] No role can access another role's routes
 - [ ] Audit log displays all system actions with actor and timestamp
+- [ ] Admin dashboard loads metrics from `/admin/dashboard/overview`
+- [ ] Admin can apply bulk status updates from request queue
+- [ ] Employee can cancel own requests in `PENDING` and `APPROVED` states
 
 ---
 
-*Verde Support App — Frontend Technical PRD v1.0*
+*Verde Support App — Frontend Technical PRD v1.1*
 *Prepared as part of product discussion — ready for development handoff after client sign-off.*

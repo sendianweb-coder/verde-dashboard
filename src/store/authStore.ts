@@ -5,25 +5,28 @@ import type { AuthUser } from '@/types/auth'
 
 interface AuthStoreState {
   user: AuthUser | null
-  token: string | null
+  role: AuthUser['role'] | null
   isAuthenticated: boolean
-  setSession: (user: AuthUser, token?: string | null) => void
   setUser: (user: AuthUser) => void
-  logout: () => void
+  clearAuth: () => void
 }
 
 export const useAuthStore = create<AuthStoreState>()(
   persist(
     (set) => ({
       user: null,
-      token: null,
+      role: null,
       isAuthenticated: false,
-      setSession: (user, token) => set({ user, token: token ?? null, isAuthenticated: true }),
-      setUser: (user) => set({ user, isAuthenticated: true }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      setUser: (user) => set({ user, role: user.role, isAuthenticated: true }),
+      clearAuth: () => set({ user: null, role: null, isAuthenticated: false }),
     }),
     {
       name: 'verde-auth',
+      partialize: (state) => ({
+        user: state.user,
+        role: state.role,
+        isAuthenticated: state.isAuthenticated,
+      }),
     },
   ),
 )

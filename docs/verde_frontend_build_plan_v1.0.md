@@ -1,7 +1,7 @@
 # 🌿 Verde Support App — Frontend Build Plan
 
-**Version:** 1.0
-**Date:** March 19, 2026
+**Version:** 1.1
+**Date:** March 25, 2026
 **Stack:** React + Vite + TypeScript + Tailwind CSS v4 + shadcn/ui
 **Design System:** Verde Design System v1.1
 **Approach:** AI-assisted development
@@ -13,7 +13,7 @@
 
 | Document | Version | Purpose |
 |---|---|---|
-| Frontend PRD | v1.0 | Screen inventory, hooks, forms, NFRs |
+| Frontend PRD | v1.1 | Screen inventory, hooks, forms, NFRs |
 | Design System | v1.1 | Tokens, components, visual patterns |
 | Server MVP PRD | v1.2 | API endpoints consumed by frontend |
 
@@ -21,7 +21,7 @@
 
 ## Overview
 
-The Verde frontend is a **private internal SPA** for three staff roles: Admin, Store Keeper, and Employee. It connects to the Verde REST API and receives live updates via SSE. Total: 18 screens, 40 hooks, 10 forms.
+The Verde frontend is a **private internal SPA** for three staff roles: Admin, Store Keeper, and Employee. It connects to the Verde REST API and receives live updates via SSE, including new admin overview and request-queue endpoints.
 
 ---
 
@@ -291,13 +291,13 @@ Store Keeper can process full request lifecycle (approve → pickup → complete
 #### `AdminDashboard.tsx`
 | Element | Detail |
 |---|---|
-| Stats row (4 cards) | Total products, active requests, pending orders, total employees |
+| Stats row (4 cards) | Values sourced from `/admin/dashboard/overview` for products, requests, orders, users |
 | Recent requests | Last 5 internal requests with status badges and links |
 | Recent orders | Last 5 customer orders |
 | Low stock alert | Products where available qty is critical |
 | Activity feed | Last 10 audit log entries |
 
-**Hooks:** `useRequests`, `useOrders`, `useProducts`, `useAuditLog`
+**Hooks:** `useAdminDashboardOverview`, `useRequests`, `useOrders`, `useProducts`, `useAuditLog`
 
 ---
 
@@ -362,11 +362,12 @@ Store Keeper can process full request lifecycle (approve → pickup → complete
 #### `AdminRequestsPage.tsx`
 | Element | Detail |
 |---|---|
-| DataTable | Request ID, requester, project, item count, status badge, date |
-| Filter | By status, project dropdown, date range |
-| Row click | Navigate to request detail (read-only view for admin) |
+| Queue table | Request ID, requester, project, item count, status badge, date, selection checkbox |
+| Filter | Status (`PENDING/APPROVED/PICKED_UP`), project dropdown, requester dropdown |
+| Bulk actions | Apply approve/reject/complete to selected requests with optional comment |
+| Pagination | Server-side queue pages via `/admin/requests/queue` |
 
-**Hooks:** `useRequests`
+**Hooks:** `useAdminRequestQueue`, `useBulkUpdateRequestStatus`
 
 ---
 
@@ -382,6 +383,26 @@ Store Keeper can process full request lifecycle (approve → pickup → complete
 
 ### Deliverable
 Admin has full visibility and control. All CRUD operations work. Audit log queryable with filters.
+
+---
+
+## Step 9.5 — MVP API Delta (March 2026)
+**Estimated time:** 1 day
+
+### Tasks
+
+| Task | Detail |
+|---|---|
+| Add admin API module | Create `src/api/admin.api.ts` for `/admin/dashboard/overview`, `/admin/requests/queue`, `/admin/requests/bulk-status` |
+| Add admin hooks | Create `src/hooks/useAdmin.ts` query/mutation wrappers and cache invalidation |
+| Update dashboard | Replace locally derived stat cards with backend overview payload values |
+| Update admin request queue | Add filters, server pagination, row selection, and bulk status mutation |
+| Add request edit support | Add `PATCH /requests/{id}` support in requests API + hooks |
+| Update employee request detail | Allow note edits while `PENDING` and cancellation while `PENDING` or `APPROVED` |
+| Refresh docs | Update frontend PRD/build plan references for these endpoint-level changes |
+
+### Deliverable
+Admin dashboard and queue now run on the new server-side admin endpoints, and employee request detail reflects updated ownership/cancellation permissions.
 
 ---
 

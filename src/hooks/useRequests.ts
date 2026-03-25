@@ -11,9 +11,10 @@ import {
   getRequests,
   pickupRequest,
   rejectRequest,
+  updateRequest,
   type GetRequestsParams,
 } from '@/api/requests.api'
-import type { CreateRequestPayload, RequestStatusActionPayload } from '@/types/request'
+import type { CreateRequestPayload, RequestStatusActionPayload, UpdateRequestPayload } from '@/types/request'
 
 const REQUESTS_LIST_STALE_TIME = 60_000
 const REQUESTS_DETAIL_STALE_TIME = 30_000
@@ -69,6 +70,24 @@ export function useCreateRequest() {
     mutationFn: (payload: CreateRequestPayload) => createRequest(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
+    },
+  })
+}
+
+interface UpdateRequestMutationPayload {
+  id: string
+  payload: UpdateRequestPayload
+}
+
+export function useUpdateRequest() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, payload }: UpdateRequestMutationPayload) => updateRequest(id, payload),
+    onSuccess: (_updatedRequest, variables) => {
+      void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.detail(variables.id) })
+      void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.history(variables.id) })
     },
   })
 }

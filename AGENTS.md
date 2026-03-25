@@ -1,60 +1,68 @@
 # Verde Frontend - Agent Playbook
-For coding agents in this repository. Keep this file minimal, practical, and current.
+Practical instructions for coding agents working in this repository. Keep this file current and short enough to reread.
 
-## Philosophy (Boris-style CLAUDE.md)
-- Treat this as living institutional memory, not a long static prompt.
-- Add rules from real mistakes/review comments; avoid speculative rules.
-- For non-trivial tasks: plan -> execute -> verify.
-- If execution deviates from plan, stop and re-plan.
-- Prefer elegant fixes over hacks.
-- Prune outdated rules regularly, especially after model upgrades.
+## Scope
+- Applies to the frontend app in `/Users/farsin/sendiangroup/Verde-app/frontend`.
+- If repo-level instructions conflict with generic agent defaults, follow this file.
+- There are currently no Cursor rules in `.cursor/rules/` or `.cursorrules`.
+- There is currently no Copilot instruction file at `.github/copilot-instructions.md`.
+
+## Working Style
+- For non-trivial work: plan -> execute -> verify.
+- If the implementation starts diverging from the plan, stop and re-plan.
+- Prefer small, composable changes over broad rewrites.
+- Match existing project patterns before introducing new abstractions.
 
 ## Repo Snapshot
 - Stack: React 19, TypeScript 5, Vite 8, Tailwind 4.
-- Server state: TanStack Query + Axios.
-- Client state: Zustand (`src/store`).
-- Routing: React Router + role gates (`src/routes`).
-- UI primitives: Radix + shadcn/ui.
-- Alias: `@/* -> src/*` in `tsconfig.app.json`.
+- State: TanStack Query for server state, Zustand for client/session state.
+- Routing: React Router with role-gated protected routes.
+- UI: Radix primitives with shadcn/ui-style components under `src/components/ui`.
+- API layer: Axios client plus domain modules in `src/api`.
+- Validation: Zod schemas in `src/lib/validators.ts`.
+- Path alias: `@/* -> src/*` from `tsconfig.app.json`.
 
-## Build / Lint / Test Commands
-Run from: `/Users/farsin/sendiangroup/Verde-app/frontend`
+## Important Directories
+- `src/api`, `src/hooks`, `src/store`, `src/routes`: data flow, state, and routing.
+- `src/components/ui`, `src/components/shared`: reusable primitives and app-specific building blocks.
+- `src/pages`: route-level screens grouped by role.
+- `src/types`, `src/lib`: domain types, validators, constants, errors, and query client.
+
+## Install / Build / Lint / Preview
+Run commands from `/Users/farsin/sendiangroup/Verde-app/frontend`.
 
 ```bash
-# install
 npm install
-
-# local dev
 npm run dev
-
-# lint
 npm run lint
-
-# production build (tsc -b + vite build)
 npm run build
-
-# preview production build
 npm run preview
 ```
 
-## Test Commands (Current Reality + Single-Test Guidance)
-Current state in this repo:
-- No `test` script in `package.json`.
-- No Vitest/Jest/Playwright config file.
-- No `*.test.*` / `*.spec.*` files present.
+## Test Commands
+Current repo state:
+- `package.json` does not define a `test` script.
+- No Vitest, Jest, Playwright, or other test runner config is present.
+- No `*.test.*` or `*.spec.*` files are present today.
 
-Implication:
-- There is no runnable repository test command today.
-- Do not claim tests passed unless a runner is added.
+Implications:
+- There is no runnable repository test command right now.
+- Do not claim tests passed unless a test runner is added and executed.
 
-When tests are added, use these patterns:
+If tests are added later, prefer these patterns:
 
 ```bash
-# single file via Vitest
+# run all tests once
+npm run test
+
+# run a single test file through the package script
+npm run test -- src/path/to/file.test.ts
+
+# if Vitest is added without a package script
 npx vitest run src/path/to/file.test.ts
 
-# preferred if package.json gets a test script
-npm run test -- src/path/to/file.test.ts
+# if Jest is added instead
+npx jest src/path/to/file.test.ts
 ```
 
 ## Required Verification Before Handoff
@@ -65,91 +73,107 @@ npm run lint && npm run build
 ```
 
 Also verify:
-- Behavior matches request and role/route constraints.
-- No obvious regressions in touched flows.
-- No unused imports/symbols or type suppressions.
+- Touched flows still match the requested behavior.
+- Role-gated screens still respect access boundaries.
+- No unused imports, dead symbols, or accidental `console` noise remain.
+- No type suppressions or config weakening were introduced casually.
 
-## Code Context Workflow (MCP-first)
-Use MCP tools first for structural understanding.
+## Code Discovery Workflow
+- Start with structural understanding before editing.
+- Prefer MCP/code graph tools for callers, callees, imports, and dependency direction.
+- Use `glob` for file discovery and `grep` for targeted content search.
+- Read the smallest set of files that explains the pattern you are changing.
+- Check adjacent hooks, API modules, routes, and types before changing shared behavior.
 
-Priority:
-1. `codegraphcontext_*` tools.
-2. `grep` / `glob` when MCP is insufficient.
-3. Explore sub-agent for broad discovery.
-
-Use MCP for callers/callees, importers, symbol lookup, and dependency direction.
-If MCP results look unexpectedly empty, refresh/index the graph before fallback search.
-
-## shadcn/ui Rule (Strict)
-Use CLI only when adding a shadcn component:
+## shadcn/ui Rule
+When adding a new shadcn component, use the CLI:
 
 ```bash
 npx shadcn@latest add <component-name>
 ```
 
-Never hand-copy shadcn source into `src/components/ui`.
+Do not hand-copy shadcn component source into `src/components/ui`.
 
 ## Code Style Guidelines
+
 ### Imports
-- Order: external -> blank line -> internal alias/local.
-- Prefer `@/` for internal imports under `src`.
+- Order imports as: external packages -> blank line -> internal alias/local imports.
+- Prefer `@/` imports for modules under `src`.
+- Use relative imports mainly for same-folder files such as `./ProtectedRoute`.
 - Use `import type` for type-only imports.
-- Remove unused imports immediately.
+- Remove unused imports immediately; TypeScript is configured to reject them.
 
 ### Formatting
-- Follow existing ESLint-driven style.
-- Prefer small focused functions and early returns.
-- Keep hooks/components composable; avoid deeply nested JSX logic.
-- Extract helpers when render logic gets dense.
+- Follow the existing ESLint-driven style and current file conventions.
+- Prefer concise components and helpers over long monolithic render functions.
+- Use early returns to reduce nesting.
+- Extract repetitive JSX or transformation logic when a component gets dense.
 
 ### TypeScript
-- Preserve strict typing (`strict: true`); do not weaken config.
-- Avoid `any`; if unavoidable, isolate and document.
-- Reuse existing domain types in `src/types/*`.
-- Keep API request/response types near API modules.
-- Preserve backend nullability in frontend types.
+- Preserve strict typing; `strict`, `noUnusedLocals`, and `noUnusedParameters` are enabled.
+- Avoid `any`; if truly unavoidable, isolate it at the boundary and narrow quickly.
+- Reuse domain types from `src/types` instead of redefining similar shapes.
+- Keep request/response typing close to API modules.
+- Preserve backend nullability and optionality instead of “fixing” it in the UI layer.
 
 ### Naming
-- Components: `PascalCase`.
+- Components: `PascalCase` and usually named exports.
 - Hooks: `useXxx`.
-- Stores: `useXxxStore`; actions are verbs (`setUser`, `logout`).
-- API modules: `<domain>.api.ts`; functions are verb-led.
-- Query keys: centralized per domain hook module.
+- Stores: `useXxxStore`.
+- Store actions: verbs such as `setSession`, `setUser`, `logout`.
+- API modules: `<domain>.api.ts`.
+- Query keys: centralized objects like `productsQueryKeys`.
 - Constants: `UPPER_SNAKE_CASE`.
+- Zod schemas: descriptive camelCase names ending in `Schema`.
 
-### React / Query Patterns
-- Prefer function components + named exports.
-- Keep side effects in hooks (not scattered in pages).
-- Use TanStack Query for server state; avoid duplicating it in Zustand.
-- Invalidate relevant queries after successful mutations.
-- Keep query keys stable and parameterized.
+### React Patterns
+- Prefer function components.
+- Keep side effects in hooks or focused effect blocks, not scattered through pages.
+- Keep route pages thin when logic can live in hooks or shared components.
+- Preserve accessibility basics already present: labels, `role="alert"`, `aria-busy`, sr-only titles.
+
+### TanStack Query Patterns
+- Use TanStack Query for async server state; do not duplicate fetched data in Zustand.
+- Keep query keys stable, parameterized, and colocated with their hooks.
+- Invalidate relevant list/detail queries after successful mutations.
+- Use `enabled` guards for queries that depend on route params or IDs.
+
+### API Layer Patterns
+- Use the shared Axios client from `src/api/client.ts`.
+- Let API functions return already-unwrapped data when the backend response envelope is predictable.
+- Keep auth behavior intact: request interceptor adds bearer token, `401` logs out and redirects to `/login`.
+- Put endpoint-specific code in domain API files, not directly in pages.
+
+### Validation and Forms
+- Use Zod schemas from `src/lib/validators.ts` and `react-hook-form` where forms already follow that pattern.
+- Keep validation messages user-facing and specific.
+- Encode business rules in schemas when possible, such as duplicate-item or cross-field checks.
 
 ### Error Handling
-- Let API/helper layers throw; avoid swallowing errors.
-- Centralize common handling (interceptors, boundaries).
-- Preserve current auth behavior: 401 -> logout + `/login` redirect.
-- Expose user-facing error feedback where needed.
-- No silent failures or empty `catch` blocks.
+- Do not swallow errors silently.
+- Let API/helper layers throw and map errors to user copy near the UI boundary.
+- Reuse `getErrorMessage` from `src/lib/errors.ts` for consistent messaging.
+- Preserve the current auth/session expiration behavior.
 
-### Routing / Roles / State
-- Respect role boundaries in `src/routes/index.tsx`.
-- New protected routes must be wrapped with correct `ProtectedRoute` roles.
-- Keep fallback navigation deterministic (`Navigate`).
-- Keep auth/session concerns in Zustand store modules.
-- Persist only what is needed with `zustand/persist`.
+### Routing, Roles, and State
+- Respect role boundaries defined in `src/routes/index.tsx`.
+- New protected routes must be wrapped in the correct `ProtectedRoute` role gate.
+- Keep fallback navigation deterministic with `Navigate` and role route helpers.
+- Keep auth/session state in Zustand store modules and persist only the minimum needed.
 
-## Git and PR Hygiene
-- Commit at logical checkpoints; avoid unrelated change mixing.
-- Do not rewrite history unless explicitly requested.
+### UI and Styling
+- Follow existing Tailwind utility patterns and design tokens like `bg-page`, `bg-surface-raised`, and `text-text-secondary`.
+- Reuse shared UI and shared feature components before creating near-duplicates.
+- Preserve responsive behavior across desktop and mobile layouts.
+
+## Git and Change Hygiene
+- Keep changes scoped to the task; avoid unrelated cleanup unless it unblocks the work.
+- Do not rewrite history unless explicitly asked.
 - Do not push directly to `main` unless explicitly instructed.
-- In PR notes, explain why, not only what.
+- In commit or PR text, explain why the change exists, not only what changed.
 
-
-## Self-Improvement Loop (Required)
+## Self-Improvement Loop
 When a mistake is found:
-1. State root cause in one sentence.
-2. Add/refine one concise rule that prevents recurrence.
-3. Remove stale/duplicate rules in the same edit.
-
-Final quality gate:
-- "Would a staff engineer approve this change and verification evidence?"
+1. State the root cause in one sentence.
+2. Add or refine one rule here that would have prevented it.
+3. Remove any stale or duplicate rule in the same edit.
