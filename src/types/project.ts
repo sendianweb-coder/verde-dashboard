@@ -6,6 +6,28 @@ export interface Project {
   createdAt: string
 }
 
+export interface ProjectProductSummary {
+  productId: string
+  productName: string
+  sku: string
+  requestedQuantity: number
+  currentStockQuantity: number
+  currentReservedQuantity: number
+  currentAvailableQuantity: number
+}
+
+export interface ProjectStockDetails {
+  totalRequestCount: number
+  totalUniqueProducts: number
+  totalRequestedQuantity: number
+  products: ProjectProductSummary[]
+}
+
+export interface ProjectWithStockDetails {
+  project: Project
+  stockDetails: ProjectStockDetails
+}
+
 export interface CreateProjectPayload {
   name: string
   description?: string

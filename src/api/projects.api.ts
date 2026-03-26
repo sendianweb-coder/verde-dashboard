@@ -1,6 +1,6 @@
 import { apiClient } from '@/api/client'
 import type { ApiSuccessResponse } from '@/types/common'
-import type { CreateProjectPayload, Project, UpdateProjectPayload } from '@/types/project'
+import type { CreateProjectPayload, Project, ProjectWithStockDetails, UpdateProjectPayload } from '@/types/project'
 
 export async function getProjects(): Promise<Project[]> {
   const { data } = await apiClient.get<ApiSuccessResponse<Project[]>>('/projects')
@@ -12,12 +12,17 @@ export async function createProject(payload: CreateProjectPayload): Promise<Proj
   return data.data
 }
 
+export async function getProject(id: string): Promise<ProjectWithStockDetails> {
+  const { data } = await apiClient.get<ApiSuccessResponse<ProjectWithStockDetails>>(`/projects/${id}`)
+  return data.data
+}
+
 export async function updateProject(id: string, payload: UpdateProjectPayload): Promise<Project> {
   const { data } = await apiClient.patch<ApiSuccessResponse<Project>>(`/projects/${id}`, payload)
   return data.data
 }
 
 export async function deactivateProject(id: string): Promise<Project> {
-  const { data } = await apiClient.patch<ApiSuccessResponse<Project>>(`/projects/${id}/deactivate`)
+  const { data } = await apiClient.patch<ApiSuccessResponse<Project>>(`/projects/${id}`, { isActive: false })
   return data.data
 }

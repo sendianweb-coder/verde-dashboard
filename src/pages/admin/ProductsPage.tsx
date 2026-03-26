@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/layout/PageHeader'
+import { CreateProductDialog } from '@/components/admin/products/CreateProductDialog'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { DataTable } from '@/components/shared/DataTable'
 import { StockIndicator } from '@/components/shared/StockIndicator'
@@ -82,7 +83,15 @@ export function AdminProductsPage() {
 
   return (
     <section className="space-y-6">
-      <PageHeader title="Product Management" subtitle="Monitor and maintain product inventory" />
+      <PageHeader 
+        title="Product Management" 
+        subtitle="Monitor and maintain product inventory" 
+        action={
+          <CreateProductDialog onCreate={() => productsQuery.refetch()}>
+            <Button type="button">Create Product</Button>
+          </CreateProductDialog>
+        } 
+      />
 
       <DataTable
         data={productsQuery.data ?? []}

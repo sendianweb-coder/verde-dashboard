@@ -5,6 +5,7 @@ import { AdminAuditLogPage } from '@/pages/admin/AuditLogPage'
 import { AdminDashboardPage } from '@/pages/admin/DashboardPage'
 import { AdminOrdersPage } from '@/pages/admin/OrdersPage'
 import { AdminProductDetailPage } from '@/pages/admin/ProductDetailPage'
+import { AdminProjectDetailPage } from '@/pages/admin/ProjectDetailPage'
 import { AdminProductsPage } from '@/pages/admin/ProductsPage'
 import { AdminProjectsPage } from '@/pages/admin/ProjectsPage'
 import { AdminRequestsPage } from '@/pages/admin/RequestsPage'
@@ -12,6 +13,7 @@ import { AdminUserDetailPage } from '@/pages/admin/UserDetailPage'
 import { AdminUsersPage } from '@/pages/admin/UsersPage'
 import { EmployeeDashboardPage } from '@/pages/employee/DashboardPage'
 import { EmployeeNewRequestPage } from '@/pages/employee/NewRequestPage'
+import { EmployeeProjectDetailPage } from '@/pages/employee/ProjectDetailPage'
 import { EmployeeProjectsPage } from '@/pages/employee/ProjectsPage'
 import { EmployeeRequestDetailPage } from '@/pages/employee/RequestDetailPage'
 import { EmployeeRequestsPage } from '@/pages/employee/RequestsPage'
@@ -19,6 +21,7 @@ import { LoginPage } from '@/pages/auth/LoginPage'
 import { StoreKeeperDashboardPage } from '@/pages/store-keeper/DashboardPage'
 import { StoreKeeperInventoryPage } from '@/pages/store-keeper/InventoryPage'
 import { StoreKeeperOrdersPage } from '@/pages/store-keeper/OrdersPage'
+import { StoreKeeperProjectDetailPage } from '@/pages/store-keeper/ProjectDetailPage'
 import { StoreKeeperProjectsPage } from '@/pages/store-keeper/ProjectsPage'
 import { StoreKeeperRequestDetailPage } from '@/pages/store-keeper/RequestDetailPage'
 import { StoreKeeperRequestsPage } from '@/pages/store-keeper/RequestsPage'
@@ -45,6 +48,7 @@ export const router = createBrowserRouter([
               { path: '/admin/products', element: <AdminProductsPage /> },
               { path: '/admin/products/:id', element: <AdminProductDetailPage /> },
               { path: '/admin/projects', element: <AdminProjectsPage /> },
+              { path: '/admin/projects/:id', element: <AdminProjectDetailPage /> },
               { path: '/admin/requests', element: <AdminRequestsPage /> },
               { path: '/admin/orders', element: <AdminOrdersPage /> },
               { path: '/admin/audit', element: <AdminAuditLogPage /> },
@@ -57,6 +61,7 @@ export const router = createBrowserRouter([
               { path: '/store-keeper/requests', element: <StoreKeeperRequestsPage /> },
               { path: '/store-keeper/requests/:id', element: <StoreKeeperRequestDetailPage /> },
               { path: '/store-keeper/projects', element: <StoreKeeperProjectsPage /> },
+              { path: '/store-keeper/projects/:id', element: <StoreKeeperProjectDetailPage /> },
               { path: '/store-keeper/inventory', element: <StoreKeeperInventoryPage /> },
               { path: '/store-keeper/orders', element: <StoreKeeperOrdersPage /> },
             ],
@@ -66,6 +71,7 @@ export const router = createBrowserRouter([
             children: [
               { path: '/employee/dashboard', element: <EmployeeDashboardPage /> },
               { path: '/employee/projects', element: <EmployeeProjectsPage /> },
+              { path: '/employee/projects/:id', element: <EmployeeProjectDetailPage /> },
               { path: '/employee/requests/new', element: <EmployeeNewRequestPage /> },
               { path: '/employee/requests', element: <EmployeeRequestsPage /> },
               { path: '/employee/requests/:id', element: <EmployeeRequestDetailPage /> },

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { createProject, deactivateProject, getProjects, updateProject } from '@/api/projects.api'
+import { createProject, deactivateProject, getProject, getProjects, updateProject } from '@/api/projects.api'
 import type { CreateProjectPayload, UpdateProjectPayload } from '@/types/project'
 
 const PROJECTS_LIST_STALE_TIME = 60_000
@@ -8,6 +8,7 @@ const PROJECTS_LIST_STALE_TIME = 60_000
 export const projectsQueryKeys = {
   all: ['projects'] as const,
   list: () => ['projects', 'list'] as const,
+  detail: (id: string) => ['projects', 'detail', id] as const,
 }
 
 export function useProjects() {
@@ -26,6 +27,14 @@ export function useCreateProject() {
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: projectsQueryKeys.all })
     },
+  })
+}
+
+export function useProject(id: string) {
+  return useQuery({
+    queryKey: projectsQueryKeys.detail(id),
+    queryFn: () => getProject(id),
+    enabled: Boolean(id),
   })
 }
 

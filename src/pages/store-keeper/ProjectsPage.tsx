@@ -1,5 +1,5 @@
 import { ProjectsManagementPage } from '@/pages/shared/ProjectsManagementPage'
 
 export function StoreKeeperProjectsPage() {
-  return <ProjectsManagementPage />
+  return <ProjectsManagementPage projectDetailBasePath="/store-keeper/projects" />
 }

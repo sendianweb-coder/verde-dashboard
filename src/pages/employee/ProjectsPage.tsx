@@ -1,5 +1,5 @@
 import { ProjectsManagementPage } from '@/pages/shared/ProjectsManagementPage'
 
 export function EmployeeProjectsPage() {
-  return <ProjectsManagementPage />
+  return <ProjectsManagementPage projectDetailBasePath="/employee/projects" />
 }

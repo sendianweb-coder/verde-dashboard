@@ -1,6 +1,7 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import type { FormEvent } from 'react'
 import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/layout/PageHeader'
@@ -14,7 +15,12 @@ import { useCreateProject, useDeactivateProject, useProjects, useUpdateProject }
 import { getErrorMessage } from '@/lib/errors'
 import type { Project } from '@/types/project'
 
-export function ProjectsManagementPage() {
+interface ProjectsManagementPageProps {
+  projectDetailBasePath: string
+}
+
+export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManagementPageProps) {
+  const navigate = useNavigate()
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectDescription, setNewProjectDescription] = useState('')
@@ -58,6 +64,14 @@ export function ProjectsManagementPage() {
               type="button"
               size="sm"
               variant="secondary"
+              onClick={() => navigate(`${projectDetailBasePath}/${row.original.id}`)}
+            >
+              View
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant="secondary"
               onClick={() => {
                 setEditingProject(row.original)
                 setUpdatedProjectName(row.original.name)
@@ -90,7 +104,7 @@ export function ProjectsManagementPage() {
         ),
       },
     ],
-    [deactivateProjectMutation],
+    [deactivateProjectMutation, navigate, projectDetailBasePath],
   )
 
   const handleCreateProject = async (event: FormEvent<HTMLFormElement>) => {
