@@ -12,12 +12,14 @@ import { AdminUserDetailPage } from '@/pages/admin/UserDetailPage'
 import { AdminUsersPage } from '@/pages/admin/UsersPage'
 import { EmployeeDashboardPage } from '@/pages/employee/DashboardPage'
 import { EmployeeNewRequestPage } from '@/pages/employee/NewRequestPage'
+import { EmployeeProjectsPage } from '@/pages/employee/ProjectsPage'
 import { EmployeeRequestDetailPage } from '@/pages/employee/RequestDetailPage'
 import { EmployeeRequestsPage } from '@/pages/employee/RequestsPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
 import { StoreKeeperDashboardPage } from '@/pages/store-keeper/DashboardPage'
 import { StoreKeeperInventoryPage } from '@/pages/store-keeper/InventoryPage'
 import { StoreKeeperOrdersPage } from '@/pages/store-keeper/OrdersPage'
+import { StoreKeeperProjectsPage } from '@/pages/store-keeper/ProjectsPage'
 import { StoreKeeperRequestDetailPage } from '@/pages/store-keeper/RequestDetailPage'
 import { StoreKeeperRequestsPage } from '@/pages/store-keeper/RequestsPage'
 
@@ -54,6 +56,7 @@ export const router = createBrowserRouter([
               { path: '/store-keeper/dashboard', element: <StoreKeeperDashboardPage /> },
               { path: '/store-keeper/requests', element: <StoreKeeperRequestsPage /> },
               { path: '/store-keeper/requests/:id', element: <StoreKeeperRequestDetailPage /> },
+              { path: '/store-keeper/projects', element: <StoreKeeperProjectsPage /> },
               { path: '/store-keeper/inventory', element: <StoreKeeperInventoryPage /> },
               { path: '/store-keeper/orders', element: <StoreKeeperOrdersPage /> },
             ],
@@ -62,6 +65,7 @@ export const router = createBrowserRouter([
             element: <ProtectedRoute allowRoles={['EMPLOYEE']} />,
             children: [
               { path: '/employee/dashboard', element: <EmployeeDashboardPage /> },
+              { path: '/employee/projects', element: <EmployeeProjectsPage /> },
               { path: '/employee/requests/new', element: <EmployeeNewRequestPage /> },
               { path: '/employee/requests', element: <EmployeeRequestsPage /> },
               { path: '/employee/requests/:id', element: <EmployeeRequestDetailPage /> },

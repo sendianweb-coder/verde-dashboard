@@ -1,5 +1,5 @@
 import { ProjectsManagementPage } from '@/pages/shared/ProjectsManagementPage'
 
-export function AdminProjectsPage() {
+export function StoreKeeperProjectsPage() {
   return <ProjectsManagementPage />
 }

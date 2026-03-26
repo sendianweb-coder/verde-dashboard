@@ -205,6 +205,51 @@
           "metadata": { "type": "object", "nullable": true, "example": { "field": "price", "old": "100", "new": "120" } },
           "createdAt": { "type": "string", "format": "date-time", "example": "2024-03-17T12:00:00Z" }
         }
+      },
+      "ProjectProductSummary": {
+        "type": "object",
+        "properties": {
+          "productId": { "type": "string" },
+          "productName": { "type": "string", "example": "Laptop Pro 14" },
+          "sku": { "type": "string", "example": "LP-14-PRO" },
+          "requestedQuantity": { "type": "integer", "example": 10 },
+          "currentStockQuantity": { "type": "integer", "example": 50 },
+          "currentReservedQuantity": { "type": "integer", "example": 5 },
+          "currentAvailableQuantity": { "type": "integer", "example": 45 }
+        }
+      },
+      "ProjectWithStockDetailsResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean" },
+          "data": {
+            "type": "object",
+            "properties": {
+              "project": {
+                "type": "object",
+                "properties": {
+                  "id": { "type": "string" },
+                  "name": { "type": "string" },
+                  "description": { "type": "string", "nullable": true },
+                  "isActive": { "type": "boolean" },
+                  "createdAt": { "type": "string", "format": "date-time" }
+                }
+              },
+              "stockDetails": {
+                "type": "object",
+                "properties": {
+                  "totalRequestCount": { "type": "integer" },
+                  "totalUniqueProducts": { "type": "integer" },
+                  "totalRequestedQuantity": { "type": "integer" },
+                  "products": {
+                    "type": "array",
+                    "items": { "$ref": "#/components/schemas/ProjectProductSummary" }
+                  }
+                }
+              }
+            }
+          }
+        }
       }
     }
   },
@@ -1249,6 +1294,33 @@
       }
     },
     "/projects/{id}": {
+      "get": {
+        "summary": "Get Project with Stock Details",
+        "description": "Returns detailed information about a specific project, including aggregated stock quantities for products associated with the project's internal requests. Accessible by all authenticated users.",
+        "tags": ["Projects"],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": { "type": "string" },
+            "description": "Project ID"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Project and stock details",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/ProjectWithStockDetailsResponse" }
+              }
+            }
+          },
+          "404": {
+            "description": "Project not found"
+          }
+        }
+      },
       "patch": {
         "summary": "Update Project (Admin)",
         "tags": ["Projects"],
