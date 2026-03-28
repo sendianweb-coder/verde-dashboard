@@ -47,7 +47,7 @@ export interface AdminRequestQueueResponse {
 
 export interface BulkRequestStatusPayload {
   requestIds: string[]
-  status: Extract<RequestStatus, 'APPROVED' | 'REJECTED' | 'COMPLETED'>
+  status: Extract<RequestStatus, 'APPROVED' | 'REJECTED' | 'PICKED_UP' | 'COMPLETED'>
   comment?: string
 }
 

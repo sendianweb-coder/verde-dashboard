@@ -7,6 +7,7 @@ import { AdminOrdersPage } from '@/pages/admin/OrdersPage'
 import { AdminProductDetailPage } from '@/pages/admin/ProductDetailPage'
 import { AdminProjectDetailPage } from '@/pages/admin/ProjectDetailPage'
 import { AdminProductsPage } from '@/pages/admin/ProductsPage'
+import { AdminRequestDetailPage } from '@/pages/admin/RequestDetailPage'
 import { AdminProjectsPage } from '@/pages/admin/ProjectsPage'
 import { AdminRequestsPage } from '@/pages/admin/RequestsPage'
 import { AdminUserDetailPage } from '@/pages/admin/UserDetailPage'
@@ -50,6 +51,7 @@ export const router = createBrowserRouter([
               { path: '/admin/projects', element: <AdminProjectsPage /> },
               { path: '/admin/projects/:id', element: <AdminProjectDetailPage /> },
               { path: '/admin/requests', element: <AdminRequestsPage /> },
+              { path: '/admin/requests/:id', element: <AdminRequestDetailPage /> },
               { path: '/admin/orders', element: <AdminOrdersPage /> },
               { path: '/admin/audit', element: <AdminAuditLogPage /> },
             ],

@@ -44,7 +44,7 @@ export function AdminProductsPage() {
       {
         accessorKey: 'price',
         header: 'Price',
-        cell: ({ row }) => <span>${Number(row.original.price).toFixed(2)}</span>,
+        cell: ({ row }) => <span>QAR{Number(row.original.price).toFixed(2)}</span>,
       },
       {
         id: 'actions',

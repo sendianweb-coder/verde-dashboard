@@ -702,7 +702,7 @@
     },
     "/categories": {
       "get": {
-        "summary": "List Categories",
+        "summary": "List Categories (Admin)",
         "tags": ["Categories"],
         "responses": {
           "200": {
@@ -1032,7 +1032,7 @@
     },
     "/products/{id}/movements": {
       "get": {
-        "summary": "Get Stock Movements",
+        "summary": "Get Stock Movements (Admin/Store Keeper)",
         "tags": ["Products"],
         "security": [{ "bearerAuth": [] }],
         "parameters": [
@@ -1247,7 +1247,7 @@
                 "type": "object",
                 "properties": {
                   "requestIds": { "type": "array", "items": { "type": "string" } },
-                  "status": { "type": "string", "enum": ["APPROVED", "REJECTED", "COMPLETED"] },
+                  "status": { "type": "string", "enum": ["APPROVED", "REJECTED", "PICKED_UP", "COMPLETED"] },
                   "comment": { "type": "string" }
                 },
                 "required": ["requestIds", "status"]
@@ -1278,6 +1278,7 @@
                             "properties": {
                               "requestId": { "type": "string" },
                               "success": { "type": "boolean" },
+                              "data": { "type": "object", "nullable": true },
                               "error": { "type": "string" },
                               "code": { "type": "string" }
                             }
@@ -1322,7 +1323,7 @@
         }
       },
       "patch": {
-        "summary": "Update Project (Admin)",
+        "summary": "Update Project (Admin/Employee)",
         "tags": ["Projects"],
         "parameters": [
           {
@@ -1465,7 +1466,7 @@
     },
     "/requests/{id}": {
       "get": {
-        "summary": "Get Request Detail",
+        "summary": "Get Request Detail (Admin/Store Keeper/Requester)",
         "tags": ["Requests"],
         "parameters": [
           { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
@@ -1636,7 +1637,7 @@
     },
     "/requests/{id}/history": {
       "get": {
-        "summary": "Get Request History",
+        "summary": "Get Request History (Admin/Store Keeper/Requester)",
         "tags": ["Requests"],
         "parameters": [
           { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }
@@ -1664,7 +1665,7 @@
     },
     "/orders": {
       "get": {
-        "summary": "List All Orders (Admin/SK)",
+        "summary": "List All Orders (Admin/Store Keeper)",
         "tags": ["Orders"],
         "responses": {
           "200": {
@@ -1772,7 +1773,7 @@
     },
     "/orders/{id}/status": {
       "patch": {
-        "summary": "Update Order Status (Admin/SK)",
+        "summary": "Update Order Status (Admin/Store Keeper)",
         "tags": ["Orders"],
         "parameters": [
           { "in": "path", "name": "id", "required": true, "schema": { "type": "string" } }

@@ -15,9 +15,11 @@ import {
   type GetRequestsParams,
 } from '@/api/requests.api'
 import type { CreateRequestPayload, RequestStatusActionPayload, UpdateRequestPayload } from '@/types/request'
+import { productsQueryKeys } from './useProducts'
 
 const REQUESTS_LIST_STALE_TIME = 60_000
 const REQUESTS_DETAIL_STALE_TIME = 30_000
+const ADMIN_REQUEST_QUEUE_QUERY_KEY = ['admin', 'requests', 'queue'] as const
 
 type MyRequestsParams = Pick<GetRequestsParams, 'status' | 'page' | 'limit'>
 
@@ -70,6 +72,8 @@ export function useCreateRequest() {
     mutationFn: (payload: CreateRequestPayload) => createRequest(payload),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: ADMIN_REQUEST_QUEUE_QUERY_KEY })
+      void queryClient.invalidateQueries({ queryKey: productsQueryKeys.all })
     },
   })
 }
@@ -88,6 +92,7 @@ export function useUpdateRequest() {
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.detail(variables.id) })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.history(variables.id) })
+      void queryClient.invalidateQueries({ queryKey: ADMIN_REQUEST_QUEUE_QUERY_KEY })
     },
   })
 }
@@ -108,6 +113,8 @@ function useRequestActionMutation(
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.detail(variables.id) })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.history(variables.id) })
+      void queryClient.invalidateQueries({ queryKey: ADMIN_REQUEST_QUEUE_QUERY_KEY })
+      void queryClient.invalidateQueries({ queryKey: productsQueryKeys.all })
     },
   })
 }
@@ -142,6 +149,7 @@ export function useCancelRequest() {
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.detail(variables.id) })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.history(variables.id) })
+      void queryClient.invalidateQueries({ queryKey: ADMIN_REQUEST_QUEUE_QUERY_KEY })
     },
   })
 }

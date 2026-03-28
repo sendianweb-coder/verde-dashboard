@@ -12,11 +12,12 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAdminRequestQueue, useBulkUpdateRequestStatus } from '@/hooks/useAdmin'
+import { useApproveRequest, useCompleteRequest, usePickupRequest, useRejectRequest } from '@/hooks/useRequests'
 import { useProjects } from '@/hooks/useProjects'
 import { useUsers } from '@/hooks/useUsers'
 import { getErrorMessage } from '@/lib/errors'
 import type { BulkRequestStatusPayload } from '@/types/admin'
-import type { RequestStatus } from '@/types/request'
+import type { InternalRequest, RequestStatus } from '@/types/request'
 
 const DEFAULT_LIMIT = 20
 
@@ -30,6 +31,7 @@ const queueStatusOptions: Array<{ label: string; value: 'ALL' | 'PENDING' | 'APP
 const bulkStatusOptions: Array<{ label: string; value: BulkRequestStatusPayload['status'] }> = [
   { label: 'Approve', value: 'APPROVED' },
   { label: 'Reject', value: 'REJECTED' },
+  { label: 'Pickup', value: 'PICKED_UP' },
   { label: 'Complete', value: 'COMPLETED' },
 ]
 
@@ -42,6 +44,7 @@ export function AdminRequestsPage() {
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([])
   const [bulkStatus, setBulkStatus] = useState<BulkRequestStatusPayload['status']>('APPROVED')
   const [bulkComment, setBulkComment] = useState('')
+  const [rejectCommentsByRequestId, setRejectCommentsByRequestId] = useState<Record<string, string>>({})
 
   const queueParams = useMemo(
     () => ({
@@ -58,11 +61,73 @@ export function AdminRequestsPage() {
   const projectsQuery = useProjects()
   const usersQuery = useUsers({ role: 'EMPLOYEE' })
   const bulkMutation = useBulkUpdateRequestStatus()
+  const approveRequestMutation = useApproveRequest()
+  const rejectRequestMutation = useRejectRequest()
+  const pickupRequestMutation = usePickupRequest()
+  const completeRequestMutation = useCompleteRequest()
 
   const queueItems = queueQuery.data?.data ?? []
   const pagination = queueQuery.data?.pagination
   const allOnPageSelected = queueItems.length > 0 && queueItems.every((request) => selectedRequestIds.includes(request.id))
   const isNextDisabled = !pagination || pagination.page >= pagination.totalPages
+
+  const handleApprove = async (request: InternalRequest) => {
+    try {
+      await approveRequestMutation.mutateAsync({
+        id: request.id,
+        payload: {},
+      })
+      toast.success('Request approved')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'approve' }))
+      throw error
+    }
+  }
+
+  const handleReject = async (request: InternalRequest, comment: string) => {
+    const trimmedComment = comment.trim()
+    if (trimmedComment.length < 10) {
+      toast.error('Rejection comment must be at least 10 characters.')
+      throw new Error('Invalid rejection comment')
+    }
+
+    try {
+      await rejectRequestMutation.mutateAsync({
+        id: request.id,
+        payload: { comment: trimmedComment },
+      })
+      toast.success('Request rejected')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'reject' }))
+      throw error
+    }
+  }
+
+  const handlePickup = async (request: InternalRequest) => {
+    try {
+      await pickupRequestMutation.mutateAsync({
+        id: request.id,
+        payload: {},
+      })
+      toast.success('Pickup confirmed')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
+      throw error
+    }
+  }
+
+  const handleComplete = async (request: InternalRequest) => {
+    try {
+      await completeRequestMutation.mutateAsync({
+        id: request.id,
+        payload: {},
+      })
+      toast.success('Request completed')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
+      throw error
+    }
+  }
 
   const toggleAllOnPage = (checked: boolean) => {
     if (checked) {
@@ -269,7 +334,6 @@ export function AdminRequestsPage() {
                     onChange={(event) => toggleAllOnPage(event.target.checked)}
                   />
                 </TableHead>
-                <TableHead>Request</TableHead>
                 <TableHead>Requester</TableHead>
                 <TableHead>Project</TableHead>
                 <TableHead>Items</TableHead>
@@ -281,6 +345,7 @@ export function AdminRequestsPage() {
             <TableBody>
               {queueItems.map((request) => {
                 const isSelected = selectedRequestIds.includes(request.id)
+                const rejectComment = rejectCommentsByRequestId[request.id] ?? ''
 
                 return (
                   <TableRow key={request.id}>
@@ -292,7 +357,6 @@ export function AdminRequestsPage() {
                         onChange={(event) => toggleSelectedRequest(request.id, event.target.checked)}
                       />
                     </TableCell>
-                    <TableCell className="font-medium">{request.id}</TableCell>
                     <TableCell>{request.requester?.name ?? 'Employee'}</TableCell>
                     <TableCell>{request.project.name}</TableCell>
                     <TableCell>{request.items.length}</TableCell>
@@ -301,9 +365,82 @@ export function AdminRequestsPage() {
                     </TableCell>
                     <TableCell>{new Date(request.createdAt).toLocaleDateString()}</TableCell>
                     <TableCell className="text-right">
-                      <Button type="button" size="sm" variant="secondary" onClick={() => navigate(`/admin/requests?requestId=${request.id}`)}>
-                        Open
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        {request.status === 'PENDING' ? (
+                          <>
+                            <ConfirmDialog
+                              title="Approve request"
+                              description="Approve this request and move it to approved status?"
+                              confirmLabel="Approve"
+                              isLoading={approveRequestMutation.isPending}
+                              onConfirm={() => handleApprove(request)}
+                              trigger={
+                                <Button type="button" size="sm" disabled={approveRequestMutation.isPending}>
+                                  Approve
+                                </Button>
+                              }
+                            />
+                            <ConfirmDialog
+                              title="Reject request"
+                              description="Reject this request? A comment with at least 10 characters is required."
+                              confirmLabel="Reject"
+                              variant="destructive"
+                              isLoading={rejectRequestMutation.isPending}
+                              onConfirm={() => handleReject(request, rejectComment)}
+                              trigger={
+                                <Button type="button" size="sm" variant="destructive" disabled={rejectRequestMutation.isPending}>
+                                  Reject
+                                </Button>
+                              }
+                            >
+                              <Input
+                                value={rejectComment}
+                                onChange={(event) => {
+                                  setRejectCommentsByRequestId((prev) => ({
+                                    ...prev,
+                                    [request.id]: event.target.value,
+                                  }))
+                                }}
+                                placeholder="Reason for rejection (min 10 characters)"
+                              />
+                            </ConfirmDialog>
+                          </>
+                        ) : null}
+
+                        {request.status === 'APPROVED' ? (
+                          <ConfirmDialog
+                            title="Confirm pickup"
+                            description="Mark this request as picked up?"
+                            confirmLabel="Confirm Pickup"
+                            isLoading={pickupRequestMutation.isPending}
+                            onConfirm={() => handlePickup(request)}
+                            trigger={
+                              <Button type="button" size="sm" disabled={pickupRequestMutation.isPending}>
+                                Pickup
+                              </Button>
+                            }
+                          />
+                        ) : null}
+
+                        {request.status === 'PICKED_UP' ? (
+                          <ConfirmDialog
+                            title="Mark complete"
+                            description="Mark this request as completed?"
+                            confirmLabel="Mark Complete"
+                            isLoading={completeRequestMutation.isPending}
+                            onConfirm={() => handleComplete(request)}
+                            trigger={
+                              <Button type="button" size="sm" disabled={completeRequestMutation.isPending}>
+                                Complete
+                              </Button>
+                            }
+                          />
+                        ) : null}
+
+                        <Button type="button" size="sm" variant="secondary" onClick={() => navigate(`/admin/requests/${request.id}`)}>
+                          View details
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
