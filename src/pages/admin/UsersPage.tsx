@@ -1,20 +1,44 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { useMemo } from 'react'
+import { zodResolver } from '@hookform/resolvers/zod'
+import { useMemo, useState } from 'react'
+import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/layout/PageHeader'
-import { DataTable } from '@/components/shared/DataTable'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { DataTable } from '@/components/shared/DataTable'
+import { DialogFormActions } from '@/components/shared/DialogFormActions'
+import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
-import { useDeactivateUser, useUsers } from '@/hooks/useUsers'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { useCreateUser, useDeactivateUser, useUsers } from '@/hooks/useUsers'
 import { getErrorMessage } from '@/lib/errors'
+import { createUserSchema, type CreateUserFormValues } from '@/lib/validators'
 import type { User } from '@/types/user'
 
 export function AdminUsersPage() {
   const navigate = useNavigate()
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false)
   const usersQuery = useUsers()
+  const createUserMutation = useCreateUser()
   const deactivateUserMutation = useDeactivateUser()
+
+  const {
+    register,
+    handleSubmit,
+    reset,
+    formState: { errors },
+  } = useForm<CreateUserFormValues>({
+    resolver: zodResolver(createUserSchema),
+    defaultValues: {
+      name: '',
+      email: '',
+      role: 'EMPLOYEE',
+      password: '',
+    },
+  })
 
   const columns = useMemo<Array<ColumnDef<User>>>(
     () => [
@@ -70,9 +94,28 @@ export function AdminUsersPage() {
     [deactivateUserMutation, navigate],
   )
 
+  const handleCreateUser = async (values: CreateUserFormValues) => {
+    try {
+      await createUserMutation.mutateAsync(values)
+      toast.success('User created successfully')
+      setIsCreateUserOpen(false)
+      reset()
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'create' }))
+    }
+  }
+
   return (
     <section className="space-y-6">
-      <PageHeader title="User Management" subtitle="Manage staff access and account status" />
+      <PageHeader
+        title="User Management"
+        subtitle="Manage staff access and account status"
+        action={
+          <Button type="button" onClick={() => setIsCreateUserOpen(true)}>
+            Create User
+          </Button>
+        }
+      />
       <DataTable
         data={usersQuery.data ?? []}
         columns={columns}
@@ -83,6 +126,76 @@ export function AdminUsersPage() {
         emptyTitle="No users found"
         emptyDescription="Users created by admin will appear here."
       />
+
+      <Dialog
+        open={isCreateUserOpen}
+        onOpenChange={(nextOpen) => {
+          setIsCreateUserOpen(nextOpen)
+          if (!nextOpen) {
+            reset()
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create User</DialogTitle>
+            <DialogDescription>Add a new team member account with an initial role.</DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleSubmit(handleCreateUser)}>
+            <div className="grid gap-4 md:grid-cols-2">
+              <FormField htmlFor="create-user-name" label="Full name" error={errors.name?.message}>
+                <Input
+                  id="create-user-name"
+                  placeholder="Enter full name"
+                  disabled={createUserMutation.isPending}
+                  {...register('name')}
+                />
+              </FormField>
+
+              <FormField htmlFor="create-user-email" label="Email" error={errors.email?.message}>
+                <Input
+                  id="create-user-email"
+                  type="email"
+                  placeholder="Enter email address"
+                  disabled={createUserMutation.isPending}
+                  {...register('email')}
+                />
+              </FormField>
+
+              <FormField htmlFor="create-user-role" label="Role" error={errors.role?.message}>
+                <select
+                  id="create-user-role"
+                  className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-text-primary focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600"
+                  disabled={createUserMutation.isPending}
+                  {...register('role')}
+                >
+                  <option value="ADMIN">Admin</option>
+                  <option value="STORE_KEEPER">Store Keeper</option>
+                  <option value="EMPLOYEE">Employee</option>
+                </select>
+              </FormField>
+
+              <FormField htmlFor="create-user-password" label="Password" error={errors.password?.message}>
+                <Input
+                  id="create-user-password"
+                  type="password"
+                  placeholder="Enter temporary password"
+                  disabled={createUserMutation.isPending}
+                  {...register('password')}
+                />
+              </FormField>
+            </div>
+
+            <DialogFormActions
+              isSubmitting={createUserMutation.isPending}
+              submitLabel="Create User"
+              submittingLabel="Creating..."
+              onCancel={() => setIsCreateUserOpen(false)}
+            />
+          </form>
+        </DialogContent>
+      </Dialog>
     </section>
   )
 }

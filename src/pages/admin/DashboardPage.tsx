@@ -12,7 +12,7 @@ export function AdminDashboardPage() {
   const overviewQuery = useAdminDashboardOverview()
   const requestQueueQuery = useAdminRequestQueue({ status: 'PENDING', page: 1, limit: 5 })
   const ordersQuery = useOrders()
-  const auditLogQuery = useAuditLog({ page: 1, limit: 10 })
+  const auditLogQuery = useAuditLog({ page: 1, limit: 6 })
 
   if (overviewQuery.isLoading || requestQueueQuery.isLoading || ordersQuery.isLoading || auditLogQuery.isLoading) {
     return <PageSkeleton />
