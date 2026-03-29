@@ -13,7 +13,7 @@ import { FormField } from '@/components/shared/FormField'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
-import { useCreateUser, useDeactivateUser, useUsers } from '@/hooks/useUsers'
+import { useCreateUser, useDeleteUser, useUsers } from '@/hooks/useUsers'
 import { getErrorMessage } from '@/lib/errors'
 import { createUserSchema, type CreateUserFormValues } from '@/lib/validators'
 import type { User } from '@/types/user'
@@ -23,7 +23,7 @@ export function AdminUsersPage() {
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false)
   const usersQuery = useUsers()
   const createUserMutation = useCreateUser()
-  const deactivateUserMutation = useDeactivateUser()
+  const deleteUserMutation = useDeleteUser()
 
   const {
     register,
@@ -68,22 +68,22 @@ export function AdminUsersPage() {
               View
             </Button>
             <ConfirmDialog
-              title="Deactivate user"
-              description="Are you sure you want to deactivate this user account?"
-              confirmLabel="Deactivate"
+              title="Delete user"
+              description="Are you sure you want to delete this user account? This action cannot be undone."
+              confirmLabel="Delete"
               variant="destructive"
-              isLoading={deactivateUserMutation.isPending}
+              isLoading={deleteUserMutation.isPending}
               onConfirm={async () => {
                 try {
-                  await deactivateUserMutation.mutateAsync(row.original.id)
-                  toast.success('User deactivated')
+                  await deleteUserMutation.mutateAsync(row.original.id)
+                  toast.success('User deleted')
                 } catch (error) {
                   toast.error(getErrorMessage(error, { context: 'update' }))
                 }
               }}
               trigger={
-                <Button type="button" variant="destructive" size="sm" disabled={!row.original.isActive}>
-                  Deactivate
+                <Button type="button" variant="destructive" size="sm">
+                  Delete
                 </Button>
               }
             />
@@ -91,7 +91,7 @@ export function AdminUsersPage() {
         ),
       },
     ],
-    [deactivateUserMutation, navigate],
+    [deleteUserMutation, navigate],
   )
 
   const handleCreateUser = async (values: CreateUserFormValues) => {

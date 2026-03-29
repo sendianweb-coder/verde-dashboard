@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   createUser,
   deactivateUser,
+  deleteUser,
   getUserById,
   getUsers,
   type GetUsersParams,
@@ -72,6 +73,18 @@ export function useDeactivateUser() {
     onSuccess: (_deactivatedUser, id) => {
       void queryClient.invalidateQueries({ queryKey: usersQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: usersQueryKeys.detail(id) })
+    },
+  })
+}
+
+export function useDeleteUser() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (id: string) => deleteUser(id),
+    onSuccess: (_result, id) => {
+      void queryClient.invalidateQueries({ queryKey: usersQueryKeys.all })
+      void queryClient.removeQueries({ queryKey: usersQueryKeys.detail(id) })
     },
   })
 }
