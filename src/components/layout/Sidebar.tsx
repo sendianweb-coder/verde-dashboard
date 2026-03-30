@@ -22,7 +22,7 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
       )}
     >
       <div className="flex h-15 shrink-0 items-center gap-2 border-b border-border px-6">
-        <span className="h-2.5 w-2.5 rounded-full bg-brand-600" aria-hidden />
+        <img src="/31.png" alt="Verde logo" className="h-6 w-6 rounded-sm object-cover" />
         <p className="text-sm font-semibold tracking-wide text-text-primary">Verde Support</p>
       </div>
 

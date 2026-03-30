@@ -4,7 +4,6 @@ import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { useAdminDashboardOverview } from '@/hooks/useAdmin'
 import { useAdminRequestQueue } from '@/hooks/useAdmin'
-import { useAuditLog } from '@/hooks/useAuditLog'
 import { useOrders } from '@/hooks/useOrders'
 import { getErrorMessage } from '@/lib/errors'
 
@@ -12,17 +11,16 @@ export function AdminDashboardPage() {
   const overviewQuery = useAdminDashboardOverview()
   const requestQueueQuery = useAdminRequestQueue({ status: 'PENDING', page: 1, limit: 5 })
   const ordersQuery = useOrders()
-  const auditLogQuery = useAuditLog({ page: 1, limit: 6 })
 
-  if (overviewQuery.isLoading || requestQueueQuery.isLoading || ordersQuery.isLoading || auditLogQuery.isLoading) {
+  if (overviewQuery.isLoading || requestQueueQuery.isLoading || ordersQuery.isLoading) {
     return <PageSkeleton />
   }
 
-  if (overviewQuery.isError || requestQueueQuery.isError || ordersQuery.isError || auditLogQuery.isError) {
+  if (overviewQuery.isError || requestQueueQuery.isError || ordersQuery.isError) {
     return (
       <EmptyState
         title="Unable to load dashboard"
-        description={getErrorMessage(overviewQuery.error ?? requestQueueQuery.error ?? ordersQuery.error ?? auditLogQuery.error, { context: 'load' })}
+        description={getErrorMessage(overviewQuery.error ?? requestQueueQuery.error ?? ordersQuery.error, { context: 'load' })}
       />
     )
   }
@@ -30,7 +28,8 @@ export function AdminDashboardPage() {
   const overview = overviewQuery.data
   const requestQueue = requestQueueQuery.data?.data ?? []
   const orders = ordersQuery.data ?? []
-  const auditEntries = auditLogQuery.data?.data ?? []
+  const recentActivities = overview?.recentActivities.items ?? []
+  const recentActivitySummary = overview?.recentActivities.summary
 
   return (
     <section className="space-y-6">
@@ -117,14 +116,37 @@ export function AdminDashboardPage() {
 
         <section className="rounded-xl border border-border bg-surface-raised p-5">
           <h2 className="text-lg font-semibold text-text-primary">Activity feed</h2>
-          {auditEntries.length === 0 ? (
-            <EmptyState title="No audit entries" description="Recent system actions will appear here." />
+          <div className="mt-3 grid gap-2 sm:grid-cols-3">
+            <div className="rounded-lg border border-border bg-background px-3 py-2">
+              <p className="text-xs text-text-secondary">Total</p>
+              <p className="text-sm font-semibold text-text-primary">{recentActivitySummary?.total ?? 0}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-background px-3 py-2">
+              <p className="text-xs text-text-secondary">Approvals</p>
+              <p className="text-sm font-semibold text-text-primary">{recentActivitySummary?.approvals ?? 0}</p>
+            </div>
+            <div className="rounded-lg border border-border bg-background px-3 py-2">
+              <p className="text-xs text-text-secondary">Pickups</p>
+              <p className="text-sm font-semibold text-text-primary">{recentActivitySummary?.pickups ?? 0}</p>
+            </div>
+          </div>
+
+          {recentActivities.length === 0 ? (
+            <EmptyState title="No recent activity" description="Recent approvals and pickups will appear here." />
           ) : (
             <div className="mt-4 space-y-2">
-              {auditEntries.map((entry) => (
-                <article key={entry.id} className="rounded-lg border border-border bg-background p-3">
-                  <p className="text-sm font-medium text-text-primary">{entry.action}</p>
-                  <p className="text-xs text-text-secondary">{entry.entity} #{entry.entityId}</p>
+              {recentActivities.map((activity) => (
+                <article key={activity.id} className="rounded-lg border border-border bg-background p-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-medium text-text-primary">{activity.action === 'PICKED_UP' ? 'Request picked up' : 'Request approved'}</p>
+                    <StatusBadge status={activity.action} />
+                  </div>
+                  <p className="mt-1 text-xs text-text-secondary">
+                    {activity.performedBy.name} ({activity.performedBy.role}) • for {activity.requestedBy.name} • {activity.source.projectName}
+                  </p>
+                  <p className="mt-1 text-xs text-text-secondary">Request #{activity.request.id} • {activity.request.status}</p>
+                  {activity.comment ? <p className="mt-1 text-xs text-text-secondary">{activity.comment}</p> : null}
+                  <p className="mt-1 text-xs text-text-muted">{new Date(activity.occurredAt).toLocaleString()}</p>
                 </article>
               ))}
             </div>

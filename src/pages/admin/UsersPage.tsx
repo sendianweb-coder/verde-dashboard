@@ -40,6 +40,18 @@ export function AdminUsersPage() {
     },
   })
 
+  const sortedUsers = useMemo(() => {
+    const users = usersQuery.data ?? []
+
+    return [...users].sort((firstUser, secondUser) => {
+      if (firstUser.isActive === secondUser.isActive) {
+        return 0
+      }
+
+      return firstUser.isActive ? -1 : 1
+    })
+  }, [usersQuery.data])
+
   const columns = useMemo<Array<ColumnDef<User>>>(
     () => [
       {
@@ -67,26 +79,28 @@ export function AdminUsersPage() {
             <Button type="button" variant="secondary" size="sm" onClick={() => navigate(`/admin/users/${row.original.id}`)}>
               View
             </Button>
-            <ConfirmDialog
-              title="Delete user"
-              description="Are you sure you want to delete this user account? This action cannot be undone."
-              confirmLabel="Delete"
-              variant="destructive"
-              isLoading={deleteUserMutation.isPending}
-              onConfirm={async () => {
-                try {
-                  await deleteUserMutation.mutateAsync(row.original.id)
-                  toast.success('User deleted')
-                } catch (error) {
-                  toast.error(getErrorMessage(error, { context: 'update' }))
+            {row.original.isActive ? (
+              <ConfirmDialog
+                title="Delete user"
+                description="Are you sure you want to delete this user account? This action cannot be undone."
+                confirmLabel="Delete"
+                variant="destructive"
+                isLoading={deleteUserMutation.isPending}
+                onConfirm={async () => {
+                  try {
+                    await deleteUserMutation.mutateAsync(row.original.id)
+                    toast.success('User deleted')
+                  } catch (error) {
+                    toast.error(getErrorMessage(error, { context: 'update' }))
+                  }
+                }}
+                trigger={
+                  <Button type="button" variant="destructive" size="sm">
+                    Delete
+                  </Button>
                 }
-              }}
-              trigger={
-                <Button type="button" variant="destructive" size="sm">
-                  Delete
-                </Button>
-              }
-            />
+              />
+            ) : null}
           </div>
         ),
       },
@@ -117,7 +131,7 @@ export function AdminUsersPage() {
         }
       />
       <DataTable
-        data={usersQuery.data ?? []}
+        data={sortedUsers}
         columns={columns}
         isLoading={usersQuery.isLoading}
         hasError={usersQuery.isError}
