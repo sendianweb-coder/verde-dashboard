@@ -4,31 +4,15 @@ import type { InternalRequest, RequestStatus } from '@/types/request'
 
 type StatusTotals<TStatus extends string> = Partial<Record<TStatus, number>>
 
-type RecentActivityAction = Extract<RequestStatus, 'APPROVED' | 'PICKED_UP'>
+export type AdminRecentActivityEvent = 'approved' | 'pickedUp'
 
-export interface RecentActivityItem {
-  id: string
-  action: RecentActivityAction
-  occurredAt: string
-  comment: string | null
-  request: {
-    id: string
-    status: RequestStatus
-  }
-  performedBy: {
-    id: string
-    name: string
-    role: string
-  }
-  requestedBy: {
-    id: string
-    name: string
-    email: string
-  }
-  source: {
-    projectId: string
-    projectName: string
-  }
+export interface AdminRecentActivityItem {
+  event: AdminRecentActivityEvent
+  at: string
+  requestId: string
+  projectName: string
+  performedBy: string
+  requestedBy: string
 }
 
 export interface AdminDashboardOverview {
@@ -58,12 +42,8 @@ export interface AdminDashboardOverview {
     currentAvailability: number
   }>
   recentActivities: {
-    summary: {
-      total: number
-      approvals: number
-      pickups: number
-    }
-    items: RecentActivityItem[]
+    total: number
+    items: AdminRecentActivityItem[]
   }
 }
 

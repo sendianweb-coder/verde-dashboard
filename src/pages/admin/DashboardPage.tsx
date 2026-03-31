@@ -29,7 +29,21 @@ export function AdminDashboardPage() {
   const requestQueue = requestQueueQuery.data?.data ?? []
   const orders = ordersQuery.data ?? []
   const recentActivities = overview?.recentActivities.items ?? []
-  const recentActivitySummary = overview?.recentActivities.summary
+  const recentActivityTotal = overview?.recentActivities.total ?? 0
+  const recentApprovals = recentActivities.filter((activity) => activity.event === 'approved').length
+  const recentPickups = recentActivities.filter((activity) => activity.event === 'pickedUp').length
+  const normalizedRecentActivities = recentActivities
+    .map((activity, index) => ({
+      id: `${activity.at}-${activity.requestId}-${activity.event}-${index}`,
+      actionLabel: activity.event === 'pickedUp' ? 'Request picked up' : 'Request approved',
+      badgeStatus: activity.event === 'pickedUp' ? 'PICKED_UP' : 'APPROVED',
+      occurredAt: activity.at,
+      performedByName: activity.performedBy || 'Unknown actor',
+      requestedByName: activity.requestedBy || 'Unknown requester',
+      projectName: activity.projectName || 'Unknown project',
+      requestId: activity.requestId || 'Unknown',
+    }))
+    .filter((activity): activity is NonNullable<typeof activity> => activity !== null)
 
   return (
     <section className="space-y-6">
@@ -114,43 +128,42 @@ export function AdminDashboardPage() {
           )}
         </section>
 
-        <section className="rounded-xl border border-border bg-surface-raised p-5">
+        <section className="flex h-[32rem] flex-col rounded-xl border border-border bg-surface-raised p-5">
           <h2 className="text-lg font-semibold text-text-primary">Activity feed</h2>
           <div className="mt-3 grid gap-2 sm:grid-cols-3">
             <div className="rounded-lg border border-border bg-background px-3 py-2">
               <p className="text-xs text-text-secondary">Total</p>
-              <p className="text-sm font-semibold text-text-primary">{recentActivitySummary?.total ?? 0}</p>
+              <p className="text-sm font-semibold text-text-primary">{recentActivityTotal}</p>
             </div>
             <div className="rounded-lg border border-border bg-background px-3 py-2">
               <p className="text-xs text-text-secondary">Approvals</p>
-              <p className="text-sm font-semibold text-text-primary">{recentActivitySummary?.approvals ?? 0}</p>
+              <p className="text-sm font-semibold text-text-primary">{recentApprovals}</p>
             </div>
             <div className="rounded-lg border border-border bg-background px-3 py-2">
               <p className="text-xs text-text-secondary">Pickups</p>
-              <p className="text-sm font-semibold text-text-primary">{recentActivitySummary?.pickups ?? 0}</p>
+              <p className="text-sm font-semibold text-text-primary">{recentPickups}</p>
             </div>
           </div>
 
-          {recentActivities.length === 0 ? (
-            <EmptyState title="No recent activity" description="Recent approvals and pickups will appear here." />
-          ) : (
-            <div className="mt-4 space-y-2">
-              {recentActivities.map((activity) => (
-                <article key={activity.id} className="rounded-lg border border-border bg-background p-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium text-text-primary">{activity.action === 'PICKED_UP' ? 'Request picked up' : 'Request approved'}</p>
-                    <StatusBadge status={activity.action} />
-                  </div>
-                  <p className="mt-1 text-xs text-text-secondary">
-                    {activity.performedBy.name} ({activity.performedBy.role}) • for {activity.requestedBy.name} • {activity.source.projectName}
-                  </p>
-                  <p className="mt-1 text-xs text-text-secondary">Request #{activity.request.id} • {activity.request.status}</p>
-                  {activity.comment ? <p className="mt-1 text-xs text-text-secondary">{activity.comment}</p> : null}
-                  <p className="mt-1 text-xs text-text-muted">{new Date(activity.occurredAt).toLocaleString()}</p>
-                </article>
-              ))}
-            </div>
-          )}
+          <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+            {normalizedRecentActivities.length === 0 ? (
+              <EmptyState title="No recent activity" description="Recent approvals and pickups will appear here." />
+            ) : (
+              <div className="space-y-2">
+                {normalizedRecentActivities.map((activity) => (
+                  <article key={activity.id} className="rounded-lg border border-border bg-background p-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-sm font-medium text-text-primary">{activity.actionLabel}</p>
+                      <StatusBadge status={activity.badgeStatus} />
+                    </div>
+                    <p className="mt-1 text-xs text-text-secondary">{activity.performedByName} • for {activity.requestedByName} • {activity.projectName}</p>
+                    <p className="mt-1 text-xs text-text-secondary">Request #{activity.requestId}</p>
+                    <p className="mt-1 text-xs text-text-muted">{new Date(activity.occurredAt).toLocaleString()}</p>
+                  </article>
+                ))}
+              </div>
+            )}
+          </div>
         </section>
       </div>
     </section>
