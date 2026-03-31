@@ -3,6 +3,9 @@ import type { AuthUser, ChangePasswordPayload, LoginPayload } from '@/types/auth
 import type { ApiSuccessResponse, ApiSuccessWithMessage } from '@/types/common'
 
 interface LoginResponseData {
+  token: string
+  tokenType: 'Bearer'
+  expiresIn: string
   user: AuthUser
 }
 
