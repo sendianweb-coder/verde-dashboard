@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "square-ui Docs": {
+      "type": "remote",
+      "url": "https://gitmcp.io/ln-dev7/square-ui/tree/master/templates/dashboard-5",
+      "enabled": true
+    }
+  }
+}
