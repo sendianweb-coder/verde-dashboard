@@ -1,4 +1,4 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Printer } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -42,6 +42,9 @@ export function EmployeeRequestDetailPage() {
   const currentNotes = editableNotes ?? (request.notes ?? '')
 
   const productNameById = new Map((productsQuery.data ?? []).map((product) => [product.id, product.name]))
+  const requestHistory = requestHistoryQuery.data ?? []
+  const submittedAt = new Date(request.createdAt).toLocaleString()
+  const statusLabel = request.status.replace(/_/g, ' ')
 
   const handleCancelRequest = async () => {
     try {
@@ -68,20 +71,139 @@ export function EmployeeRequestDetailPage() {
     }
   }
 
+  const handlePrint = () => {
+    const cleanupPrintClass = () => {
+      document.body.classList.remove('printing-employee-request')
+    }
+
+    document.body.classList.add('printing-employee-request')
+    window.addEventListener('afterprint', cleanupPrintClass, { once: true })
+    window.print()
+  }
+
   return (
     <section className="space-y-6">
       <PageHeader
         title="Request Detail"
-        subtitle={`Submitted on ${new Date(request.createdAt).toLocaleString()}`}
+        subtitle={`Submitted on ${submittedAt}`}
         action={
-          <Button type="button" variant="secondary" onClick={() => navigate('/employee/requests')}>
-            <ArrowLeft className="h-4 w-4" />
-            Back to requests
-          </Button>
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button type="button" variant="secondary" onClick={handlePrint}>
+              <Printer className="h-4 w-4" />
+              Print Details
+            </Button>
+            <Button type="button" variant="secondary" onClick={() => navigate('/employee/requests')}>
+              <ArrowLeft className="h-4 w-4" />
+              Back to requests
+            </Button>
+          </div>
         }
       />
 
-      <section className="rounded-xl border border-border bg-surface-raised p-5">
+      <article id="employee-request-print" className="request-print-document" aria-label="Printable request details">
+        <header className="request-print-header">
+          <h1>Request Details</h1>
+          <p>Verde Group Internal Material Request</p>
+        </header>
+
+        <section className="request-print-section request-print-summary" aria-label="Request summary">
+          <div>
+            <span>Request No.</span>
+            <strong>{request.id}</strong>
+          </div>
+          <div>
+            <span>Date</span>
+            <strong>{submittedAt}</strong>
+          </div>
+          <div>
+            <span>Status</span>
+            <strong>{statusLabel}</strong>
+          </div>
+          <div>
+            <span>Project</span>
+            <strong>{request.project.name}</strong>
+          </div>
+          <div>
+            <span>Requester</span>
+            <strong>{request.requester?.name ?? 'Employee'}</strong>
+          </div>
+        </section>
+
+        <section className="request-print-section" aria-label="Requested items">
+          <h2>Requested Items</h2>
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">#</th>
+                <th scope="col">Items</th>
+                <th scope="col">Quantity</th>
+              </tr>
+            </thead>
+            <tbody>
+              {request.items.map((item, index) => (
+                <tr key={item.id}>
+                  <td>{index + 1}</td>
+                  <td>{productNameById.get(item.productId) ?? item.productId}</td>
+                  <td>{item.quantity}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+
+        <section className="request-print-section request-print-grid-section" aria-label="Request notes and approval timeline">
+          <div>
+            <h2>Notes</h2>
+            <p className="request-print-notes">{request.notes?.trim() || 'No notes provided.'}</p>
+          </div>
+
+          <div>
+            <h2>Approval Timeline</h2>
+            {requestHistory.length === 0 ? (
+              <p className="request-print-muted">No approval events yet.</p>
+            ) : (
+              <div className="request-print-timeline">
+                {requestHistory.map((event) => (
+                  <div key={event.id} className="request-print-timeline-event">
+                    <p>
+                      <strong>{new Date(event.createdAt).toLocaleString()}</strong>
+                      <span>{event.action.replace(/_/g, ' ')}</span>
+                      <span>by {event.actor?.name ?? 'System'}</span>
+                    </p>
+                    {event.comment ? <p className="request-print-muted">{event.comment}</p> : null}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="request-print-signatures" aria-label="Signatures">
+          <div>
+            <span>Requester Signature</span>
+            <strong />
+          </div>
+          <div>
+            <span>Date</span>
+            <strong />
+          </div>
+          <div>
+            <span>Approved By</span>
+            <strong />
+          </div>
+          <div>
+            <span>Date</span>
+            <strong />
+          </div>
+        </section>
+
+        <footer className="request-print-footer">
+          <span>Generated from Verde Support</span>
+          <span>Verde Group - Qatar</span>
+        </footer>
+      </article>
+
+      <section className="request-screen-content rounded-xl border border-border bg-surface-raised p-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-sm text-text-secondary">Project</p>
@@ -95,12 +217,12 @@ export function EmployeeRequestDetailPage() {
             <label htmlFor="request-notes" className="text-sm font-medium text-text-primary">
               Notes
             </label>
-              <Input
-                id="request-notes"
-                value={currentNotes}
-                onChange={(event) => setEditableNotes(event.target.value)}
-                placeholder="Add or update notes"
-              />
+            <Input
+              id="request-notes"
+              value={currentNotes}
+              onChange={(event) => setEditableNotes(event.target.value)}
+              placeholder="Add or update notes"
+            />
             <div className="flex justify-end">
               <ConfirmDialog
                 title="Save request notes"
@@ -125,7 +247,7 @@ export function EmployeeRequestDetailPage() {
         ) : null}
       </section>
 
-      <section className="rounded-xl border border-border bg-surface-raised p-5">
+      <section className="request-screen-content rounded-xl border border-border bg-surface-raised p-5">
         <h2 className="text-lg font-semibold text-text-primary">Requested items</h2>
 
         <div className="mt-4 space-y-2">
@@ -138,13 +260,13 @@ export function EmployeeRequestDetailPage() {
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-surface-raised p-5">
+      <section className="request-screen-content rounded-xl border border-border bg-surface-raised p-5">
         <h2 className="text-lg font-semibold text-text-primary">Approval timeline</h2>
         <div className="mt-4 space-y-3">
-          {(requestHistoryQuery.data ?? []).length === 0 ? (
+          {requestHistory.length === 0 ? (
             <p className="text-sm text-text-secondary">No approval events yet.</p>
           ) : (
-            (requestHistoryQuery.data ?? []).map((event) => (
+            requestHistory.map((event) => (
               <article key={event.id} className="rounded-lg border border-border bg-background p-3">
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm font-medium text-text-primary">
@@ -160,7 +282,7 @@ export function EmployeeRequestDetailPage() {
       </section>
 
       {request.status === 'PENDING' || request.status === 'APPROVED' ? (
-        <div className="flex justify-end">
+        <div className="request-screen-content flex justify-end">
           <ConfirmDialog
             title="Cancel request"
             description="Are you sure you want to cancel this request?"

@@ -10,3 +10,215 @@
     -webkit-font-smoothing: antialiased;
   }
 }
+
+@layer components {
+  .request-print-document {
+    display: none;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 14mm 16mm 16mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  body.printing-employee-request * {
+    visibility: hidden;
+  }
+
+  body.printing-employee-request #employee-request-print,
+  body.printing-employee-request #employee-request-print * {
+    visibility: visible;
+  }
+
+  body.printing-employee-request #employee-request-print {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    color: #111111;
+    background: #ffffff;
+    font-family: "Inter", "Segoe UI", Arial, sans-serif;
+    font-size: 9.5pt;
+    line-height: 1.35;
+  }
+
+  body.printing-employee-request #employee-request-print * {
+    box-shadow: none !important;
+  }
+
+  .request-print-header {
+    border: 0;
+    border-bottom: 2px solid #345c4c;
+    padding: 0 0 7mm;
+    text-align: left;
+  }
+
+  .request-print-header h1 {
+    margin: 0;
+    color: #345c4c;
+    font-size: 28pt;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  .request-print-header p {
+    margin: 2.5mm 0 0;
+    color: #444444;
+    font-size: 9pt;
+    font-weight: 600;
+  }
+
+  .request-print-section {
+    break-inside: avoid;
+    border-top: 1.5px solid #345c4c;
+    margin-top: 6mm;
+    padding-top: 3mm;
+  }
+
+  .request-print-section h2 {
+    margin: 0 0 2.5mm;
+    color: #111111;
+    font-size: 10pt;
+    font-weight: 700;
+    letter-spacing: 0;
+    text-transform: none;
+  }
+
+  .request-print-summary {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 6mm 8mm;
+    border-top: 0;
+    margin-top: 8mm;
+    padding-top: 0;
+  }
+
+  .request-print-summary div {
+    display: block;
+  }
+
+  .request-print-summary span,
+  .request-print-signatures span,
+  .request-print-muted {
+    color: #555555;
+  }
+
+  .request-print-summary strong {
+    display: block;
+    margin-top: 1mm;
+    color: #111111;
+    font-size: 9.5pt;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+  }
+
+  .request-print-notes {
+    min-height: 14mm;
+    margin: 0;
+    border: 0;
+    padding: 0;
+    white-space: pre-wrap;
+  }
+
+  body.printing-employee-request #employee-request-print table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 1mm;
+  }
+
+  body.printing-employee-request #employee-request-print th,
+  body.printing-employee-request #employee-request-print td {
+    border: 0;
+    border-bottom: 1px solid #cfcfcf;
+    padding: 2.4mm 0;
+    text-align: left;
+    vertical-align: top;
+  }
+
+  body.printing-employee-request #employee-request-print th {
+    border-bottom: 1.5px solid #345c4c;
+    background: transparent !important;
+    color: #111111;
+    font-weight: 700;
+  }
+
+  body.printing-employee-request #employee-request-print th:first-child,
+  body.printing-employee-request #employee-request-print td:first-child {
+    width: 10mm;
+    text-align: center;
+  }
+
+  body.printing-employee-request #employee-request-print th:last-child,
+  body.printing-employee-request #employee-request-print td:last-child {
+    width: 28mm;
+    text-align: center;
+  }
+
+  .request-print-grid-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12mm;
+  }
+
+  .request-print-timeline {
+    display: grid;
+    gap: 2.5mm;
+  }
+
+  .request-print-timeline-event {
+    border-left: 1.5px solid #345c4c;
+    padding-left: 3mm;
+  }
+
+  .request-print-timeline-event p {
+    margin: 0;
+  }
+
+  .request-print-timeline-event span {
+    display: block;
+    margin-top: 0.5mm;
+  }
+
+  .request-print-signatures {
+    display: grid;
+    grid-template-columns: 1fr 34mm;
+    break-inside: avoid;
+    column-gap: 12mm;
+    row-gap: 6mm;
+    border-top: 1.5px solid #345c4c;
+    margin-top: 8mm;
+    padding-top: 5mm;
+  }
+
+  .request-print-signatures div {
+    display: flex;
+    flex-direction: column;
+    gap: 5mm;
+  }
+
+  .request-print-signatures strong {
+    display: block;
+    border-bottom: 1px solid #111111;
+    min-height: 1px;
+  }
+
+  .request-print-footer {
+    display: flex;
+    justify-content: space-between;
+    border-top: 1px solid #cfcfcf;
+    margin-top: 7mm;
+    padding-top: 2.5mm;
+    color: #666666;
+    font-size: 8pt;
+  }
+}
