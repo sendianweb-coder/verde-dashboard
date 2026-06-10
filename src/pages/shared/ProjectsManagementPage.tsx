@@ -3,6 +3,7 @@ import type { FormEvent } from 'react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { Eye, Filter, MoreHorizontal, Pencil, Power, Shapes } from 'lucide-react'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
@@ -10,13 +11,95 @@ import { DataTable } from '@/components/shared/DataTable'
 import { DialogFormActions } from '@/components/shared/DialogFormActions'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { useCreateProject, useDeactivateProject, useProjects, useUpdateProject } from '@/hooks/useProjects'
 import { getErrorMessage } from '@/lib/errors'
+import { cn } from '@/lib/utils'
 import type { Project } from '@/types/project'
+
+type ProjectStatusFilter = 'all' | 'active' | 'inactive'
+type ProjectDateFilter = 'all' | 'today' | 'last7days' | 'last30days'
+
+const projectStatusFilterLabels: Record<ProjectStatusFilter, string> = {
+  all: 'All Status',
+  active: 'Active',
+  inactive: 'Inactive',
+}
+
+const projectDateFilterLabels: Record<ProjectDateFilter, string> = {
+  all: 'Created Date',
+  today: 'Today',
+  last7days: 'Last 7 days',
+  last30days: 'Last 30 days',
+}
+
+const projectDateFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+})
 
 interface ProjectsManagementPageProps {
   projectDetailBasePath: string
+}
+
+function formatProjectDate(value: string) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown'
+  }
+
+  return projectDateFormatter.format(date)
+}
+
+function isWithinProjectDateFilter(value: string, filter: ProjectDateFilter) {
+  if (filter === 'all') {
+    return true
+  }
+
+  const timestamp = new Date(value).getTime()
+  if (Number.isNaN(timestamp)) {
+    return false
+  }
+
+  const day = 24 * 60 * 60 * 1000
+  const now = Date.now()
+  const startOfToday = new Date().setHours(0, 0, 0, 0)
+  const startOfTomorrow = startOfToday + day
+
+  if (filter === 'today') {
+    return timestamp >= startOfToday && timestamp < startOfTomorrow
+  }
+
+  if (filter === 'last7days') {
+    return timestamp >= now - 7 * day && timestamp <= now
+  }
+
+  return timestamp >= now - 30 * day && timestamp <= now
+}
+
+function ProjectStatusBadge({ isActive }: { isActive: boolean }) {
+  return isActive ? (
+    <span className="inline-flex items-center gap-1 rounded-md border border-brand-100 bg-brand-50 px-2 py-0.5 text-xs font-medium text-brand-700">
+      <span className="size-1.5 rounded-full bg-brand-600" />
+      Active
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1 rounded-md border border-border bg-surface px-2 py-0.5 text-xs font-medium text-text-secondary">
+      <span className="size-1.5 rounded-full bg-text-muted" />
+      Inactive
+    </span>
+  )
 }
 
 export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManagementPageProps) {
@@ -25,86 +108,112 @@ export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManage
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectDescription, setNewProjectDescription] = useState('')
   const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [projectPendingDeactivation, setProjectPendingDeactivation] = useState<Project | null>(null)
   const [updatedProjectName, setUpdatedProjectName] = useState('')
   const [updatedProjectDescription, setUpdatedProjectDescription] = useState('')
+  const [statusFilter, setStatusFilter] = useState<ProjectStatusFilter>('all')
+  const [dateFilter, setDateFilter] = useState<ProjectDateFilter>('all')
 
   const projectsQuery = useProjects()
   const createProjectMutation = useCreateProject()
   const updateProjectMutation = useUpdateProject()
   const deactivateProjectMutation = useDeactivateProject()
 
+  const filteredProjects = useMemo(() => {
+    return (projectsQuery.data ?? [])
+      .filter((project) => {
+        if (statusFilter === 'all') {
+          return true
+        }
+
+        return statusFilter === 'active' ? project.isActive : !project.isActive
+      })
+      .filter((project) => isWithinProjectDateFilter(project.createdAt, dateFilter))
+  }, [dateFilter, projectsQuery.data, statusFilter])
+
+  const hasActiveFilters = statusFilter !== 'all' || dateFilter !== 'all'
+
+  const clearFilters = () => {
+    setStatusFilter('all')
+    setDateFilter('all')
+  }
+
   const columns = useMemo<Array<ColumnDef<Project>>>(
     () => [
       {
         accessorKey: 'name',
-        header: 'Name',
-        cell: ({ row }) => <span className="font-medium text-text-primary">{row.original.name}</span>,
+        header: 'Project',
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2.5">
+            <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-surface text-text-muted">
+              <Shapes className="size-4" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-medium text-text-primary">{row.original.name}</p>
+              <p className="text-xs text-text-muted">Project record</p>
+            </div>
+          </div>
+        ),
       },
       {
         accessorKey: 'description',
         header: 'Description',
-        cell: ({ row }) => <span>{row.original.description || 'No description'}</span>,
+        cell: ({ row }) => (
+          <span className={cn('text-sm', row.original.description ? 'text-text-secondary' : 'text-text-muted')}>
+            {row.original.description || 'No description'}
+          </span>
+        ),
       },
       {
         accessorKey: 'isActive',
         header: 'Status',
-        cell: ({ row }) => <span>{row.original.isActive ? 'Active' : 'Inactive'}</span>,
+        cell: ({ row }) => <ProjectStatusBadge isActive={row.original.isActive} />,
       },
       {
         accessorKey: 'createdAt',
-        header: 'Created',
-        cell: ({ row }) => <span>{new Date(row.original.createdAt).toLocaleDateString()}</span>,
+        header: 'Created Date',
+        cell: ({ row }) => <span className="text-sm tabular-nums text-text-secondary">{formatProjectDate(row.original.createdAt)}</span>,
       },
       {
         id: 'actions',
-        header: 'Actions',
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => navigate(`${projectDetailBasePath}/${row.original.id}`)}
-            >
-              View
-            </Button>
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                setEditingProject(row.original)
-                setUpdatedProjectName(row.original.name)
-                setUpdatedProjectDescription(row.original.description ?? '')
-              }}
-            >
-              Edit
-            </Button>
-            <ConfirmDialog
-              title="Deactivate project"
-              description="Are you sure you want to deactivate this project?"
-              confirmLabel="Deactivate"
-              variant="destructive"
-              isLoading={deactivateProjectMutation.isPending}
-              onConfirm={async () => {
-                try {
-                  await deactivateProjectMutation.mutateAsync(row.original.id)
-                  toast.success('Project deactivated')
-                } catch (error) {
-                  toast.error(getErrorMessage(error, { context: 'update' }))
-                }
-              }}
-              trigger={
-                <Button type="button" size="sm" variant="destructive" disabled={!row.original.isActive}>
-                  Deactivate
-                </Button>
-              }
-            />
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" className="size-8" aria-label="Open project actions">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => navigate(`${projectDetailBasePath}/${row.original.id}`)}>
+                <Eye className="size-4" />
+                View project
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  setEditingProject(row.original)
+                  setUpdatedProjectName(row.original.name)
+                  setUpdatedProjectDescription(row.original.description ?? '')
+                }}
+              >
+                <Pencil className="size-4" />
+                Edit project
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                disabled={!row.original.isActive}
+                className="text-error focus:text-error"
+                onSelect={() => setProjectPendingDeactivation(row.original)}
+              >
+                <Power className="size-4" />
+                Deactivate
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ),
       },
     ],
-    [deactivateProjectMutation, navigate, projectDetailBasePath],
+    [navigate, projectDetailBasePath],
   )
 
   const handleCreateProject = async (event: FormEvent<HTMLFormElement>) => {
@@ -173,8 +282,55 @@ export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManage
       />
 
       <DataTable
-        data={projectsQuery.data ?? []}
+        data={filteredProjects}
         columns={columns}
+        title="Projects"
+        description="Browse project records, lifecycle state, and creation history."
+        resultsLabel="projects"
+        searchPlaceholder="Search projects..."
+        getRowId={(project) => project.id}
+        filters={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="secondary" size="sm" className="relative h-9">
+                <Filter className="size-4" />
+                Filter
+                {hasActiveFilters ? <span className="absolute -right-1 -top-1 size-2 rounded-full bg-brand-600" /> : null}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>Status</DropdownMenuLabel>
+              {(Object.keys(projectStatusFilterLabels) as ProjectStatusFilter[]).map((filter) => (
+                <DropdownMenuCheckboxItem
+                  key={filter}
+                  checked={statusFilter === filter}
+                  onCheckedChange={() => setStatusFilter(filter)}
+                >
+                  {projectStatusFilterLabels[filter]}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Created</DropdownMenuLabel>
+              {(Object.keys(projectDateFilterLabels) as ProjectDateFilter[]).map((filter) => (
+                <DropdownMenuCheckboxItem
+                  key={filter}
+                  checked={dateFilter === filter}
+                  onCheckedChange={() => setDateFilter(filter)}
+                >
+                  {projectDateFilterLabels[filter]}
+                </DropdownMenuCheckboxItem>
+              ))}
+              {hasActiveFilters ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
         isLoading={projectsQuery.isLoading}
         hasError={projectsQuery.isError}
         errorTitle="Unable to load projects"
@@ -291,6 +447,33 @@ export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManage
           </form>
         </DialogContent>
       </Dialog>
+
+      <ConfirmDialog
+        open={Boolean(projectPendingDeactivation)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setProjectPendingDeactivation(null)
+          }
+        }}
+        title="Deactivate project"
+        description={`Are you sure you want to deactivate ${projectPendingDeactivation?.name ?? 'this project'}?`}
+        confirmLabel="Deactivate"
+        variant="destructive"
+        isLoading={deactivateProjectMutation.isPending}
+        onConfirm={async () => {
+          if (!projectPendingDeactivation) {
+            return
+          }
+
+          try {
+            await deactivateProjectMutation.mutateAsync(projectPendingDeactivation.id)
+            toast.success('Project deactivated')
+          } catch (error) {
+            toast.error(getErrorMessage(error, { context: 'update' }))
+            throw error
+          }
+        }}
+      />
     </section>
   )
 }

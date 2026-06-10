@@ -219,6 +219,8 @@ Responsive system uses 4 breakpoint tier(s): mobile, tablet, desktop, wide.
 
 Dashboards should resemble the provided minimal Frappe-style workspace without giving up Verde's current brand identity. The result should feel like a calm internal ERP dashboard: white surfaces, soft gray page background, light borders, compact controls, and minimal decoration.
 
+Before creating a new dashboard page or editing shared UI components, read `.interface-design/system.md` first. Treat it as the compact source of truth for Verde's current interface direction, table patterns, row actions, spacing, depth, and component signatures. Use this document for detailed evidence and historical design notes.
+
 ### Dashboard Color Rules
 - Keep Verde green for primary buttons, approval actions, success states, positive badges, and small identity accents.
 - Do not replace dashboard primary buttons with the black Frappe auth CTA unless the screen is an auth/login flow.
@@ -259,6 +261,35 @@ Dashboards should resemble the provided minimal Frappe-style workspace without g
 - Padding: 20px to 24px for standard dashboard cards.
 - Use subtle borders and white-on-gray contrast for separation, not elevation.
 
+### Dashboard Table Pattern
+- Table inspiration: Square UI dashboard tables, especially the minimal projects/employees table structure with a card shell, compact toolbar, rich cells, soft badges, and footer pagination.
+- Current extracted interface rules live in `.interface-design/system.md`; follow that file first when applying table/card/action patterns.
+- Use `src/components/shared/DataTable.tsx` as the global reusable table shell. Do not recreate one-off table chrome in pages unless the page has a truly unique workflow.
+- Preferred structure: rounded white card, subtle border, toolbar/header inside the card, icon search, filter dropdowns, optional actions slot, table body, and compact footer pagination.
+- Keep the table primitive simple. The shared table shell owns card border, radius, toolbar, and footer. The `Table` primitive should only provide semantic table layout and row/cell styling.
+- Search fields in tables should use a neutral icon prefix, `h-9`, subtle gray/surface background, and muted placeholder text. Search should not use Verde green.
+- Filters should appear as compact outline buttons with an icon, label, and a tiny Verde dot when active. Put role/status/date or domain-specific filters inside a `DropdownMenu` with labels, separators, checkbox items, and a clear filters action.
+- Action buttons in table rows should be dropdown menus by default. Prefer a compact `MoreHorizontal` trigger with `View`, `Edit`, `Delete`, or domain actions inside the menu instead of multiple visible row buttons. Exception: high-frequency queue workflows may use minimal icon-only buttons when quick scanning and repeated action matter more than menu compactness.
+- Destructive dropdown actions should open a confirmation dialog; avoid nesting dialog triggers directly inside dropdown menu items. Use controlled dialog state when needed.
+- Use row selection only where it creates a clear bulk-action workflow. When enabled, use stable row IDs from backend IDs, not table indexes.
+
+### Table Cell Styling
+- Rich identity cells should combine a small avatar or icon with primary text. Use initials avatars for users when no image exists.
+- Secondary metadata such as emails, counts, dates, and IDs should use muted text and compact type: `text-sm text-text-secondary` or `text-xs text-text-secondary` depending on density.
+- Date columns should follow the reference typography: muted, compact, tabular numerals. Prefer `MMM d, yyyy` formatting, such as `Jun 7, 2026`, over browser locale defaults.
+- Status cells should use soft badge treatments, not plain text. Preferred status badge shape is small rounded rectangle or pill with `text-xs font-medium`, a subtle border, and a tiny dot or icon when helpful.
+- Role/category badges should use soft neutral or semantic backgrounds. Avoid saturated fills; keep badges quiet unless they represent success, errors, warnings, or urgent states.
+- Keep table headers muted and medium weight. Header rows can use a soft gray/surface background, with no heavy contrast.
+- Table rows should use subtle hover only. Do not add shadows, strong row fills, or large vertical padding.
+
+### Current Table Preferences
+- Users table preference: avatar initials in the user cell, role badge, active/inactive status badge, joined/created date in `MMM d, yyyy`, filter dropdown for role/status/date, and row actions inside a dropdown.
+- Project table preference: project icon or visual marker, project status badge, optional progress indicator, task count metadata, due date in tabular muted format, owner/avatar cell, and the same global toolbar/footer pattern.
+- Product, request, order, inventory, and audit tables should reuse the same global shell and adapt only their cells, filters, and row actions.
+- Request queue preference: project, item-count badge, status badge, requester avatar after status, submitted date, and minimal icon-only action buttons with controlled confirmation dialogs.
+- If a page needs custom filters, pass them into the `DataTable` filter slot instead of embedding filter logic inside the shared table component.
+- Prefer `lucide-react` icons for consistency unless a specific reference requires a new icon set. Do not add Hugeicons only for table polish.
+
 ### KPI Cards
 - Label: 12px to 13px, medium weight, uppercase or muted.
 - Value: 28px to 32px, 600 to 700 weight, #383838.
@@ -281,6 +312,10 @@ Dashboards should resemble the provided minimal Frappe-style workspace without g
 | KPI value | InterVariable | 28px to 32px | 600 to 700 | 34px to 38px | Metric numbers |
 | Sidebar item | InterVariable | 15px to 16px | 420 to 500 | 22px to 24px | Left navigation labels |
 | Dashboard metadata | InterVariable | 13px to 14px | 420 | 20px to 21px | Sync time, helper labels, secondary captions |
+| Table header | InterVariable | 14px | 500 | 20px to 21px | Muted table column labels |
+| Table body | InterVariable | 14px | 420 to 500 | 20px to 21px | Primary table cell text |
+| Table badge | InterVariable | 12px | 500 | 18px | Status, role, category, and compact labels |
+| Table date | InterVariable | 14px | 420 | 20px to 21px | Muted, tabular date values such as `Jun 7, 2026` |
 
 ## Elevation & Depth
 

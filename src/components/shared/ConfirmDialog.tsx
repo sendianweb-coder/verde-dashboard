@@ -15,7 +15,9 @@ import {
 } from '@/components/ui/dialog'
 
 interface ConfirmDialogProps {
-  trigger: ReactNode
+  trigger?: ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
   title: string
   description: ReactNode
   confirmLabel?: string
@@ -32,6 +34,8 @@ interface ConfirmDialogProps {
 
 export function ConfirmDialog({
   trigger,
+  open,
+  onOpenChange,
   title,
   description,
   confirmLabel = 'Confirm',
@@ -41,12 +45,14 @@ export function ConfirmDialog({
   children,
   onConfirm,
 }: ConfirmDialogProps) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const dialogOpen = open ?? internalOpen
+  const setDialogOpen = onOpenChange ?? setInternalOpen
   const hasConflicts = conflicts.length > 0
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -92,7 +98,7 @@ export function ConfirmDialog({
             onClick={async () => {
               try {
                 await onConfirm()
-                setOpen(false)
+                setDialogOpen(false)
               } catch {
                 // Keep dialog open when action fails.
               }

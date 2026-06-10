@@ -38,7 +38,15 @@ Example: `Co-Authored-By: GPT-5.5 <noreply@example.com>`
 - Reuse `getErrorMessage` from `src/lib/errors.ts`; do not swallow errors silently.
 - Keep query keys stable and invalidate affected list/detail queries after mutations.
 - Add shadcn components with `npx shadcn@latest add <component-name>`, not copied source.
-- Follow `DESIGN.md` for dashboard/auth/shared UI styling.
+- Before creating pages or editing UI components, check `.interface-design/system.md` and `DESIGN.md`; preserve the Verde table/card/action patterns unless the user asks otherwise.
+
+## Code Analysis
+- Use **code-review-graph** MCP as the default for architecture, debugging, dependency, and change-impact analysis.
+- Always start with `get_minimal_context(task="...")` to reduce token usage.
+- Use `detail_level="minimal"` on all queries; only expand to `detail_level="standard"` for specific high-risk items.
+- For debugging: prefer targeted `query_graph_tool` (callers/callees), `get_flow_tool` (execution paths), `traverse_graph_tool` over broad scans.
+- For reviews: use `detect_changes_tool(detail_level="minimal")`, then expand only on risky functions/flows.
+- For architecture: use `get_architecture_overview_tool(detail_level="minimal")` and `list_flows_tool(detail_level="minimal")`.
 
 ## Deployment Constraints
 - Production is Hostinger/LiteSpeed static hosting for `app.verde-qatar.com`.

@@ -24,7 +24,7 @@ import { createRequestSchema, type CreateRequestFormValues } from '@/lib/validat
 export function QuickRequestDialog() {
   const [open, setOpen] = useState(false)
   const projectsQuery = useProjects()
-  const productsQuery = useProducts({ isActive: true })
+  const productsQuery = useProducts()
   const createRequestMutation = useCreateRequest()
 
   const {

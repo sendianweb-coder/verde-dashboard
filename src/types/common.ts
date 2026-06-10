@@ -14,8 +14,20 @@ export interface PaginationMeta {
   totalPages: number
 }
 
+export interface OffsetPaginationMeta {
+  total: number
+  limit: number
+  offset: number
+}
+
 export interface PaginatedResponse<T> {
   success: boolean
   data: T[]
   pagination: PaginationMeta
+}
+
+export interface OffsetPaginatedResponse<T> {
+  success: boolean
+  data: T[]
+  pagination: OffsetPaginationMeta
 }

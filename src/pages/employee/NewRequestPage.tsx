@@ -22,7 +22,7 @@ export function EmployeeNewRequestPage() {
   const [newProjectDescription, setNewProjectDescription] = useState('')
 
   const projectsQuery = useProjects()
-  const productsQuery = useProducts({ isActive: true })
+  const productsQuery = useProducts()
   const createRequestMutation = useCreateRequest()
   const createProjectMutation = useCreateProject()
 

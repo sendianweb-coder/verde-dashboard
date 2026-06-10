@@ -7,11 +7,40 @@ import { PageHeader } from '@/components/layout/PageHeader'
 import { DataTable } from '@/components/shared/DataTable'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAdjustStock, useProduct, useProductMovements } from '@/hooks/useProducts'
 import { getErrorMessage } from '@/lib/errors'
-import type { StockMovement } from '@/types/product'
+import type { Product, StockMovement } from '@/types/product'
+
+function hasAttributeValue(value: string | number | null | undefined) {
+  return value !== null && value !== undefined && String(value).trim() !== ''
+}
+
+function formatMeasurement(value: number | null | undefined, unit: string) {
+  return value === null || value === undefined ? null : `${value} ${unit}`
+}
+
+function getProductAttributes(product: Product) {
+  return [
+    { label: 'Pot Size', value: product.potSize },
+    { label: 'Category', value: product.category?.name },
+    { label: 'Brand', value: product.brand },
+    { label: 'Tags', value: product.tags },
+    { label: 'Latin Name', value: product.latinName },
+    { label: 'Shape', value: product.shape },
+    { label: 'Origin', value: product.origin },
+    { label: 'Color Type', value: product.colorType },
+    { label: 'Pot Type', value: product.potType },
+    { label: 'Display Height', value: product.height },
+    { label: 'Unit', value: product.unitOfMeasure },
+    { label: 'Weight', value: formatMeasurement(product.weightKg, 'kg') },
+    { label: 'Length', value: formatMeasurement(product.lengthCm, 'cm') },
+    { label: 'Width', value: formatMeasurement(product.widthCm, 'cm') },
+    { label: 'Height', value: formatMeasurement(product.heightCm, 'cm') },
+  ].filter((attribute) => hasAttributeValue(attribute.value))
+}
 
 export function AdminProductDetailPage() {
   const navigate = useNavigate()
@@ -49,6 +78,9 @@ export function AdminProductDetailPage() {
   if (!product) {
     return <EmptyState title="Product not found" description="The selected product could not be loaded." />
   }
+
+  const description = product.description || product.shortDescription
+  const attributes = getProductAttributes(product)
 
   const handleAdjustStock = async () => {
     try {
@@ -92,6 +124,33 @@ export function AdminProductDetailPage() {
         <article className="rounded-xl border border-border bg-surface-raised p-5">
           <p className="text-sm text-text-secondary">Available quantity</p>
           <p className="mt-2 text-3xl font-bold text-text-primary">{product.availableQuantity}</p>
+        </article>
+      </section>
+
+      <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+        <article className="rounded-xl border border-border bg-surface-raised p-5">
+          <h2 className="text-lg font-semibold text-text-primary">Description</h2>
+          {description ? (
+            <p className="mt-3 whitespace-pre-line text-sm leading-6 text-text-secondary">{description}</p>
+          ) : (
+            <p className="mt-3 text-sm text-text-muted">No product description available.</p>
+          )}
+        </article>
+
+        <article className="rounded-xl border border-border bg-surface-raised p-5">
+          <h2 className="text-lg font-semibold text-text-primary">Attributes</h2>
+          {attributes.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {attributes.map((attribute) => (
+                <Badge key={`${attribute.label}-${attribute.value}`} variant="secondary" className="gap-1.5">
+                  <span className="text-text-muted">{attribute.label}:</span>
+                  <span className="text-text-primary">{attribute.value}</span>
+                </Badge>
+              ))}
+            </div>
+          ) : (
+            <p className="mt-3 text-sm text-text-muted">No product attributes available.</p>
+          )}
         </article>
       </section>
 

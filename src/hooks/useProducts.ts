@@ -4,13 +4,21 @@ import {
   adjustStock,
   createProduct,
   deactivateProduct,
+  getAllProducts,
   getProductById,
   getProducts,
   getStockMovements,
+  getWooCommerceSyncStatus,
+  syncWooCommerceProducts,
   type GetProductsParams,
   updateProduct,
 } from '@/api/products.api'
-import type { CreateProductPayload, StockAdjustmentPayload, UpdateProductPayload } from '@/types/product'
+import type {
+  CreateProductPayload,
+  StockAdjustmentPayload,
+  SyncWooCommerceProductsParams,
+  UpdateProductPayload,
+} from '@/types/product'
 
 const PRODUCTS_LIST_STALE_TIME = 60_000
 const PRODUCTS_DETAIL_STALE_TIME = 30_000
@@ -18,13 +26,23 @@ const PRODUCTS_DETAIL_STALE_TIME = 30_000
 export const productsQueryKeys = {
   all: ['products'] as const,
   list: (params?: GetProductsParams) => ['products', 'list', params] as const,
+  paginatedList: (params?: GetProductsParams) => ['products', 'paginated-list', params] as const,
   detail: (id: string) => ['products', 'detail', id] as const,
   movements: (id: string) => ['products', 'movements', id] as const,
+  syncStatus: ['products', 'sync-status', 'woocommerce'] as const,
 }
 
 export function useProducts(params?: GetProductsParams) {
   return useQuery({
     queryKey: productsQueryKeys.list(params),
+    queryFn: () => getAllProducts(params),
+    staleTime: PRODUCTS_LIST_STALE_TIME,
+  })
+}
+
+export function usePaginatedProducts(params?: GetProductsParams) {
+  return useQuery({
+    queryKey: productsQueryKeys.paginatedList(params),
     queryFn: () => getProducts(params),
     staleTime: PRODUCTS_LIST_STALE_TIME,
   })
@@ -44,6 +62,14 @@ export function useProductMovements(id: string) {
     queryKey: productsQueryKeys.movements(id),
     queryFn: () => getStockMovements(id),
     enabled: Boolean(id),
+    staleTime: PRODUCTS_DETAIL_STALE_TIME,
+  })
+}
+
+export function useWooCommerceSyncStatus() {
+  return useQuery({
+    queryKey: productsQueryKeys.syncStatus,
+    queryFn: getWooCommerceSyncStatus,
     staleTime: PRODUCTS_DETAIL_STALE_TIME,
   })
 }
@@ -102,6 +128,18 @@ export function useAdjustStock() {
       void queryClient.invalidateQueries({ queryKey: productsQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: productsQueryKeys.detail(variables.id) })
       void queryClient.invalidateQueries({ queryKey: productsQueryKeys.movements(variables.id) })
+    },
+  })
+}
+
+export function useSyncWooCommerceProducts() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (params?: SyncWooCommerceProductsParams) => syncWooCommerceProducts(params),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: productsQueryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: productsQueryKeys.syncStatus })
     },
   })
 }

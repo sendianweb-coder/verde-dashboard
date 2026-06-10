@@ -1,16 +1,26 @@
+import type { ColumnDef } from '@tanstack/react-table'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
+import { CheckCircle2, Eye, Filter, PackageCheck, PackageOpen, XCircle } from 'lucide-react'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
-import { EmptyState } from '@/components/shared/EmptyState'
-import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { DataTable } from '@/components/shared/DataTable'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
+import { Checkbox } from '@/components/ui/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { useAdminRequestQueue, useBulkUpdateRequestStatus } from '@/hooks/useAdmin'
 import { useApproveRequest, useCompleteRequest, usePickupRequest, useRejectRequest } from '@/hooks/useRequests'
 import { useProjects } from '@/hooks/useProjects'
@@ -20,6 +30,12 @@ import type { BulkRequestStatusPayload } from '@/types/admin'
 import type { InternalRequest, RequestStatus } from '@/types/request'
 
 const DEFAULT_LIMIT = 20
+
+const requestDateFormatter = new Intl.DateTimeFormat('en-US', {
+  month: 'short',
+  day: 'numeric',
+  year: 'numeric',
+})
 
 const queueStatusOptions: Array<{ label: string; value: 'ALL' | 'PENDING' | 'APPROVED' | 'PICKED_UP' }> = [
   { label: 'All statuses', value: 'ALL' },
@@ -35,6 +51,35 @@ const bulkStatusOptions: Array<{ label: string; value: BulkRequestStatusPayload[
   { label: 'Complete', value: 'COMPLETED' },
 ]
 
+type RequestActionDialog =
+  | { type: 'approve'; request: InternalRequest }
+  | { type: 'reject'; request: InternalRequest }
+  | { type: 'pickup'; request: InternalRequest }
+  | { type: 'complete'; request: InternalRequest }
+  | null
+
+function formatRequestDate(value: string) {
+  const date = new Date(value)
+
+  if (Number.isNaN(date.getTime())) {
+    return 'Unknown'
+  }
+
+  return requestDateFormatter.format(date)
+}
+
+function getRequesterInitials(name: string) {
+  const initials = name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase()
+
+  return initials || 'E'
+}
+
 export function AdminRequestsPage() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'PICKED_UP'>('ALL')
@@ -45,6 +90,7 @@ export function AdminRequestsPage() {
   const [bulkStatus, setBulkStatus] = useState<BulkRequestStatusPayload['status']>('APPROVED')
   const [bulkComment, setBulkComment] = useState('')
   const [rejectCommentsByRequestId, setRejectCommentsByRequestId] = useState<Record<string, string>>({})
+  const [actionDialog, setActionDialog] = useState<RequestActionDialog>(null)
 
   const queueParams = useMemo(
     () => ({
@@ -69,7 +115,9 @@ export function AdminRequestsPage() {
   const queueItems = queueQuery.data?.data ?? []
   const pagination = queueQuery.data?.pagination
   const allOnPageSelected = queueItems.length > 0 && queueItems.every((request) => selectedRequestIds.includes(request.id))
+  const someOnPageSelected = queueItems.some((request) => selectedRequestIds.includes(request.id))
   const isNextDisabled = !pagination || pagination.page >= pagination.totalPages
+  const hasActiveFilters = status !== 'ALL' || projectId !== '' || requesterId !== ''
 
   const handleApprove = async (request: InternalRequest) => {
     try {
@@ -148,6 +196,159 @@ export function AdminRequestsPage() {
     })
   }
 
+  const clearFilters = () => {
+    setStatus('ALL')
+    setProjectId('')
+    setRequesterId('')
+    setPage(1)
+    setSelectedRequestIds([])
+  }
+
+  const columns: Array<ColumnDef<InternalRequest>> = [
+    {
+      id: 'select',
+      header: () => (
+        <Checkbox
+          aria-label="Select all requests on page"
+          checked={allOnPageSelected || (someOnPageSelected && 'indeterminate')}
+          onCheckedChange={(value) => toggleAllOnPage(Boolean(value))}
+        />
+      ),
+      cell: ({ row }) => {
+        const isSelected = selectedRequestIds.includes(row.original.id)
+
+        return (
+          <Checkbox
+            aria-label={`Select request ${row.original.id}`}
+            checked={isSelected}
+            onCheckedChange={(value) => toggleSelectedRequest(row.original.id, Boolean(value))}
+            onClick={(event) => event.stopPropagation()}
+          />
+        )
+      },
+      enableSorting: false,
+      enableHiding: false,
+    },
+    {
+      accessorKey: 'project.name',
+      header: 'Project',
+      cell: ({ row }) => (
+        <div className="min-w-0">
+          <p className="font-medium text-text-primary">{row.original.project.name}</p>
+          <p className="text-xs text-text-muted">Project request</p>
+        </div>
+      ),
+    },
+    {
+      id: 'items',
+      header: 'Items',
+      cell: ({ row }) => (
+        <span className="inline-flex rounded-md border border-border bg-surface px-2 py-0.5 text-xs font-medium tabular-nums text-text-secondary">
+          {row.original.items.length} items
+        </span>
+      ),
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      cell: ({ row }) => <StatusBadge status={row.original.status as RequestStatus} />,
+    },
+    {
+      id: 'requester',
+      header: 'Requester',
+      cell: ({ row }) => {
+        const requesterName = row.original.requester?.name ?? 'Employee'
+
+        return (
+          <div className="flex items-center gap-2.5">
+            <Avatar className="size-7">
+              <AvatarFallback className="text-[10px] font-semibold">{getRequesterInitials(requesterName)}</AvatarFallback>
+            </Avatar>
+            <div className="min-w-0">
+              <p className="font-medium text-text-primary">{requesterName}</p>
+              <p className="text-xs text-text-muted">{row.original.requester?.email ?? 'No email available'}</p>
+            </div>
+          </div>
+        )
+      },
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Submitted',
+      cell: ({ row }) => <span className="text-sm tabular-nums text-text-secondary">{formatRequestDate(row.original.createdAt)}</span>,
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => {
+        const request = row.original
+
+        return (
+          <div className="flex items-center justify-end gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              aria-label="View request details"
+              onClick={() => navigate(`/admin/requests/${request.id}`)}
+            >
+              <Eye className="size-4" />
+            </Button>
+            {request.status === 'PENDING' ? (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-brand-700 hover:text-brand-700"
+                  aria-label="Approve request"
+                  onClick={() => setActionDialog({ type: 'approve', request })}
+                >
+                  <CheckCircle2 className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-8 text-error hover:text-error"
+                  aria-label="Reject request"
+                  onClick={() => setActionDialog({ type: 'reject', request })}
+                >
+                  <XCircle className="size-4" />
+                </Button>
+              </>
+            ) : null}
+            {request.status === 'APPROVED' ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 text-brand-700 hover:text-brand-700"
+                aria-label="Confirm request pickup"
+                onClick={() => setActionDialog({ type: 'pickup', request })}
+              >
+                <PackageOpen className="size-4" />
+              </Button>
+            ) : null}
+            {request.status === 'PICKED_UP' ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="size-8 text-brand-700 hover:text-brand-700"
+                aria-label="Mark request complete"
+                onClick={() => setActionDialog({ type: 'complete', request })}
+              >
+                <PackageCheck className="size-4" />
+              </Button>
+            ) : null}
+          </div>
+        )
+      },
+      enableSorting: false,
+    },
+  ]
+
   const handleBulkUpdate = async () => {
     if (selectedRequestIds.length === 0) {
       toast.error('Select at least one request.')
@@ -180,275 +381,154 @@ export function AdminRequestsPage() {
     }
   }
 
-  if (queueQuery.isLoading) {
-    return <PageSkeleton />
-  }
-
-  if (queueQuery.isError) {
-    return (
-      <section className="space-y-6">
-        <PageHeader title="Request Queue" subtitle="Review pending operational requests and apply bulk actions" />
-        <EmptyState title="Unable to load request queue" description={getErrorMessage(queueQuery.error, { context: 'load' })} />
-      </section>
-    )
-  }
-
   return (
     <section className="space-y-6">
       <PageHeader title="Request Queue" subtitle="Review pending operational requests and apply bulk actions" />
 
-      <section className="grid gap-3 rounded-xl border border-border bg-surface-raised p-4 md:grid-cols-4">
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">Status</p>
-          <Select
-            value={status}
-            onValueChange={(value: 'ALL' | 'PENDING' | 'APPROVED' | 'PICKED_UP') => {
-              setStatus(value)
-              setPage(1)
-              setSelectedRequestIds([])
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {queueStatusOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">Project</p>
-          <Select
-            value={projectId || 'ALL'}
-            onValueChange={(value) => {
-              setProjectId(value === 'ALL' ? '' : value)
-              setPage(1)
-              setSelectedRequestIds([])
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="All projects" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All projects</SelectItem>
-              {(projectsQuery.data ?? []).filter((project) => project.isActive).map((project) => (
-                <SelectItem key={project.id} value={project.id}>
-                  {project.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">Requester</p>
-          <Select
-            value={requesterId || 'ALL'}
-            onValueChange={(value) => {
-              setRequesterId(value === 'ALL' ? '' : value)
-              setPage(1)
-              setSelectedRequestIds([])
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="All requesters" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">All requesters</SelectItem>
-              {(usersQuery.data ?? []).map((user) => (
-                <SelectItem key={user.id} value={user.id}>
-                  {user.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        <div className="space-y-1">
-          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">Queue size</p>
-          <p className="h-9 rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary">
-            {pagination?.total ?? 0} requests
-          </p>
-        </div>
-      </section>
-
-      <section className="space-y-3 rounded-xl border border-border bg-surface-raised p-4">
-        <div className="grid gap-3 md:grid-cols-[1fr_1fr_auto]">
-          <Select
-            value={bulkStatus}
-            onValueChange={(value: BulkRequestStatusPayload['status']) => {
-              setBulkStatus(value)
-            }}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select bulk status" />
-            </SelectTrigger>
-            <SelectContent>
-              {bulkStatusOptions.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Input
-            value={bulkComment}
-            onChange={(event) => setBulkComment(event.target.value)}
-            placeholder="Optional comment (required for reject, min 10 characters)"
-          />
-
-          <ConfirmDialog
-            title="Apply bulk status update"
-            description={`Update ${selectedRequestIds.length} selected requests to ${bulkStatus.replace('_', ' ')}?`}
-            confirmLabel="Apply update"
-            variant={bulkStatus === 'REJECTED' ? 'destructive' : 'default'}
-            isLoading={bulkMutation.isPending}
-            onConfirm={handleBulkUpdate}
-            trigger={
-              <Button type="button" disabled={selectedRequestIds.length === 0 || bulkMutation.isPending}>
-                Apply to {selectedRequestIds.length} requests
+      <DataTable
+        data={queueItems}
+        columns={columns}
+        title="Requests"
+        description="Review requesters, projects, item counts, and queue status."
+        resultsLabel="requests"
+        enableSearch={false}
+        initialPageSize={DEFAULT_LIMIT}
+        hidePagination
+        getRowId={(request) => request.id}
+        filters={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="secondary" size="sm" className="relative h-9">
+                <Filter className="size-4" />
+                Filter
+                {hasActiveFilters ? <span className="absolute -right-1 -top-1 size-2 rounded-full bg-brand-600" /> : null}
               </Button>
-            }
-          />
-        </div>
-      </section>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-60">
+              <DropdownMenuLabel>Status</DropdownMenuLabel>
+              {queueStatusOptions.map((option) => (
+                <DropdownMenuCheckboxItem
+                  key={option.value}
+                  checked={status === option.value}
+                  onCheckedChange={() => {
+                    setStatus(option.value)
+                    setPage(1)
+                    setSelectedRequestIds([])
+                  }}
+                >
+                  {option.label}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Project</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={projectId === ''}
+                onCheckedChange={() => {
+                  setProjectId('')
+                  setPage(1)
+                  setSelectedRequestIds([])
+                }}
+              >
+                All projects
+              </DropdownMenuCheckboxItem>
+              {(projectsQuery.data ?? []).filter((project) => project.isActive).map((project) => (
+                <DropdownMenuCheckboxItem
+                  key={project.id}
+                  checked={projectId === project.id}
+                  onCheckedChange={() => {
+                    setProjectId(project.id)
+                    setPage(1)
+                    setSelectedRequestIds([])
+                  }}
+                >
+                  {project.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Requester</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={requesterId === ''}
+                onCheckedChange={() => {
+                  setRequesterId('')
+                  setPage(1)
+                  setSelectedRequestIds([])
+                }}
+              >
+                All requesters
+              </DropdownMenuCheckboxItem>
+              {(usersQuery.data ?? []).map((user) => (
+                <DropdownMenuCheckboxItem
+                  key={user.id}
+                  checked={requesterId === user.id}
+                  onCheckedChange={() => {
+                    setRequesterId(user.id)
+                    setPage(1)
+                    setSelectedRequestIds([])
+                  }}
+                >
+                  {user.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+              {hasActiveFilters ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
+        actions={
+          <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+            <Select
+              value={bulkStatus}
+              onValueChange={(value: BulkRequestStatusPayload['status']) => {
+                setBulkStatus(value)
+              }}
+            >
+              <SelectTrigger className="h-9 w-full sm:w-[140px]">
+                <SelectValue placeholder="Bulk status" />
+              </SelectTrigger>
+              <SelectContent>
+                {bulkStatusOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
-      {queueItems.length === 0 ? (
-        <EmptyState title="No queue requests" description="No requests match the selected filters." />
-      ) : (
-        <section className="rounded-xl border border-border bg-surface-raised">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="w-12">
-                  <input
-                    type="checkbox"
-                    aria-label="Select all requests on page"
-                    checked={allOnPageSelected}
-                    onChange={(event) => toggleAllOnPage(event.target.checked)}
-                  />
-                </TableHead>
-                <TableHead>Requester</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Items</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Submitted</TableHead>
-                <TableHead className="text-right">Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {queueItems.map((request) => {
-                const isSelected = selectedRequestIds.includes(request.id)
-                const rejectComment = rejectCommentsByRequestId[request.id] ?? ''
+            <Input
+              value={bulkComment}
+              onChange={(event) => setBulkComment(event.target.value)}
+              placeholder="Bulk comment"
+              className="h-9 w-full bg-surface shadow-none sm:w-[260px]"
+            />
 
-                return (
-                  <TableRow key={request.id}>
-                    <TableCell>
-                      <input
-                        type="checkbox"
-                        aria-label={`Select request ${request.id}`}
-                        checked={isSelected}
-                        onChange={(event) => toggleSelectedRequest(request.id, event.target.checked)}
-                      />
-                    </TableCell>
-                    <TableCell>{request.requester?.name ?? 'Employee'}</TableCell>
-                    <TableCell>{request.project.name}</TableCell>
-                    <TableCell>{request.items.length}</TableCell>
-                    <TableCell>
-                      <StatusBadge status={request.status as RequestStatus} />
-                    </TableCell>
-                    <TableCell>{new Date(request.createdAt).toLocaleDateString()}</TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex justify-end gap-2">
-                        {request.status === 'PENDING' ? (
-                          <>
-                            <ConfirmDialog
-                              title="Approve request"
-                              description="Approve this request and move it to approved status?"
-                              confirmLabel="Approve"
-                              isLoading={approveRequestMutation.isPending}
-                              onConfirm={() => handleApprove(request)}
-                              trigger={
-                                <Button type="button" size="sm" disabled={approveRequestMutation.isPending}>
-                                  Approve
-                                </Button>
-                              }
-                            />
-                            <ConfirmDialog
-                              title="Reject request"
-                              description="Reject this request? A comment with at least 10 characters is required."
-                              confirmLabel="Reject"
-                              variant="destructive"
-                              isLoading={rejectRequestMutation.isPending}
-                              onConfirm={() => handleReject(request, rejectComment)}
-                              trigger={
-                                <Button type="button" size="sm" variant="destructive" disabled={rejectRequestMutation.isPending}>
-                                  Reject
-                                </Button>
-                              }
-                            >
-                              <Input
-                                value={rejectComment}
-                                onChange={(event) => {
-                                  setRejectCommentsByRequestId((prev) => ({
-                                    ...prev,
-                                    [request.id]: event.target.value,
-                                  }))
-                                }}
-                                placeholder="Reason for rejection (min 10 characters)"
-                              />
-                            </ConfirmDialog>
-                          </>
-                        ) : null}
-
-                        {request.status === 'APPROVED' ? (
-                          <ConfirmDialog
-                            title="Confirm pickup"
-                            description="Mark this request as picked up?"
-                            confirmLabel="Confirm Pickup"
-                            isLoading={pickupRequestMutation.isPending}
-                            onConfirm={() => handlePickup(request)}
-                            trigger={
-                              <Button type="button" size="sm" disabled={pickupRequestMutation.isPending}>
-                                Pickup
-                              </Button>
-                            }
-                          />
-                        ) : null}
-
-                        {request.status === 'PICKED_UP' ? (
-                          <ConfirmDialog
-                            title="Mark complete"
-                            description="Mark this request as completed?"
-                            confirmLabel="Mark Complete"
-                            isLoading={completeRequestMutation.isPending}
-                            onConfirm={() => handleComplete(request)}
-                            trigger={
-                              <Button type="button" size="sm" disabled={completeRequestMutation.isPending}>
-                                Complete
-                              </Button>
-                            }
-                          />
-                        ) : null}
-
-                        <Button type="button" size="sm" variant="secondary" onClick={() => navigate(`/admin/requests/${request.id}`)}>
-                          View details
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                )
-              })}
-            </TableBody>
-          </Table>
-        </section>
-      )}
+            <ConfirmDialog
+              title="Apply bulk status update"
+              description={`Update ${selectedRequestIds.length} selected requests to ${bulkStatus.replace('_', ' ')}?`}
+              confirmLabel="Apply update"
+              variant={bulkStatus === 'REJECTED' ? 'destructive' : 'default'}
+              isLoading={bulkMutation.isPending}
+              onConfirm={handleBulkUpdate}
+              trigger={
+                <Button type="button" className="h-9" disabled={selectedRequestIds.length === 0 || bulkMutation.isPending}>
+                  Apply to {selectedRequestIds.length}
+                </Button>
+              }
+            />
+          </div>
+        }
+        isLoading={queueQuery.isLoading}
+        hasError={queueQuery.isError}
+        errorTitle="Unable to load request queue"
+        errorDescription={getErrorMessage(queueQuery.error, { context: 'load' })}
+        emptyTitle="No queue requests"
+        emptyDescription="No requests match the selected filters."
+      />
 
       <div className="flex items-center justify-end gap-2">
         <Button
@@ -477,6 +557,100 @@ export function AdminRequestsPage() {
           Next
         </Button>
       </div>
+
+      <ConfirmDialog
+        open={actionDialog?.type === 'approve'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActionDialog(null)
+          }
+        }}
+        title="Approve request"
+        description="Approve this request and move it to approved status?"
+        confirmLabel="Approve"
+        isLoading={approveRequestMutation.isPending}
+        onConfirm={async () => {
+          if (actionDialog?.type !== 'approve') {
+            return
+          }
+
+          await handleApprove(actionDialog.request)
+        }}
+      />
+
+      <ConfirmDialog
+        open={actionDialog?.type === 'reject'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActionDialog(null)
+          }
+        }}
+        title="Reject request"
+        description="Reject this request? A comment with at least 10 characters is required."
+        confirmLabel="Reject"
+        variant="destructive"
+        isLoading={rejectRequestMutation.isPending}
+        onConfirm={async () => {
+          if (actionDialog?.type !== 'reject') {
+            return
+          }
+
+          await handleReject(actionDialog.request, rejectCommentsByRequestId[actionDialog.request.id] ?? '')
+        }}
+      >
+        {actionDialog?.type === 'reject' ? (
+          <Input
+            value={rejectCommentsByRequestId[actionDialog.request.id] ?? ''}
+            onChange={(event) => {
+              setRejectCommentsByRequestId((prev) => ({
+                ...prev,
+                [actionDialog.request.id]: event.target.value,
+              }))
+            }}
+            placeholder="Reason for rejection (min 10 characters)"
+          />
+        ) : null}
+      </ConfirmDialog>
+
+      <ConfirmDialog
+        open={actionDialog?.type === 'pickup'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActionDialog(null)
+          }
+        }}
+        title="Confirm pickup"
+        description="Mark this request as picked up?"
+        confirmLabel="Confirm Pickup"
+        isLoading={pickupRequestMutation.isPending}
+        onConfirm={async () => {
+          if (actionDialog?.type !== 'pickup') {
+            return
+          }
+
+          await handlePickup(actionDialog.request)
+        }}
+      />
+
+      <ConfirmDialog
+        open={actionDialog?.type === 'complete'}
+        onOpenChange={(open) => {
+          if (!open) {
+            setActionDialog(null)
+          }
+        }}
+        title="Mark complete"
+        description="Mark this request as completed?"
+        confirmLabel="Mark Complete"
+        isLoading={completeRequestMutation.isPending}
+        onConfirm={async () => {
+          if (actionDialog?.type !== 'complete') {
+            return
+          }
+
+          await handleComplete(actionDialog.request)
+        }}
+      />
     </section>
   )
 }
