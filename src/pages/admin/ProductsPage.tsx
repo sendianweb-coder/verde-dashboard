@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Eye, Filter, MoreHorizontal, Package, Power } from 'lucide-react'
+import { Eye, Filter, MoreHorizontal, Package, Power, RefreshCw } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -20,7 +20,12 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useCategories } from '@/hooks/useCategories'
-import { useDeactivateProduct, usePaginatedProducts } from '@/hooks/useProducts'
+import {
+  useDeactivateProduct,
+  usePaginatedProducts,
+  useSyncWooCommerceProducts,
+  useWooCommerceSyncStatus,
+} from '@/hooks/useProducts'
 import { getErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
 import type { Product, ProductStockStatus } from '@/types/product'
@@ -81,6 +86,30 @@ function formatPrice(value: string | number | null | undefined) {
   return `QAR ${price.toFixed(2)}`
 }
 
+function formatSyncDate(value: string | null | undefined) {
+  if (!value) {
+    return 'Never synced'
+  }
+
+  return new Date(value).toLocaleString()
+}
+
+function getSyncSummary({
+  processed,
+  created,
+  updated,
+  skipped,
+  failed,
+}: {
+  processed: number
+  created: number
+  updated: number
+  skipped: number
+  failed: number
+}) {
+  return `Processed ${processed} products: ${created} created, ${updated} updated, ${skipped} skipped, ${failed} failed.`
+}
+
 export function AdminProductsPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
@@ -106,6 +135,8 @@ export function AdminProductsPage() {
   const productsQuery = usePaginatedProducts(productParams)
   const categoriesQuery = useCategories()
   const deactivateProductMutation = useDeactivateProduct()
+  const syncStatusQuery = useWooCommerceSyncStatus()
+  const syncWooCommerceMutation = useSyncWooCommerceProducts()
 
   const categories = useMemo(() => {
     return (categoriesQuery.data ?? [])
@@ -117,6 +148,11 @@ export function AdminProductsPage() {
   const totalProducts = productsQuery.data?.pagination.total ?? 0
   const pageCount = Math.max(1, Math.ceil(totalProducts / pageSize))
   const hasActiveFilters = categoryFilter !== 'all' || stockFilter !== 'all' || featuredFilter !== 'all' || publishedFilter !== 'all'
+  const syncStatus = syncStatusQuery.data
+  const isSyncActionDisabled = syncStatusQuery.isLoading || syncWooCommerceMutation.isPending
+  const syncDescription = syncStatus?.lastErrorMessage
+    ? `Last synced: ${formatSyncDate(syncStatus.lastSuccessfulRunAt)}. Last error: ${syncStatus.lastErrorMessage}`
+    : `Last synced: ${formatSyncDate(syncStatus?.lastSuccessfulRunAt)}`
 
   const clearFilters = () => {
     setCategoryFilter('all')
@@ -124,6 +160,17 @@ export function AdminProductsPage() {
     setFeaturedFilter('all')
     setPublishedFilter('all')
     setPageIndex(0)
+  }
+
+  const handleSyncWooCommerce = async () => {
+    try {
+      const response = await syncWooCommerceMutation.mutateAsync(
+        syncStatus?.lastSuccessfulRunAt ? { modifiedAfter: syncStatus.lastSuccessfulRunAt } : undefined,
+      )
+      toast.success(getSyncSummary(response))
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
+    }
   }
 
   const columns = useMemo<Array<ColumnDef<Product>>>(
@@ -216,9 +263,20 @@ export function AdminProductsPage() {
         title="Product Management" 
         subtitle="Monitor and maintain product inventory" 
         action={
-          <CreateProductDialog onCreate={() => productsQuery.refetch()}>
-            <Button type="button">Create Product</Button>
-          </CreateProductDialog>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <Button
+              type="button"
+              variant="secondary"
+              disabled={isSyncActionDisabled}
+              onClick={handleSyncWooCommerce}
+            >
+              <RefreshCw className={cn('size-4', syncWooCommerceMutation.isPending && 'animate-spin')} />
+              {syncWooCommerceMutation.isPending ? 'Syncing...' : 'Sync WooCommerce'}
+            </Button>
+            <CreateProductDialog onCreate={() => productsQuery.refetch()}>
+              <Button type="button">Create Product</Button>
+            </CreateProductDialog>
+          </div>
         } 
       />
 
@@ -226,7 +284,7 @@ export function AdminProductsPage() {
         data={products}
         columns={columns}
         title="Products"
-        description="Browse inventory, stock health, categories, and pricing."
+        description={`Browse inventory, stock health, categories, and pricing. ${syncDescription}.`}
         resultsLabel="products"
         searchPlaceholder="Search products..."
         searchValue={search}

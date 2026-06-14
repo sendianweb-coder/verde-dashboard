@@ -283,7 +283,7 @@ export function AdminRequestsPage() {
         const request = row.original
 
         return (
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end gap-1" onClick={(event) => event.stopPropagation()}>
             <Button
               type="button"
               variant="ghost"
@@ -395,6 +395,7 @@ export function AdminRequestsPage() {
         initialPageSize={DEFAULT_LIMIT}
         hidePagination
         getRowId={(request) => request.id}
+        onRowClick={(request) => navigate(`/admin/requests/${request.id}`)}
         filters={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

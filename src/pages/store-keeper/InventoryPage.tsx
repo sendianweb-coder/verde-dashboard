@@ -1,102 +1,271 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { useMemo } from 'react'
-import { toast } from 'sonner'
+import { Eye, Filter, MoreHorizontal, Package } from 'lucide-react'
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { DataTable } from '@/components/shared/DataTable'
 import { StockIndicator } from '@/components/shared/StockIndicator'
 import { Button } from '@/components/ui/button'
-import { useAdjustStock, useProducts } from '@/hooks/useProducts'
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
+import { useCategories } from '@/hooks/useCategories'
+import { usePaginatedProducts } from '@/hooks/useProducts'
 import { getErrorMessage } from '@/lib/errors'
-import type { Product } from '@/types/product'
+import { cn } from '@/lib/utils'
+import type { Product, ProductStockStatus } from '@/types/product'
+
+type ProductStockFilter = 'all' | ProductStockStatus
+
+const stockFilterLabels: Record<ProductStockFilter, string> = {
+  all: 'Stock Status',
+  instock: 'In stock',
+  outofstock: 'Out of stock',
+}
+
+function ProductImage({ product }: { product: Product }) {
+  return product.imageUrl ? (
+    <img
+      src={product.imageUrl}
+      alt={product.name}
+      className="size-9 rounded-lg border border-border bg-surface object-cover"
+      loading="lazy"
+    />
+  ) : (
+    <div className="flex size-9 items-center justify-center rounded-lg border border-border bg-surface text-text-muted">
+      <Package className="size-4" />
+    </div>
+  )
+}
+
+function ProductCategoryBadge({ categoryName }: { categoryName: string | null }) {
+  return (
+    <span
+      className={cn(
+        'inline-flex rounded-md px-2 py-0.5 text-xs font-medium',
+        categoryName ? 'bg-surface text-text-secondary' : 'border border-border bg-background text-text-muted',
+      )}
+    >
+      {categoryName ?? 'Uncategorized'}
+    </span>
+  )
+}
+
+function formatPrice(value: string | number | null | undefined) {
+  if (value === null || value === undefined) {
+    return 'QAR 0.00'
+  }
+
+  const price = Number(value)
+
+  if (Number.isNaN(price)) {
+    return 'QAR 0.00'
+  }
+
+  return `QAR ${price.toFixed(2)}`
+}
 
 export function StoreKeeperInventoryPage() {
-  const productsQuery = useProducts()
-  const adjustStockMutation = useAdjustStock()
+  const navigate = useNavigate()
+  const [search, setSearch] = useState('')
+  const [categoryFilter, setCategoryFilter] = useState('all')
+  const [stockFilter, setStockFilter] = useState<ProductStockFilter>('all')
+  const [pageIndex, setPageIndex] = useState(0)
+  const [pageSize, setPageSize] = useState(20)
+  const productParams = useMemo(
+    () => ({
+      categoryId: categoryFilter === 'all' ? undefined : categoryFilter,
+      stockStatus: stockFilter === 'all' ? undefined : stockFilter,
+      search: search.trim() || undefined,
+      limit: pageSize,
+      offset: pageIndex * pageSize,
+    }),
+    [categoryFilter, pageIndex, pageSize, search, stockFilter],
+  )
+  const productsQuery = usePaginatedProducts(productParams)
+  const categoriesQuery = useCategories()
+
+  const categories = useMemo(() => {
+    return (categoriesQuery.data ?? [])
+      .map((category) => ({ id: category.id, name: category.name }))
+      .sort((firstCategory, secondCategory) => firstCategory.name.localeCompare(secondCategory.name))
+  }, [categoriesQuery.data])
+
+  const products = productsQuery.data?.data ?? []
+  const totalProducts = productsQuery.data?.pagination.total ?? 0
+  const pageCount = Math.max(1, Math.ceil(totalProducts / pageSize))
+  const hasActiveFilters = categoryFilter !== 'all' || stockFilter !== 'all'
+
+  const clearFilters = () => {
+    setCategoryFilter('all')
+    setStockFilter('all')
+    setPageIndex(0)
+  }
 
   const columns = useMemo<Array<ColumnDef<Product>>>(
     () => [
       {
         accessorKey: 'name',
-        header: 'Name',
-        cell: ({ row }) => <span className="font-medium text-text-primary">{row.original.name}</span>,
+        header: 'Product',
+        cell: ({ row }) => {
+          const product = row.original
+
+          return (
+            <div className="flex items-center gap-2.5">
+              <ProductImage product={product} />
+              <div className="min-w-0">
+                <p className="truncate font-medium text-text-primary">{product.name}</p>
+                <p className="text-xs tabular-nums text-text-muted">SKU {product.sku}</p>
+              </div>
+            </div>
+          )
+        },
       },
-      { accessorKey: 'sku', header: 'SKU' },
+      {
+        accessorKey: 'category.name',
+        header: 'Category',
+        cell: ({ row }) => <ProductCategoryBadge categoryName={row.original.category?.name ?? null} />,
+      },
       {
         accessorKey: 'stockQuantity',
         header: 'Stock',
-      },
-      {
-        accessorKey: 'reservedQuantity',
-        header: 'Reserved',
+        cell: ({ row }) => {
+          const product = row.original
+
+          return (
+            <div className="space-y-0.5 text-sm tabular-nums">
+              <p className="font-medium text-text-primary">{product.availableQuantity} available</p>
+              <p className="text-xs text-text-secondary">
+                {product.stockQuantity} total &middot; {product.reservedQuantity} reserved
+              </p>
+            </div>
+          )
+        },
       },
       {
         id: 'available',
-        header: 'Available',
-        cell: ({ row }) => (
-          <StockIndicator
-            availableQuantity={row.original.availableQuantity}
-            totalQuantity={row.original.stockQuantity}
-          />
-        ),
+        header: 'Status',
+        cell: ({ row }) => <StockIndicator availableQuantity={row.original.availableQuantity} totalQuantity={row.original.stockQuantity} />,
+      },
+      {
+        accessorKey: 'price',
+        header: 'Price',
+        cell: ({ row }) => <span className="text-sm tabular-nums text-text-secondary">{formatPrice(row.original.regularPrice)}</span>,
       },
       {
         id: 'actions',
-        header: 'Actions',
         cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={adjustStockMutation.isPending}
-              onClick={async () => {
-                try {
-                  await adjustStockMutation.mutateAsync({
-                    id: row.original.id,
-                    payload: { delta: 1, note: 'Manual increment from inventory screen' },
-                  })
-                  toast.success('Stock increased')
-                } catch (error) {
-                  toast.error(getErrorMessage(error, { context: 'stock' }))
-                }
-              }}
-            >
-              +1
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              size="sm"
-              disabled={adjustStockMutation.isPending || row.original.availableQuantity < 1}
-              onClick={async () => {
-                try {
-                  await adjustStockMutation.mutateAsync({
-                    id: row.original.id,
-                    payload: { delta: -1, note: 'Manual decrement from inventory screen' },
-                  })
-                  toast.success('Stock decreased')
-                } catch (error) {
-                  toast.error(getErrorMessage(error, { context: 'stock' }))
-                }
-              }}
-            >
-              -1
-            </Button>
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="ghost" size="icon" className="size-8" aria-label="Open product actions">
+                <MoreHorizontal className="size-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+              <DropdownMenuItem onSelect={() => navigate(`/store-keeper/products/${row.original.id}`)}>
+                <Eye className="size-4" />
+                View product
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ),
       },
     ],
-    [adjustStockMutation],
+    [navigate],
   )
 
   return (
     <section className="space-y-6">
-      <PageHeader title="Inventory" subtitle="Monitor stock and apply quick adjustments" />
+      <PageHeader title="Inventory" subtitle="Monitor product inventory and stock health" />
 
       <DataTable
-        data={productsQuery.data ?? []}
+        data={products}
         columns={columns}
+        title="Products"
+        description="Browse inventory, stock health, categories, and pricing."
+        resultsLabel="products"
+        searchPlaceholder="Search products..."
+        searchValue={search}
+        onSearchChange={(value) => {
+          setSearch(value)
+          setPageIndex(0)
+        }}
+        manualPagination
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        pageCount={pageCount}
+        totalResults={totalProducts}
+        onPageChange={setPageIndex}
+        onPageSizeChange={(nextPageSize) => {
+          setPageSize(nextPageSize)
+          setPageIndex(0)
+        }}
+        getRowId={(product) => product.id}
+        filters={
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button type="button" variant="secondary" size="sm" className="relative h-9">
+                <Filter className="size-4" />
+                Filter
+                {hasActiveFilters ? <span className="absolute -right-1 -top-1 size-2 rounded-full bg-brand-600" /> : null}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuLabel>Category</DropdownMenuLabel>
+              <DropdownMenuCheckboxItem
+                checked={categoryFilter === 'all'}
+                onCheckedChange={() => {
+                  setCategoryFilter('all')
+                  setPageIndex(0)
+                }}
+              >
+                All categories
+              </DropdownMenuCheckboxItem>
+              {categories.map((category) => (
+                <DropdownMenuCheckboxItem
+                  key={category.id}
+                  checked={categoryFilter === category.id}
+                  onCheckedChange={() => {
+                    setCategoryFilter(category.id)
+                    setPageIndex(0)
+                  }}
+                >
+                  {category.name}
+                </DropdownMenuCheckboxItem>
+              ))}
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel>Stock</DropdownMenuLabel>
+              {(Object.keys(stockFilterLabels) as ProductStockFilter[]).map((filter) => (
+                <DropdownMenuCheckboxItem
+                  key={filter}
+                  checked={stockFilter === filter}
+                  onCheckedChange={() => {
+                    setStockFilter(filter)
+                    setPageIndex(0)
+                  }}
+                >
+                  {stockFilterLabels[filter]}
+                </DropdownMenuCheckboxItem>
+              ))}
+              {hasActiveFilters ? (
+                <>
+                  <DropdownMenuSeparator />
+                  <Button type="button" variant="ghost" size="sm" className="w-full justify-start" onClick={clearFilters}>
+                    Clear filters
+                  </Button>
+                </>
+              ) : null}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        }
         isLoading={productsQuery.isLoading}
         hasError={productsQuery.isError}
         errorTitle="Unable to load inventory"

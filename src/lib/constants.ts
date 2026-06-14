@@ -37,7 +37,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', path: '/store-keeper/dashboard', icon: Home },
     { label: 'Projects', path: '/store-keeper/projects', icon: FolderKanban },
     { label: 'Requests', path: '/store-keeper/requests', icon: ClipboardList },
-    { label: 'Inventory', path: '/store-keeper/inventory', icon: Boxes },
+    { label: 'Products', path: '/store-keeper/inventory', icon: Package },
     { label: 'Orders', path: '/store-keeper/orders', icon: Receipt },
   ],
   EMPLOYEE: [

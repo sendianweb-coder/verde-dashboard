@@ -22,6 +22,7 @@ import { LoginPage } from '@/pages/auth/LoginPage'
 import { StoreKeeperDashboardPage } from '@/pages/store-keeper/DashboardPage'
 import { StoreKeeperInventoryPage } from '@/pages/store-keeper/InventoryPage'
 import { StoreKeeperOrdersPage } from '@/pages/store-keeper/OrdersPage'
+import { StoreKeeperProductDetailPage } from '@/pages/store-keeper/ProductDetailPage'
 import { StoreKeeperProjectDetailPage } from '@/pages/store-keeper/ProjectDetailPage'
 import { StoreKeeperProjectsPage } from '@/pages/store-keeper/ProjectsPage'
 import { StoreKeeperRequestDetailPage } from '@/pages/store-keeper/RequestDetailPage'
@@ -65,6 +66,8 @@ export const router = createBrowserRouter([
               { path: '/store-keeper/projects', element: <StoreKeeperProjectsPage /> },
               { path: '/store-keeper/projects/:id', element: <StoreKeeperProjectDetailPage /> },
               { path: '/store-keeper/inventory', element: <StoreKeeperInventoryPage /> },
+              { path: '/store-keeper/products/:id', element: <StoreKeeperProductDetailPage /> },
+              { path: '/store-keeper/inventory/:id', element: <StoreKeeperProductDetailPage /> },
               { path: '/store-keeper/orders', element: <StoreKeeperOrdersPage /> },
             ],
           },
