@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Calendar, CircleDot, Eye, Filter, MoreHorizontal, Trash2 } from 'lucide-react'
+import { Calendar, CircleDot, Eye, EyeOff, Filter, KeyRound, MoreHorizontal, Trash2 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
@@ -24,10 +24,15 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { Input } from '@/components/ui/input'
-import { useCreateUser, useDeleteUser, useUsers } from '@/hooks/useUsers'
+import { useCreateUser, useDeleteUser, useResetUserPassword, useUsers } from '@/hooks/useUsers'
 import { getErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
-import { createUserSchema, type CreateUserFormValues } from '@/lib/validators'
+import {
+  createUserSchema,
+  resetUserPasswordSchema,
+  type CreateUserFormValues,
+  type ResetUserPasswordFormValues,
+} from '@/lib/validators'
 import type { User } from '@/types/user'
 
 type UserStatusFilter = 'all' | 'active' | 'inactive'
@@ -144,17 +149,22 @@ export function AdminUsersPage() {
   const navigate = useNavigate()
   const [isCreateUserOpen, setIsCreateUserOpen] = useState(false)
   const [userPendingDeletion, setUserPendingDeletion] = useState<User | null>(null)
+  const [userPendingPasswordReset, setUserPendingPasswordReset] = useState<User | null>(null)
   const [roleFilter, setRoleFilter] = useState<'all' | User['role']>('all')
   const [statusFilter, setStatusFilter] = useState<UserStatusFilter>('all')
   const [dateFilter, setDateFilter] = useState<UserDateFilter>('all')
+  const [showPassword, setShowPassword] = useState(false)
+  const [showResetPassword, setShowResetPassword] = useState(false)
+  const [showResetPasswordConfirm, setShowResetPasswordConfirm] = useState(false)
   const usersQuery = useUsers()
   const createUserMutation = useCreateUser()
   const deleteUserMutation = useDeleteUser()
+  const resetPasswordMutation = useResetUserPassword()
 
   const {
     register,
     handleSubmit,
-    reset,
+    reset: resetCreateUserForm,
     formState: { errors },
   } = useForm<CreateUserFormValues>({
     resolver: zodResolver(createUserSchema),
@@ -163,6 +173,19 @@ export function AdminUsersPage() {
       email: '',
       role: 'EMPLOYEE',
       password: '',
+    },
+  })
+
+  const {
+    register: registerResetPassword,
+    handleSubmit: handleSubmitResetPassword,
+    reset: resetResetPasswordForm,
+    formState: { errors: resetPasswordErrors },
+  } = useForm<ResetUserPasswordFormValues>({
+    resolver: zodResolver(resetUserPasswordSchema),
+    defaultValues: {
+      password: '',
+      confirmPassword: '',
     },
   })
 
@@ -180,12 +203,12 @@ export function AdminUsersPage() {
       })
       .filter((user) => isWithinDateFilter(user.createdAt, dateFilter))
       .sort((firstUser, secondUser) => {
-      if (firstUser.isActive === secondUser.isActive) {
-        return 0
-      }
+        if (firstUser.isActive === secondUser.isActive) {
+          return 0
+        }
 
-      return firstUser.isActive ? -1 : 1
-    })
+        return firstUser.isActive ? -1 : 1
+      })
   }, [dateFilter, roleFilter, statusFilter, usersQuery.data])
 
   const hasActiveFilters = roleFilter !== 'all' || statusFilter !== 'all' || dateFilter !== 'all'
@@ -194,6 +217,13 @@ export function AdminUsersPage() {
     setRoleFilter('all')
     setStatusFilter('all')
     setDateFilter('all')
+  }
+
+  const closeResetPasswordDialog = () => {
+    setUserPendingPasswordReset(null)
+    resetResetPasswordForm()
+    setShowResetPassword(false)
+    setShowResetPasswordConfirm(false)
   }
 
   const columns = useMemo<Array<ColumnDef<User>>>(
@@ -252,6 +282,10 @@ export function AdminUsersPage() {
                 <Eye className="size-4" />
                 View profile
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setUserPendingPasswordReset(row.original)}>
+                <KeyRound className="size-4" />
+                Reset password
+              </DropdownMenuItem>
               {row.original.isActive ? (
                 <>
                   <DropdownMenuSeparator />
@@ -274,9 +308,26 @@ export function AdminUsersPage() {
       await createUserMutation.mutateAsync(values)
       toast.success('User created successfully')
       setIsCreateUserOpen(false)
-      reset()
+      resetCreateUserForm()
     } catch (error) {
       toast.error(getErrorMessage(error, { context: 'create' }))
+    }
+  }
+
+  const handleResetPassword = async (values: ResetUserPasswordFormValues) => {
+    if (!userPendingPasswordReset) {
+      return
+    }
+
+    try {
+      await resetPasswordMutation.mutateAsync({
+        id: userPendingPasswordReset.id,
+        password: values.password,
+      })
+      toast.success('Password reset successfully')
+      closeResetPasswordDialog()
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
     }
   }
 
@@ -391,11 +442,89 @@ export function AdminUsersPage() {
       />
 
       <Dialog
+        open={Boolean(userPendingPasswordReset)}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) {
+            closeResetPasswordDialog()
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>Reset password</DialogTitle>
+            <DialogDescription>
+              {userPendingPasswordReset
+                ? `Set a new temporary password for ${userPendingPasswordReset.name}.`
+                : 'Set a new temporary password for this user.'}
+            </DialogDescription>
+          </DialogHeader>
+
+          <form className="space-y-4" onSubmit={handleSubmitResetPassword(handleResetPassword)}>
+            <FormField htmlFor="reset-user-password" label="New password" error={resetPasswordErrors.password?.message}>
+              <div className="relative">
+                <Input
+                  id="reset-user-password"
+                  type={showResetPassword ? 'text' : 'password'}
+                  placeholder="Enter new temporary password"
+                  className="pr-10"
+                  disabled={resetPasswordMutation.isPending}
+                  {...registerResetPassword('password')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetPassword(!showResetPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted transition-colors hover:text-text-primary focus:outline-none disabled:opacity-50"
+                  disabled={resetPasswordMutation.isPending}
+                  aria-label={showResetPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showResetPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </FormField>
+
+            <FormField
+              htmlFor="reset-user-confirm-password"
+              label="Confirm password"
+              error={resetPasswordErrors.confirmPassword?.message}
+            >
+              <div className="relative">
+                <Input
+                  id="reset-user-confirm-password"
+                  type={showResetPasswordConfirm ? 'text' : 'password'}
+                  placeholder="Confirm new temporary password"
+                  className="pr-10"
+                  disabled={resetPasswordMutation.isPending}
+                  {...registerResetPassword('confirmPassword')}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowResetPasswordConfirm(!showResetPasswordConfirm)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted transition-colors hover:text-text-primary focus:outline-none disabled:opacity-50"
+                  disabled={resetPasswordMutation.isPending}
+                  aria-label={showResetPasswordConfirm ? 'Hide confirmation password' : 'Show confirmation password'}
+                >
+                  {showResetPasswordConfirm ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
+            </FormField>
+
+            <DialogFormActions
+              isSubmitting={resetPasswordMutation.isPending}
+              submitLabel="Reset Password"
+              submittingLabel="Resetting..."
+              onCancel={closeResetPasswordDialog}
+            />
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
         open={isCreateUserOpen}
         onOpenChange={(nextOpen) => {
           setIsCreateUserOpen(nextOpen)
           if (!nextOpen) {
-            reset()
+            setShowPassword(false)
+            resetCreateUserForm()
           }
         }}
       >
@@ -440,13 +569,25 @@ export function AdminUsersPage() {
               </FormField>
 
               <FormField htmlFor="create-user-password" label="Password" error={errors.password?.message}>
-                <Input
-                  id="create-user-password"
-                  type="password"
-                  placeholder="Enter temporary password"
-                  disabled={createUserMutation.isPending}
-                  {...register('password')}
-                />
+                <div className="relative">
+                  <Input
+                    id="create-user-password"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter temporary password"
+                    className="pr-10"
+                    disabled={createUserMutation.isPending}
+                    {...register('password')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted transition-colors hover:text-text-primary focus:outline-none disabled:opacity-50"
+                    disabled={createUserMutation.isPending}
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
               </FormField>
             </div>
 

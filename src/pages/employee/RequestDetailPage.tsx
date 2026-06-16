@@ -73,34 +73,36 @@ export function EmployeeRequestDetailPage() {
 
   const handlePrint = () => {
     const cleanupPrintClass = () => {
-      document.body.classList.remove('printing-employee-request')
+      document.body.classList.remove('printing-request')
     }
 
-    document.body.classList.add('printing-employee-request')
+    document.body.classList.add('printing-request')
     window.addEventListener('afterprint', cleanupPrintClass, { once: true })
     window.print()
   }
 
   return (
     <section className="space-y-6">
-      <PageHeader
-        title="Request Detail"
-        subtitle={`Submitted on ${submittedAt}`}
-        action={
-          <div className="flex flex-wrap justify-end gap-2">
-            <Button type="button" variant="secondary" onClick={handlePrint}>
-              <Printer className="h-4 w-4" />
-              Print Details
-            </Button>
-            <Button type="button" variant="secondary" onClick={() => navigate('/employee/requests')}>
-              <ArrowLeft className="h-4 w-4" />
-              Back to requests
-            </Button>
-          </div>
-        }
-      />
+      <div className="request-screen-content">
+        <PageHeader
+          title="Request Detail"
+          subtitle={`Submitted on ${submittedAt}`}
+          action={
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button type="button" variant="secondary" onClick={handlePrint}>
+                <Printer className="h-4 w-4" />
+                Print Details
+              </Button>
+              <Button type="button" variant="secondary" onClick={() => navigate('/employee/requests')}>
+                <ArrowLeft className="h-4 w-4" />
+                Back to requests
+              </Button>
+            </div>
+          }
+        />
+      </div>
 
-      <article id="employee-request-print" className="request-print-document" aria-label="Printable request details">
+      <article id="request-print-content" className="request-print-document" aria-label="Printable request details">
         <header className="request-print-header">
           <h1>Request Details</h1>
           <p>Verde Group Internal Material Request</p>

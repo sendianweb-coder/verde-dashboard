@@ -20,6 +20,16 @@ export const updateUserSchema = createUserSchema.partial().omit({ password: true
   isActive: z.boolean().optional(),
 })
 
+export const resetUserPasswordSchema = z
+  .object({
+    password: z.string().min(8, 'Password must be at least 8 characters.'),
+    confirmPassword: z.string().min(1, 'Please confirm the new password.'),
+  })
+  .refine((value) => value.password === value.confirmPassword, {
+    path: ['confirmPassword'],
+    message: 'Passwords do not match.',
+  })
+
 export const createProductSchema = z.object({
   name: z.string().min(2, 'Product name must be at least 2 characters.').max(100, 'Product name must be at most 100 characters.'),
   sku: z.string().trim().min(1, 'SKU is required.').transform((value) => value.toUpperCase()),
@@ -114,6 +124,7 @@ export const updateOrderStatusSchema = z.object({
 export type LoginFormValues = z.infer<typeof loginSchema>
 export type CreateUserFormValues = z.infer<typeof createUserSchema>
 export type UpdateUserFormValues = z.infer<typeof updateUserSchema>
+export type ResetUserPasswordFormValues = z.infer<typeof resetUserPasswordSchema>
 export type CreateProductFormValues = z.infer<typeof createProductSchema>
 export type UpdateProductFormValues = z.infer<typeof updateProductSchema>
 export type StockAdjustmentFormValues = z.infer<typeof stockAdjustmentSchema>

@@ -53,11 +53,28 @@ interface UpdateUserMutationPayload {
   payload: UpdateUserPayload
 }
 
+interface ResetUserPasswordMutationPayload {
+  id: string
+  password: string
+}
+
 export function useUpdateUser() {
   const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: ({ id, payload }: UpdateUserMutationPayload) => updateUser(id, payload),
+    onSuccess: (_updatedUser, variables) => {
+      void queryClient.invalidateQueries({ queryKey: usersQueryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: usersQueryKeys.detail(variables.id) })
+    },
+  })
+}
+
+export function useResetUserPassword() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, password }: ResetUserPasswordMutationPayload) => updateUser(id, { password }),
     onSuccess: (_updatedUser, variables) => {
       void queryClient.invalidateQueries({ queryKey: usersQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: usersQueryKeys.detail(variables.id) })
