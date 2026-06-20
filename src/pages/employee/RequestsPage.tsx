@@ -16,13 +16,20 @@ const requestStatusFilters: Array<{ label: string; value: 'ALL' | RequestStatus 
   { label: 'Pending', value: 'PENDING' },
   { label: 'Approved', value: 'APPROVED' },
   { label: 'Completed', value: 'COMPLETED' },
+  { label: 'Canceled', value: 'CANCELED' },
 ]
 
 export function EmployeeRequestsPage() {
   const navigate = useNavigate()
   const [activeFilter, setActiveFilter] = useState<'ALL' | RequestStatus>('ALL')
 
-  const requestsQuery = useMyRequests(activeFilter === 'ALL' ? undefined : { status: activeFilter })
+  const requestsQuery = useMyRequests()
+
+  const filteredRequests = useMemo(() => {
+    const requests = requestsQuery.data ?? []
+    if (activeFilter === 'ALL') return requests
+    return requests.filter((request) => request.status === activeFilter)
+  }, [requestsQuery.data, activeFilter])
 
   const columns = useMemo<Array<ColumnDef<InternalRequest>>>(
     () => [
@@ -34,7 +41,12 @@ export function EmployeeRequestsPage() {
       {
         id: 'itemCount',
         header: 'Items',
-        cell: ({ row }) => <span>{row.original.items.length}</span>,
+        cell: ({ row }) => {
+          const summary = row.original.summary
+          const itemCount = summary?.itemCount ?? row.original.items.length
+
+          return <span>{summary ? `${itemCount} items / ${summary.totalRequestedQuantity} units` : itemCount}</span>
+        },
       },
       {
         accessorKey: 'status',
@@ -73,14 +85,18 @@ export function EmployeeRequestsPage() {
       </div>
 
       <DataTable
-        data={requestsQuery.data ?? []}
+        data={filteredRequests}
         columns={columns}
         isLoading={requestsQuery.isLoading}
         hasError={requestsQuery.isError}
         errorTitle="Unable to load requests"
         errorDescription={getErrorMessage(requestsQuery.error, { context: 'load' })}
-        emptyTitle="No requests yet"
-        emptyDescription="Create your first internal request to get started."
+        emptyTitle={requestsQuery.data?.length ? 'No requests match this status' : 'No requests yet'}
+        emptyDescription={
+          requestsQuery.data?.length
+            ? 'Try selecting a different status filter.'
+            : 'Create your first internal request to get started.'
+        }
         onRowClick={(row) => navigate(`/employee/requests/${row.id}`)}
       />
     </section>

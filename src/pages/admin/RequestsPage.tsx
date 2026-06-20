@@ -242,11 +242,23 @@ export function AdminRequestsPage() {
     {
       id: 'items',
       header: 'Items',
-      cell: ({ row }) => (
-        <span className="inline-flex rounded-md border border-border bg-surface px-2 py-0.5 text-xs font-medium tabular-nums text-text-secondary">
-          {row.original.items.length} items
-        </span>
-      ),
+      cell: ({ row }) => {
+        const summary = row.original.summary
+        const itemCount = summary?.itemCount ?? row.original.items.length
+
+        return (
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="inline-flex rounded-md border border-border bg-surface px-2 py-0.5 text-xs font-medium tabular-nums text-text-secondary">
+              {itemCount} items{summary ? ` / ${summary.totalRequestedQuantity} units` : ''}
+            </span>
+            {summary?.hasInsufficientStock ? (
+              <span className="inline-flex rounded-md border border-warning bg-pending-bg px-2 py-0.5 text-xs font-medium text-pending-text">
+                Stock warning
+              </span>
+            ) : null}
+          </div>
+        )
+      },
     },
     {
       accessorKey: 'status',
@@ -257,7 +269,7 @@ export function AdminRequestsPage() {
       id: 'requester',
       header: 'Requester',
       cell: ({ row }) => {
-        const requesterName = row.original.requester?.name ?? 'Employee'
+        const requesterName = row.original.requester.name
 
         return (
           <div className="flex items-center gap-2.5">
@@ -266,7 +278,7 @@ export function AdminRequestsPage() {
             </Avatar>
             <div className="min-w-0">
               <p className="font-medium text-text-primary">{requesterName}</p>
-              <p className="text-xs text-text-muted">{row.original.requester?.email ?? 'No email available'}</p>
+              <p className="text-xs text-text-muted">Requester ID {row.original.requester.id.slice(0, 8)}</p>
             </div>
           </div>
         )

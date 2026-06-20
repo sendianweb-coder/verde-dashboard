@@ -1,34 +1,71 @@
-import type { Project } from '@/types/project'
+export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PICKED_UP' | 'COMPLETED' | 'CANCELED'
 
-export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PICKED_UP' | 'COMPLETED'
+export interface InternalRequestProduct {
+  id: string
+  sku: string
+  name: string
+  imageUrl: string | null
+  unitOfMeasure: string | null
+  totalQuantity: number
+  reservedQuantity: number
+  availableQuantity: number
+  stockStatus: 'instock' | 'outofstock'
+  lowStockAmount: number | null
+  category: {
+    id: string
+    name: string
+  } | null
+}
 
 export interface InternalRequestItem {
   id: string
-  requestId: string
-  productId: string
   quantity: number
+  stockAtRequest: {
+    totalQuantity: number
+    reservedQuantity: number
+    availableQuantity: number
+    availableAfterRequest: number
+  }
+  currentStock: {
+    totalQuantity: number
+    reservedQuantity: number
+    availableQuantity: number
+  }
+  product: InternalRequestProduct
+}
+
+export interface InternalRequestSummary {
+  itemCount: number
+  totalRequestedQuantity: number
+  hasInsufficientStock: boolean
 }
 
 export interface InternalRequest {
   id: string
-  requesterId: string
-  projectId: string
   status: RequestStatus
   notes: string | null
   createdAt: string
-  updatedAt: string
   items: InternalRequestItem[]
-  requester?: {
+  requester: {
+    id: string
     name: string
-    email: string
   }
-  project: Project
+  project: {
+    id: string
+    name: string
+    description: string | null
+    client: string | null
+    location: string | null
+    projectType: string | null
+  }
+  summary?: InternalRequestSummary
+  history?: ApprovalEvent[]
 }
 
 export interface ApprovalEvent {
-  id: string
-  requestId: string
-  actorId: string
+  id?: string
+  requestId?: string
+  actorId?: string
   action: RequestStatus
   comment: string | null
   createdAt: string

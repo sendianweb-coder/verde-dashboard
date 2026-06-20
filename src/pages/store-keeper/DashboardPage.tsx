@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button'
 import { useProducts } from '@/hooks/useProducts'
 import { useRequests } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
+import type { InternalRequest, RequestStatus } from '@/types/request'
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
 
@@ -24,6 +25,10 @@ function getInitials(name: string) {
     .join('')
     .slice(0, 2)
     .toUpperCase()
+}
+
+function getRequestActionDate(request: InternalRequest, action: RequestStatus) {
+  return [...(request.history ?? [])].reverse().find((event) => event.action === action)?.createdAt ?? request.createdAt
 }
 
 export function StoreKeeperDashboardPage() {
@@ -45,21 +50,21 @@ export function StoreKeeperDashboardPage() {
   const pendingRequests = requests.filter((request) => request.status === 'PENDING')
   const approvedTodayCount = requests.filter((request) => {
     const isApproved = request.status === 'APPROVED'
-    const requestDate = new Date(request.updatedAt).toDateString()
+    const requestDate = new Date(getRequestActionDate(request, 'APPROVED')).toDateString()
     return isApproved && requestDate === new Date().toDateString()
   }).length
 
   const pickedUpTodayCount = requests.filter((request) => {
     const isPickedUp = request.status === 'PICKED_UP'
-    const requestDate = new Date(request.updatedAt).toDateString()
+    const requestDate = new Date(getRequestActionDate(request, 'PICKED_UP')).toDateString()
     return isPickedUp && requestDate === new Date().toDateString()
   }).length
 
   const lowStockProducts = products.filter((product) => {
-    if (product.stockQuantity <= 0) {
+    if (product.totalQuantity <= 0) {
       return false
     }
-    return product.availableQuantity / product.stockQuantity <= 0.2
+    return product.availableQuantity / product.totalQuantity <= 0.2
   })
 
   return (
@@ -126,12 +131,12 @@ export function StoreKeeperDashboardPage() {
                 >
                   <div className="flex min-w-0 items-center gap-2.5">
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-xs font-semibold text-text-secondary">
-                      {getInitials(request.requester?.name ?? 'Employee')}
+                      {getInitials(request.requester.name)}
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-text-primary">{request.project.name}</p>
                       <p className="text-xs text-text-muted">
-                        {request.requester?.name ?? 'Employee'} &middot; {request.items.length} items &middot; {formatDate(request.createdAt)}
+                        {request.requester.name} &middot; {request.summary?.itemCount ?? request.items.length} items &middot; {formatDate(request.createdAt)}
                       </p>
                     </div>
                   </div>
@@ -174,11 +179,11 @@ export function StoreKeeperDashboardPage() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium text-text-primary">{product.name}</p>
                       <p className="text-xs tabular-nums text-text-muted">
-                        SKU {product.sku} &middot; {product.availableQuantity}/{product.stockQuantity} available
+                        SKU {product.sku} &middot; {product.availableQuantity}/{product.totalQuantity} available
                       </p>
                     </div>
                   </div>
-                  <StockIndicator availableQuantity={product.availableQuantity} totalQuantity={product.stockQuantity} />
+                  <StockIndicator availableQuantity={product.availableQuantity} totalQuantity={product.totalQuantity} />
                 </button>
               ))}
             </div>

@@ -7,7 +7,6 @@ import {
   createRequest,
   getMyRequests,
   getRequestById,
-  getRequestHistory,
   getRequests,
   pickupRequest,
   rejectRequest,
@@ -28,7 +27,6 @@ export const requestsQueryKeys = {
   list: (params?: GetRequestsParams) => ['requests', 'list', params] as const,
   mine: (params?: MyRequestsParams) => ['requests', 'mine', params] as const,
   detail: (id: string) => ['requests', 'detail', id] as const,
-  history: (id: string) => ['requests', 'history', id] as const,
 }
 
 export function useRequests(params?: GetRequestsParams) {
@@ -51,15 +49,6 @@ export function useRequest(id: string) {
   return useQuery({
     queryKey: requestsQueryKeys.detail(id),
     queryFn: () => getRequestById(id),
-    enabled: Boolean(id),
-    staleTime: REQUESTS_DETAIL_STALE_TIME,
-  })
-}
-
-export function useRequestHistory(id: string) {
-  return useQuery({
-    queryKey: requestsQueryKeys.history(id),
-    queryFn: () => getRequestHistory(id),
     enabled: Boolean(id),
     staleTime: REQUESTS_DETAIL_STALE_TIME,
   })
@@ -91,7 +80,6 @@ export function useUpdateRequest() {
     onSuccess: (_updatedRequest, variables) => {
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.detail(variables.id) })
-      void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.history(variables.id) })
       void queryClient.invalidateQueries({ queryKey: ADMIN_REQUEST_QUEUE_QUERY_KEY })
     },
   })
@@ -112,7 +100,6 @@ function useRequestActionMutation(
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.detail(variables.id) })
-      void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.history(variables.id) })
       void queryClient.invalidateQueries({ queryKey: ADMIN_REQUEST_QUEUE_QUERY_KEY })
       void queryClient.invalidateQueries({ queryKey: productsQueryKeys.all })
     },
@@ -148,7 +135,6 @@ export function useCancelRequest() {
     onSuccess: (_data, variables) => {
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.detail(variables.id) })
-      void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.history(variables.id) })
       void queryClient.invalidateQueries({ queryKey: ADMIN_REQUEST_QUEUE_QUERY_KEY })
     },
   })

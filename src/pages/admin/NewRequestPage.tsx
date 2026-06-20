@@ -25,7 +25,7 @@ const PRODUCT_PAGE_SIZE = 12
 const EMPTY_PRODUCTS: Product[] = []
 const EMPTY_REQUEST_ITEMS: CreateRequestFormValues['items'] = []
 
-export function EmployeeNewRequestPage() {
+export function AdminNewRequestPage() {
   const navigate = useNavigate()
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
@@ -103,7 +103,7 @@ export function EmployeeNewRequestPage() {
   if (projectsQuery.isError || categoriesQuery.isError) {
     return (
       <section className="space-y-6">
-        <PageHeader title="New Request" subtitle="Search the catalog, add products, and submit one clear material request." />
+        <PageHeader title="New Request" subtitle="Create an operational request from the admin workspace." />
         <p className="rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-sm text-error" role="alert">
           {getErrorMessage(projectsQuery.error ?? categoriesQuery.error, { context: 'load' })}
         </p>
@@ -198,7 +198,7 @@ export function EmployeeNewRequestPage() {
       })
 
       toast.success('Request submitted successfully')
-      navigate('/employee/requests')
+      navigate('/admin/requests')
     } catch (error) {
       toast.error(getErrorMessage(error, { context: 'create' }))
     }
@@ -238,7 +238,7 @@ export function EmployeeNewRequestPage() {
     <section className="space-y-6 pb-24 xl:pb-0">
       <PageHeader
         title="New Request"
-        subtitle="Search the catalog, add products to the tray, and submit one clear material request."
+        subtitle="Search the catalog, add products to the tray, and submit an admin-created material request."
       />
 
       <form className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]" onSubmit={handleSubmit(onSubmit)}>
@@ -252,7 +252,7 @@ export function EmployeeNewRequestPage() {
             <div className="grid gap-4 md:grid-cols-2">
               <div>
                 <div className="mb-1.5 flex items-center justify-between gap-2">
-                  <label htmlFor="projectId" className="block text-sm font-medium text-text-primary">
+                  <label htmlFor="admin-projectId" className="block text-sm font-medium text-text-primary">
                     Project
                   </label>
 
@@ -270,11 +270,11 @@ export function EmployeeNewRequestPage() {
 
                       <div className="space-y-3">
                         <div>
-                          <label htmlFor="new-project-name" className="mb-1.5 block text-sm font-medium text-text-primary">
+                          <label htmlFor="admin-new-project-name" className="mb-1.5 block text-sm font-medium text-text-primary">
                             Project name
                           </label>
                           <Input
-                            id="new-project-name"
+                            id="admin-new-project-name"
                             value={newProjectName}
                             onChange={(event) => setNewProjectName(event.target.value)}
                             placeholder="Enter project name"
@@ -282,11 +282,11 @@ export function EmployeeNewRequestPage() {
                         </div>
 
                         <div>
-                          <label htmlFor="new-project-description" className="mb-1.5 block text-sm font-medium text-text-primary">
+                          <label htmlFor="admin-new-project-description" className="mb-1.5 block text-sm font-medium text-text-primary">
                             Description (optional)
                           </label>
                           <Input
-                            id="new-project-description"
+                            id="admin-new-project-description"
                             value={newProjectDescription}
                             onChange={(event) => setNewProjectDescription(event.target.value)}
                             placeholder="Add project details"
@@ -310,7 +310,7 @@ export function EmployeeNewRequestPage() {
                   value={watchedProjectId || 'none'}
                   onValueChange={(value) => setValue('projectId', value === 'none' ? '' : value, { shouldValidate: true })}
                 >
-                  <SelectTrigger id="projectId">
+                  <SelectTrigger id="admin-projectId">
                     <SelectValue placeholder="Select project" />
                   </SelectTrigger>
                   <SelectContent>
@@ -328,10 +328,10 @@ export function EmployeeNewRequestPage() {
               </div>
 
               <div>
-                <label htmlFor="notes" className="mb-1.5 block text-sm font-medium text-text-primary">
+                <label htmlFor="admin-notes" className="mb-1.5 block text-sm font-medium text-text-primary">
                   Notes (optional)
                 </label>
-                <Input id="notes" placeholder="Add request details" {...register('notes')} />
+                <Input id="admin-notes" placeholder="Add request details" {...register('notes')} />
                 {errors.notes ? <p className="mt-1 text-xs text-error">{errors.notes.message}</p> : null}
               </div>
             </div>

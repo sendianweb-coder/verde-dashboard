@@ -20,7 +20,7 @@ export interface Product {
   price: string
   regularPrice: number | null
   salePrice: number | null
-  stockQuantity: number
+  totalQuantity: number
   reservedQuantity: number
   availableQuantity: number
   stockStatus: ProductStockStatus
@@ -105,7 +105,7 @@ export interface CreateProductPayload {
   sku: string
   price?: number
   categoryId?: string
-  stockQuantity?: number
+  totalQuantity?: number
   imageUrl?: string
   woocommerceId?: number
   description?: string
@@ -149,7 +149,7 @@ export interface UpdateProductPayload {
   shortDescription?: string
   regularPrice?: number
   salePrice?: number | null
-  stockQuantity?: number
+  totalQuantity?: number
   stockStatus?: ProductStockStatus
   lowStockAmount?: number | null
   backordersAllowed?: boolean

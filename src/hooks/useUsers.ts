@@ -17,6 +17,7 @@ const USERS_DETAIL_STALE_TIME = 30_000
 export const usersQueryKeys = {
   all: ['users'] as const,
   list: (params?: GetUsersParams) => ['users', 'list', params] as const,
+  assignableProjectUsers: () => ['users', 'assignable-project-users'] as const,
   detail: (id: string) => ['users', 'detail', id] as const,
 }
 
@@ -24,6 +25,31 @@ export function useUsers(params?: GetUsersParams) {
   return useQuery({
     queryKey: usersQueryKeys.list(params),
     queryFn: () => getUsers(params),
+    staleTime: USERS_LIST_STALE_TIME,
+  })
+}
+
+export function useAssignableProjectUsers(enabled: boolean) {
+  return useQuery({
+    queryKey: usersQueryKeys.assignableProjectUsers(),
+    queryFn: async () => {
+      const [employees, storeKeepers] = await Promise.all([
+        getUsers({ role: 'EMPLOYEE', isActive: true }),
+        getUsers({ role: 'STORE_KEEPER', isActive: true }),
+      ])
+
+      const seenUserIds = new Set<string>()
+
+      return [...employees, ...storeKeepers].filter((user) => {
+        if (seenUserIds.has(user.id)) {
+          return false
+        }
+
+        seenUserIds.add(user.id)
+        return true
+      })
+    },
+    enabled,
     staleTime: USERS_LIST_STALE_TIME,
   })
 }

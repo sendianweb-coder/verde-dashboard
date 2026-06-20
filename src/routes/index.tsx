@@ -3,6 +3,7 @@ import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { AppShell } from '@/components/layout/AppShell'
 import { AdminAuditLogPage } from '@/pages/admin/AuditLogPage'
 import { AdminDashboardPage } from '@/pages/admin/DashboardPage'
+import { AdminNewRequestPage } from '@/pages/admin/NewRequestPage'
 import { AdminOrdersPage } from '@/pages/admin/OrdersPage'
 import { AdminProductDetailPage } from '@/pages/admin/ProductDetailPage'
 import { AdminProjectDetailPage } from '@/pages/admin/ProjectDetailPage'
@@ -51,6 +52,7 @@ export const router = createBrowserRouter([
               { path: '/admin/products/:id', element: <AdminProductDetailPage /> },
               { path: '/admin/projects', element: <AdminProjectsPage /> },
               { path: '/admin/projects/:id', element: <AdminProjectDetailPage /> },
+              { path: '/admin/requests/new', element: <AdminNewRequestPage /> },
               { path: '/admin/requests', element: <AdminRequestsPage /> },
               { path: '/admin/requests/:id', element: <AdminRequestDetailPage /> },
               { path: '/admin/orders', element: <AdminOrdersPage /> },

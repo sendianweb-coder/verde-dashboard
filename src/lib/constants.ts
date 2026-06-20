@@ -19,6 +19,7 @@ export interface NavItem {
   label: string
   path: string
   icon: LucideIcon
+  inactivePaths?: string[]
 }
 
 export const APP_NAME = import.meta.env.VITE_APP_NAME || 'Verde Support App'
@@ -29,7 +30,8 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Users', path: '/admin/users', icon: Users },
     { label: 'Products', path: '/admin/products', icon: Package },
     { label: 'Projects', path: '/admin/projects', icon: FolderKanban },
-    { label: 'Requests', path: '/admin/requests', icon: ClipboardList },
+    { label: 'New Request', path: '/admin/requests/new', icon: PlusCircle },
+    { label: 'Requests', path: '/admin/requests', icon: ClipboardList, inactivePaths: ['/admin/requests/new'] },
     { label: 'Orders', path: '/admin/orders', icon: Receipt },
     { label: 'Audit Log', path: '/admin/audit', icon: ShieldCheck },
   ],
@@ -44,7 +46,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', path: '/employee/dashboard', icon: Home },
     { label: 'Projects', path: '/employee/projects', icon: FolderKanban },
     { label: 'New Request', path: '/employee/requests/new', icon: PlusCircle },
-    { label: 'My Requests', path: '/employee/requests', icon: ClipboardList },
+    { label: 'My Requests', path: '/employee/requests', icon: ClipboardList, inactivePaths: ['/employee/requests/new'] },
   ],
 }
 
@@ -56,7 +58,8 @@ export const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   PICKED_UP: { bg: 'bg-picked-up-bg', text: 'text-picked-up-text' },
   PROCESSING: { bg: 'bg-processing-bg', text: 'text-processing-text' },
   SHIPPED: { bg: 'bg-shipped-bg', text: 'text-shipped-text' },
-  CANCELLED: { bg: 'bg-cancelled-bg', text: 'text-cancelled-text' },
+  CANCELED: { bg: 'bg-cancelled-bg', text: 'text-cancelled-text' },
+  CANCELLED: { bg: 'bg-rejected-bg', text: 'text-cancelled-text' },
 }
 
 export const EVENT_ICON = {

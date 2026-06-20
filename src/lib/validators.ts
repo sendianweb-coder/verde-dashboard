@@ -35,7 +35,7 @@ export const createProductSchema = z.object({
   sku: z.string().trim().min(1, 'SKU is required.').transform((value) => value.toUpperCase()),
   categoryId: z.string().optional(),
   price: z.number().min(0.01, 'Price must be at least 0.01.').refine((value) => Number(value.toFixed(2)) === value, 'Price can have up to 2 decimal places.'),
-  stockQuantity: z.number().int().min(0, 'Initial stock quantity cannot be negative.').optional(),
+  totalQuantity: z.number().int().min(0, 'Total quantity cannot be negative.').optional(),
   imageUrl: z.union([z.literal(''), z.url('Image URL must be a valid URL.')]).optional(),
   isActive: z.boolean().optional(),
 })

@@ -198,7 +198,7 @@ export function AdminProductsPage() {
         cell: ({ row }) => <ProductCategoryBadge categoryName={row.original.category?.name ?? null} />,
       },
       {
-        accessorKey: 'stockQuantity',
+        accessorKey: 'totalQuantity',
         header: 'Stock',
         cell: ({ row }) => {
           const product = row.original
@@ -207,7 +207,7 @@ export function AdminProductsPage() {
             <div className="space-y-0.5 text-sm tabular-nums">
               <p className="font-medium text-text-primary">{product.availableQuantity} available</p>
               <p className="text-xs text-text-secondary">
-                {product.stockQuantity} total &middot; {product.reservedQuantity} reserved
+                {product.totalQuantity} total &middot; {product.reservedQuantity} reserved
               </p>
             </div>
           )
@@ -217,7 +217,7 @@ export function AdminProductsPage() {
         id: 'available',
         header: 'Status',
         cell: ({ row }) => (
-          <StockIndicator availableQuantity={row.original.availableQuantity} totalQuantity={row.original.stockQuantity} />
+          <StockIndicator availableQuantity={row.original.availableQuantity} totalQuantity={row.original.totalQuantity} />
         ),
       },
       {

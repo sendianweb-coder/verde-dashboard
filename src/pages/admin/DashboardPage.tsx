@@ -158,7 +158,8 @@ export function AdminDashboardPage() {
   const requestSearchQuery = requestSearch.trim().toLowerCase()
   const filteredRequestQueue = requestSearchQuery
     ? requestQueue.filter((request) => {
-        const searchable = [request.project.name, request.requester?.name ?? 'Unknown requester', `${request.items.length} items`, request.status]
+        const itemCount = request.summary?.itemCount ?? request.items.length
+        const searchable = [request.project.name, request.requester.name, `${itemCount} items`, request.status]
           .join(' ')
           .toLowerCase()
 
@@ -228,11 +229,11 @@ export function AdminDashboardPage() {
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium leading-5 tracking-[0.28px] text-text-primary">{request.project.name}</p>
                   <p className="text-xs font-[420] leading-[18px] tracking-[0.32px] text-text-secondary">
-                    {request.requester?.name ?? 'Unknown requester'}
+                    {request.requester.name}
                   </p>
                 </div>
                 <span className="inline-flex items-center rounded-lg border border-border bg-background px-2 py-1 text-xs font-medium tabular-nums text-text-secondary">
-                  {request.items.length} items
+                  {request.summary?.itemCount ?? request.items.length} items
                 </span>
                 <div className="ml-auto">
                   <StatusBadge status={request.status} />

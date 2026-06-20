@@ -29,6 +29,7 @@ const requestStatusFilters: Array<{ label: string; value: 'ALL' | RequestStatus 
   { label: 'Picked up', value: 'PICKED_UP' },
   { label: 'Completed', value: 'COMPLETED' },
   { label: 'Rejected', value: 'REJECTED' },
+  { label: 'Canceled', value: 'CANCELED' },
 ]
 
 const dateFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
@@ -150,11 +151,23 @@ export function StoreKeeperRequestsPage() {
       {
         id: 'items',
         header: 'Items',
-        cell: ({ row }) => (
-          <span className="inline-flex rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium tabular-nums text-text-secondary">
-            {row.original.items.length} items
-          </span>
-        ),
+        cell: ({ row }) => {
+          const summary = row.original.summary
+          const itemCount = summary?.itemCount ?? row.original.items.length
+
+          return (
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="inline-flex rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium tabular-nums text-text-secondary">
+                {itemCount} items{summary ? ` / ${summary.totalRequestedQuantity} units` : ''}
+              </span>
+              {summary?.hasInsufficientStock ? (
+                <span className="inline-flex rounded-md border border-warning bg-pending-bg px-2 py-0.5 text-xs font-medium text-pending-text">
+                  Stock warning
+                </span>
+              ) : null}
+            </div>
+          )
+        },
       },
       {
         accessorKey: 'status',
@@ -166,7 +179,7 @@ export function StoreKeeperRequestsPage() {
         header: 'Requester',
         cell: ({ row }) => {
           const requester = row.original.requester
-          const requesterName = requester?.name ?? 'Employee'
+          const requesterName = requester.name
 
           return (
             <div className="flex items-center gap-2.5">
@@ -175,7 +188,7 @@ export function StoreKeeperRequestsPage() {
               </span>
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-text-primary">{requesterName}</p>
-                <p className="truncate text-xs text-text-muted">{requester?.email ?? 'No email'}</p>
+                <p className="truncate text-xs text-text-muted">Requester ID {requester.id.slice(0, 8)}</p>
               </div>
             </div>
           )

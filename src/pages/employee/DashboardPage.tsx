@@ -5,6 +5,11 @@ import { QuickRequestDialog } from '@/components/shared/QuickRequestDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { useMyRequests } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
+import type { InternalRequest } from '@/types/request'
+
+function getCompletedDate(request: InternalRequest) {
+  return [...(request.history ?? [])].reverse().find((event) => event.action === 'COMPLETED')?.createdAt ?? request.createdAt
+}
 
 export function EmployeeDashboardPage() {
   const myRequestsQuery = useMyRequests()
@@ -72,7 +77,7 @@ export function EmployeeDashboardPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-text-primary">{request.project.name}</p>
-                      <p className="text-xs text-text-secondary">{request.items.length} items</p>
+                      <p className="text-xs text-text-secondary">{request.summary?.itemCount ?? request.items.length} items</p>
                     </div>
                     <StatusBadge status={request.status} />
                   </div>
@@ -94,11 +99,11 @@ export function EmployeeDashboardPage() {
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <p className="text-sm font-medium text-text-primary">{request.project.name}</p>
-                      <p className="text-xs text-text-secondary">{request.items.length} items</p>
+                      <p className="text-xs text-text-secondary">{request.summary?.itemCount ?? request.items.length} items</p>
                     </div>
                     <StatusBadge status={request.status} />
                   </div>
-                  <p className="mt-2 text-xs text-text-muted">Completed {new Date(request.updatedAt).toLocaleDateString()}</p>
+                  <p className="mt-2 text-xs text-text-muted">Completed {new Date(getCompletedDate(request)).toLocaleDateString()}</p>
                 </article>
               ))}
             </div>

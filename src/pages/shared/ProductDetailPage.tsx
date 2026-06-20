@@ -119,8 +119,8 @@ export function ProductDetailPage({ backPath, showStockAdjustment = false }: Pro
 
       <section className="grid gap-4 md:grid-cols-3">
         <article className="rounded-xl border border-border bg-surface-raised p-5">
-          <p className="text-sm text-text-secondary">Stock quantity</p>
-          <p className="mt-2 text-3xl font-bold text-text-primary">{product.stockQuantity}</p>
+          <p className="text-sm text-text-secondary">Total quantity</p>
+          <p className="mt-2 text-3xl font-bold text-text-primary">{product.totalQuantity}</p>
         </article>
         <article className="rounded-xl border border-border bg-surface-raised p-5">
           <p className="text-sm text-text-secondary">Reserved quantity</p>

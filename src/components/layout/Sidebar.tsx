@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 import { NAV_ITEMS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -10,6 +10,7 @@ interface SidebarProps {
 }
 
 export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
+  const location = useLocation()
   const role = useAuthStore((state) => state.user?.role)
   const user = useAuthStore((state) => state.user)
   const navItems = role ? NAV_ITEMS[role] : []
@@ -30,42 +31,35 @@ export function Sidebar({ mobile = false, onNavigate }: SidebarProps) {
 
       <nav className="flex flex-col gap-0.5 px-3 py-2" aria-label="Main navigation">
         {navItems.map((item) => {
+          const isExcludedPath = item.inactivePaths?.some((path) => location.pathname === path || location.pathname.startsWith(`${path}/`)) ?? false
+          const isActive = !isExcludedPath && (location.pathname === item.path || location.pathname.startsWith(`${item.path}/`))
+
           return (
-            <NavLink
+            <Link
               key={item.path}
               to={item.path}
               onClick={onNavigate}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-fast',
-                  isActive
-                    ? 'text-nav-active-icon'
-                    : 'text-nav-default-text hover:bg-surface hover:text-text-primary',
-                )
-              }
+              aria-current={isActive ? 'page' : undefined}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-colors duration-fast',
+                isActive ? 'text-nav-active-icon' : 'text-nav-default-text hover:bg-surface hover:text-text-primary',
+              )}
             >
-              {({ isActive }) => {
-                const NavIcon = item.icon
-                return (
-                  <>
-                    <NavIcon
-                      className={cn(
-                        'h-4 w-4 transition-colors duration-fast',
-                        isActive ? 'text-nav-active-icon' : 'text-nav-default-icon',
-                      )}
-                    />
-                    <span
-                      className={cn(
-                        'transition-colors duration-fast',
-                        isActive ? 'text-nav-active-text' : 'text-nav-default-text',
-                      )}
-                    >
-                      {item.label}
-                    </span>
-                  </>
-                )
-              }}
-            </NavLink>
+              <item.icon
+                className={cn(
+                  'h-4 w-4 transition-colors duration-fast',
+                  isActive ? 'text-nav-active-icon' : 'text-nav-default-icon',
+                )}
+              />
+              <span
+                className={cn(
+                  'transition-colors duration-fast',
+                  isActive ? 'text-nav-active-text' : 'text-nav-default-text',
+                )}
+              >
+                {item.label}
+              </span>
+            </Link>
           )
         })}
       </nav>

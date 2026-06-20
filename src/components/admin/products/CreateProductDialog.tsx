@@ -44,7 +44,7 @@ export function CreateProductDialog({ onCreate, children }: CreateProductDialogP
       sku: '',
       price: 0,
       categoryId: undefined,
-      stockQuantity: 0,
+      totalQuantity: 0,
       imageUrl: '',
     },
   })
@@ -60,7 +60,7 @@ export function CreateProductDialog({ onCreate, children }: CreateProductDialogP
         sku: values.sku,
         price: values.price,
         categoryId: values.categoryId || undefined,
-        stockQuantity: values.stockQuantity || 0,
+        totalQuantity: values.totalQuantity || 0,
         imageUrl: trimmedImageUrl || undefined,
       })
 
@@ -133,14 +133,14 @@ export function CreateProductDialog({ onCreate, children }: CreateProductDialogP
                 />
               </FormField>
 
-              <FormField htmlFor="create-product-stock" label="Initial stock quantity" error={errors.stockQuantity?.message}>
+              <FormField htmlFor="create-product-stock" label="Total quantity" error={errors.totalQuantity?.message}>
                 <Input
                   id="create-product-stock"
                   type="number"
                   min="0"
                   placeholder="0"
                   disabled={createProductMutation.isPending}
-                  {...register('stockQuantity', { valueAsNumber: true })}
+                  {...register('totalQuantity', { valueAsNumber: true })}
                 />
               </FormField>
 
