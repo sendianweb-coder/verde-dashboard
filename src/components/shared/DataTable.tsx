@@ -53,6 +53,8 @@ interface DataTableProps<TData> {
   onPageSizeChange?: (pageSize: number) => void
   getRowId?: (originalRow: TData, index: number) => string
   onRowClick?: (row: TData) => void
+  sorting?: SortingState
+  onSortingChange?: (updater: SortingState | ((old: SortingState) => SortingState)) => void
 }
 
 export function DataTable<TData>({
@@ -86,8 +88,12 @@ export function DataTable<TData>({
   onPageSizeChange,
   getRowId,
   onRowClick,
+  sorting: propSorting,
+  onSortingChange: propOnSortingChange,
 }: DataTableProps<TData>) {
-  const [sorting, setSorting] = useState<SortingState>([])
+  const [internalSorting, setInternalSorting] = useState<SortingState>([])
+  const sorting = propSorting ?? internalSorting
+  const setSorting = propOnSortingChange ?? setInternalSorting
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [pagination, setPagination] = useState<PaginationState>({

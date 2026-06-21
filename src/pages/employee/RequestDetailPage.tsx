@@ -168,7 +168,8 @@ export function EmployeeRequestDetailPage() {
               <tr>
                 <th scope="col">#</th>
                 <th scope="col">Items</th>
-                <th scope="col">Quantity</th>
+                <th scope="col">Requested</th>
+                <th scope="col">Left in Stock</th>
               </tr>
             </thead>
             <tbody>
@@ -177,6 +178,7 @@ export function EmployeeRequestDetailPage() {
                   <td>{index + 1}</td>
                   <td>{item.product.name}</td>
                   <td>{item.quantity}</td>
+                  <td>{item.currentStock.availableQuantity}</td>
                 </tr>
               ))}
             </tbody>
@@ -325,17 +327,13 @@ export function EmployeeRequestDetailPage() {
                   <p className="text-xs text-text-muted">SKU {item.product.sku || 'N/A'}</p>
                 </div>
               </div>
-              <dl className="grid grid-cols-3 gap-2 text-right sm:min-w-[360px]">
+              <dl className="grid grid-cols-2 gap-2 text-right sm:min-w-[240px]">
                 <div>
                   <dt className="text-xs text-text-muted">Requested</dt>
                   <dd className="text-sm font-medium tabular-nums text-text-primary">{item.quantity}</dd>
                 </div>
                 <div>
-                  <dt className="text-xs text-text-muted">Available then</dt>
-                  <dd className="text-sm font-medium tabular-nums text-text-primary">{item.stockAtRequest.availableQuantity}</dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-text-muted">Current</dt>
+                  <dt className="text-xs text-text-muted">Left in Stock</dt>
                   <dd className="text-sm font-medium tabular-nums text-text-primary">{item.currentStock.availableQuantity}</dd>
                 </div>
               </dl>

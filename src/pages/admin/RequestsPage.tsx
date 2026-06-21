@@ -1,5 +1,5 @@
-import type { ColumnDef } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import type { ColumnDef, SortingState } from '@tanstack/react-table'
+import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { CheckCircle2, Eye, Filter, PackageCheck, PackageOpen, XCircle } from 'lucide-react'
@@ -91,6 +91,9 @@ export function AdminRequestsPage() {
   const [bulkComment, setBulkComment] = useState('')
   const [rejectCommentsByRequestId, setRejectCommentsByRequestId] = useState<Record<string, string>>({})
   const [actionDialog, setActionDialog] = useState<RequestActionDialog>(null)
+
+  const sortingState: SortingState = useMemo(() => [{ id: 'createdAt', desc: true }], [])
+  const handleSortingChange = useCallback(() => {}, [])
 
   const queueParams = useMemo(
     () => ({
@@ -408,6 +411,8 @@ export function AdminRequestsPage() {
         hidePagination
         getRowId={(request) => request.id}
         onRowClick={(request) => navigate(`/admin/requests/${request.id}`)}
+        sorting={sortingState}
+        onSortingChange={handleSortingChange}
         filters={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>

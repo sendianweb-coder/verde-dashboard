@@ -1,4 +1,4 @@
-import type { ColumnDef } from '@tanstack/react-table'
+import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import { Check, CheckCircle2, Eye, Filter, PackageCheck, X } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
@@ -51,6 +51,9 @@ export function StoreKeeperRequestsPage() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<'ALL' | RequestStatus>('ALL')
   const [rejectCommentsByRequestId, setRejectCommentsByRequestId] = useState<Record<string, string>>({})
+
+  const sortingState: SortingState = useMemo(() => [{ id: 'createdAt', desc: true }], [])
+  const handleSortingChange = useCallback(() => {}, [])
 
   const requestsParams = useMemo(
     () => ({
@@ -313,6 +316,8 @@ export function StoreKeeperRequestsPage() {
         enableSearch={false}
         getRowId={(request) => request.id}
         onRowClick={(request) => navigate(`/store-keeper/requests/${request.id}`)}
+        sorting={sortingState}
+        onSortingChange={handleSortingChange}
         filters={
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
