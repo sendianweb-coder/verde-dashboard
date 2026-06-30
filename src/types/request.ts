@@ -1,5 +1,18 @@
 export type RequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'PICKED_UP' | 'COMPLETED' | 'CANCELED'
 
+export type InternalRequestItemStatus =
+  | 'PENDING'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'FULFILLED'
+  | 'PARTIALLY_FULFILLED'
+
+export type RequestItemIssueReason =
+  | 'OUT_OF_STOCK'
+  | 'DAMAGED'
+  | 'MISSING'
+  | 'OTHER'
+
 export interface InternalRequestProduct {
   id: string
   sku: string
@@ -20,6 +33,13 @@ export interface InternalRequestProduct {
 export interface InternalRequestItem {
   id: string
   quantity: number
+  /** @deprecated Use requestedQuantity field */
+  requestedQuantity?: number
+  approvedQuantity?: number | null
+  fulfilledQuantity?: number
+  itemStatus?: InternalRequestItemStatus
+  issueReason?: RequestItemIssueReason | null
+  issueComment?: string | null
   stockAtRequest: {
     totalQuantity: number
     reservedQuantity: number
@@ -37,6 +57,9 @@ export interface InternalRequestItem {
 export interface InternalRequestSummary {
   itemCount: number
   totalRequestedQuantity: number
+  totalApprovedQuantity?: number
+  totalFulfilledQuantity?: number
+  hasItemIssues?: boolean
   hasInsufficientStock: boolean
 }
 
@@ -75,6 +98,41 @@ export interface ApprovalEvent {
   }
 }
 
+// --- Item-level action payloads ---
+
+export interface ItemApprovalPayload {
+  itemId: string
+  approvedQuantity: number
+  status?: 'APPROVED' | 'REJECTED'
+  reason?: RequestItemIssueReason
+  comment?: string
+}
+
+export interface ItemPickupPayload {
+  itemId: string
+  fulfilledQuantity: number
+  status?: 'REJECTED' | 'PARTIALLY_FULFILLED'
+  reason?: RequestItemIssueReason
+  comment?: string
+}
+
+export interface ApproveRequestPayload {
+  comment?: string
+  items?: ItemApprovalPayload[]
+}
+
+export interface AdjustItemsPayload {
+  comment?: string
+  items: ItemApprovalPayload[]
+}
+
+export interface PickupRequestPayload {
+  comment?: string
+  items?: ItemPickupPayload[]
+}
+
+// --- Legacy payload types ---
+
 export interface CreateRequestItemPayload {
   productId: string
   quantity: number
@@ -91,6 +149,7 @@ export interface UpdateRequestPayload {
   items?: CreateRequestItemPayload[]
 }
 
+/** @deprecated Use ApproveRequestPayload, PickupRequestPayload, or AdjustItemsPayload for item-level actions */
 export interface RequestStatusActionPayload {
   comment?: string
 }

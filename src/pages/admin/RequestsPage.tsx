@@ -2,13 +2,12 @@ import type { ColumnDef, SortingState } from '@tanstack/react-table'
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { CheckCircle2, Eye, Filter, PackageCheck, PackageOpen, XCircle } from 'lucide-react'
+import { Check, CheckCircle2, Eye, Filter, PackageCheck, X } from 'lucide-react'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { DataTable } from '@/components/shared/DataTable'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import {
@@ -235,12 +234,21 @@ export function AdminRequestsPage() {
     {
       accessorKey: 'project.name',
       header: 'Project',
-      cell: ({ row }) => (
-        <div className="min-w-0">
-          <p className="font-medium text-text-primary">{row.original.project.name}</p>
-          <p className="text-xs text-text-muted">Project request</p>
-        </div>
-      ),
+      cell: ({ row }) => {
+        const request = row.original
+
+        return (
+          <div className="flex items-center gap-2.5">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-muted">
+              <PackageCheck className="size-4" />
+            </span>
+            <div className="min-w-0">
+              <p className="truncate font-medium text-text-primary">{request.project.name}</p>
+              <p className="text-xs tabular-nums text-text-muted">Request {request.id.slice(0, 8)}</p>
+            </div>
+          </div>
+        )
+      },
     },
     {
       id: 'items',
@@ -251,9 +259,24 @@ export function AdminRequestsPage() {
 
         return (
           <div className="flex flex-wrap items-center gap-1.5">
-            <span className="inline-flex rounded-md border border-border bg-surface px-2 py-0.5 text-xs font-medium tabular-nums text-text-secondary">
-              {itemCount} items{summary ? ` / ${summary.totalRequestedQuantity} units` : ''}
+            <span className="inline-flex rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium tabular-nums text-text-secondary">
+              {itemCount} items / {summary?.totalRequestedQuantity ?? row.original.items.reduce((t, i) => t + i.quantity, 0)} req
             </span>
+            {summary?.totalApprovedQuantity != null ? (
+              <span className="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-medium tabular-nums text-brand-700">
+                {summary.totalApprovedQuantity} appr
+              </span>
+            ) : null}
+            {summary?.totalFulfilledQuantity != null ? (
+              <span className="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-medium tabular-nums text-brand-700">
+                {summary.totalFulfilledQuantity} picked
+              </span>
+            ) : null}
+            {summary?.hasItemIssues ? (
+              <span className="inline-flex rounded-md border border-warning bg-pending-bg px-2 py-0.5 text-xs font-medium text-pending-text">
+                Issues
+              </span>
+            ) : null}
             {summary?.hasInsufficientStock ? (
               <span className="inline-flex rounded-md border border-warning bg-pending-bg px-2 py-0.5 text-xs font-medium text-pending-text">
                 Stock warning
@@ -276,12 +299,12 @@ export function AdminRequestsPage() {
 
         return (
           <div className="flex items-center gap-2.5">
-            <Avatar className="size-7">
-              <AvatarFallback className="text-[10px] font-semibold">{getRequesterInitials(requesterName)}</AvatarFallback>
-            </Avatar>
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-xs font-semibold text-text-secondary">
+              {getRequesterInitials(requesterName)}
+            </span>
             <div className="min-w-0">
-              <p className="font-medium text-text-primary">{requesterName}</p>
-              <p className="text-xs text-text-muted">Requester ID {row.original.requester.id.slice(0, 8)}</p>
+              <p className="truncate text-sm font-medium text-text-primary">{requesterName}</p>
+              <p className="truncate text-xs text-text-muted">Requester ID {row.original.requester.id.slice(0, 8)}</p>
             </div>
           </div>
         )
@@ -298,10 +321,54 @@ export function AdminRequestsPage() {
         const request = row.original
 
         return (
-          <div className="flex items-center justify-end gap-1" onClick={(event) => event.stopPropagation()}>
+          <div className="flex items-center justify-end gap-1.5" onClick={(event) => event.stopPropagation()}>
+            {request.status === 'PENDING' ? (
+              <>
+                <Button
+                  type="button"
+                  size="icon"
+                  className="size-8"
+                  aria-label="Approve request"
+                  onClick={() => setActionDialog({ type: 'approve', request })}
+                >
+                  <Check className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="size-8"
+                  aria-label="Reject request"
+                  onClick={() => setActionDialog({ type: 'reject', request })}
+                >
+                  <X className="size-4" />
+                </Button>
+              </>
+            ) : null}
+            {request.status === 'APPROVED' ? (
+              <Button
+                type="button"
+                size="sm"
+                aria-label="Confirm request pickup"
+                onClick={() => setActionDialog({ type: 'pickup', request })}
+              >
+                Pickup
+              </Button>
+            ) : null}
+            {request.status === 'PICKED_UP' ? (
+              <Button
+                type="button"
+                size="icon"
+                className="size-8"
+                aria-label="Mark request complete"
+                onClick={() => setActionDialog({ type: 'complete', request })}
+              >
+                <CheckCircle2 className="size-4" />
+              </Button>
+            ) : null}
             <Button
               type="button"
-              variant="ghost"
+              variant="secondary"
               size="icon"
               className="size-8"
               aria-label="View request details"
@@ -309,54 +376,6 @@ export function AdminRequestsPage() {
             >
               <Eye className="size-4" />
             </Button>
-            {request.status === 'PENDING' ? (
-              <>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-brand-700 hover:text-brand-700"
-                  aria-label="Approve request"
-                  onClick={() => setActionDialog({ type: 'approve', request })}
-                >
-                  <CheckCircle2 className="size-4" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="size-8 text-error hover:text-error"
-                  aria-label="Reject request"
-                  onClick={() => setActionDialog({ type: 'reject', request })}
-                >
-                  <XCircle className="size-4" />
-                </Button>
-              </>
-            ) : null}
-            {request.status === 'APPROVED' ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8 text-brand-700 hover:text-brand-700"
-                aria-label="Confirm request pickup"
-                onClick={() => setActionDialog({ type: 'pickup', request })}
-              >
-                <PackageOpen className="size-4" />
-              </Button>
-            ) : null}
-            {request.status === 'PICKED_UP' ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="size-8 text-brand-700 hover:text-brand-700"
-                aria-label="Mark request complete"
-                onClick={() => setActionDialog({ type: 'complete', request })}
-              >
-                <PackageCheck className="size-4" />
-              </Button>
-            ) : null}
           </div>
         )
       },

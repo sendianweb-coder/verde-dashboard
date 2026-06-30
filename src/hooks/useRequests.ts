@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import {
+  adjustRequestItems,
   approveRequest,
   cancelRequest,
   completeRequest,
@@ -13,7 +14,14 @@ import {
   updateRequest,
   type GetRequestsParams,
 } from '@/api/requests.api'
-import type { CreateRequestPayload, RequestStatusActionPayload, UpdateRequestPayload } from '@/types/request'
+import type {
+  AdjustItemsPayload,
+  ApproveRequestPayload,
+  CreateRequestPayload,
+  PickupRequestPayload,
+  RequestStatusActionPayload,
+  UpdateRequestPayload,
+} from '@/types/request'
 import { productsQueryKeys } from './useProducts'
 
 const REQUESTS_LIST_STALE_TIME = 60_000
@@ -85,10 +93,10 @@ export function useUpdateRequest() {
   })
 }
 
-interface RequestActionMutationPayload {
-  id: string
-  payload: RequestStatusActionPayload
-}
+type RequestActionMutationPayload =
+  | { id: string; payload: ApproveRequestPayload }
+  | { id: string; payload: PickupRequestPayload }
+  | { id: string; payload: RequestStatusActionPayload }
 
 function useRequestActionMutation(
   mutationFn: ({ id, payload }: RequestActionMutationPayload) => Promise<unknown>,
@@ -107,19 +115,19 @@ function useRequestActionMutation(
 }
 
 export function useApproveRequest() {
-  return useRequestActionMutation(({ id, payload }) => approveRequest(id, payload))
+  return useRequestActionMutation(({ id, payload }) => approveRequest(id, payload as ApproveRequestPayload))
 }
 
 export function useRejectRequest() {
-  return useRequestActionMutation(({ id, payload }) => rejectRequest(id, payload))
+  return useRequestActionMutation(({ id, payload }) => rejectRequest(id, payload as RequestStatusActionPayload))
 }
 
 export function usePickupRequest() {
-  return useRequestActionMutation(({ id, payload }) => pickupRequest(id, payload))
+  return useRequestActionMutation(({ id, payload }) => pickupRequest(id, payload as PickupRequestPayload))
 }
 
 export function useCompleteRequest() {
-  return useRequestActionMutation(({ id, payload }) => completeRequest(id, payload))
+  return useRequestActionMutation(({ id, payload }) => completeRequest(id, payload as RequestStatusActionPayload))
 }
 
 interface CancelRequestMutationPayload {
@@ -136,6 +144,25 @@ export function useCancelRequest() {
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
       void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.detail(variables.id) })
       void queryClient.invalidateQueries({ queryKey: ADMIN_REQUEST_QUEUE_QUERY_KEY })
+    },
+  })
+}
+
+interface AdjustRequestItemsMutationPayload {
+  id: string
+  payload: AdjustItemsPayload
+}
+
+export function useAdjustRequestItems() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, payload }: AdjustRequestItemsMutationPayload) => adjustRequestItems(id, payload),
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.all })
+      void queryClient.invalidateQueries({ queryKey: requestsQueryKeys.detail(variables.id) })
+      void queryClient.invalidateQueries({ queryKey: ADMIN_REQUEST_QUEUE_QUERY_KEY })
+      void queryClient.invalidateQueries({ queryKey: productsQueryKeys.all })
     },
   })
 }

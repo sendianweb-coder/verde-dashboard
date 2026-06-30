@@ -1,9 +1,12 @@
 import { apiClient } from '@/api/client'
 import type { ApiSuccessResponse } from '@/types/common'
 import type {
+  AdjustItemsPayload,
   ApprovalEvent,
+  ApproveRequestPayload,
   CreateRequestPayload,
   InternalRequest,
+  PickupRequestPayload,
   RequestStatusActionPayload,
   UpdateRequestPayload,
 } from '@/types/request'
@@ -43,7 +46,7 @@ export async function updateRequest(id: string, payload: UpdateRequestPayload): 
   return data.data
 }
 
-export async function approveRequest(id: string, payload: RequestStatusActionPayload): Promise<InternalRequest> {
+export async function approveRequest(id: string, payload: ApproveRequestPayload): Promise<InternalRequest> {
   const { data } = await apiClient.post<ApiSuccessResponse<InternalRequest>>(`/requests/${id}/approve`, payload)
   return data.data
 }
@@ -53,7 +56,7 @@ export async function rejectRequest(id: string, payload: RequestStatusActionPayl
   return data.data
 }
 
-export async function pickupRequest(id: string, payload: RequestStatusActionPayload): Promise<InternalRequest> {
+export async function pickupRequest(id: string, payload: PickupRequestPayload): Promise<InternalRequest> {
   const { data } = await apiClient.post<ApiSuccessResponse<InternalRequest>>(`/requests/${id}/pickup`, payload)
   return data.data
 }
@@ -65,6 +68,11 @@ export async function completeRequest(id: string, payload: RequestStatusActionPa
 
 export async function getRequestHistory(id: string): Promise<ApprovalEvent[]> {
   const { data } = await apiClient.get<ApiSuccessResponse<ApprovalEvent[]>>(`/requests/${id}/history`)
+  return data.data
+}
+
+export async function adjustRequestItems(id: string, payload: AdjustItemsPayload): Promise<InternalRequest> {
+  const { data } = await apiClient.patch<ApiSuccessResponse<InternalRequest>>(`/requests/${id}/items`, payload)
   return data.data
 }
 

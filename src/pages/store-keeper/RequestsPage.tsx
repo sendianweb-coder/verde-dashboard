@@ -161,8 +161,23 @@ export function StoreKeeperRequestsPage() {
           return (
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="inline-flex rounded-md border border-border bg-background px-2 py-0.5 text-xs font-medium tabular-nums text-text-secondary">
-                {itemCount} items{summary ? ` / ${summary.totalRequestedQuantity} units` : ''}
+                {itemCount} items / {summary?.totalRequestedQuantity ?? row.original.items.reduce((t, i) => t + i.quantity, 0)} req
               </span>
+              {summary?.totalApprovedQuantity != null ? (
+                <span className="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-medium tabular-nums text-brand-700">
+                  {summary.totalApprovedQuantity} appr
+                </span>
+              ) : null}
+              {summary?.totalFulfilledQuantity != null ? (
+                <span className="inline-flex rounded-md border border-brand-200 bg-brand-50 px-2 py-0.5 text-xs font-medium tabular-nums text-brand-700">
+                  {summary.totalFulfilledQuantity} picked
+                </span>
+              ) : null}
+              {summary?.hasItemIssues ? (
+                <span className="inline-flex rounded-md border border-warning bg-pending-bg px-2 py-0.5 text-xs font-medium text-pending-text">
+                  Issues
+                </span>
+              ) : null}
               {summary?.hasInsufficientStock ? (
                 <span className="inline-flex rounded-md border border-warning bg-pending-bg px-2 py-0.5 text-xs font-medium text-pending-text">
                   Stock warning

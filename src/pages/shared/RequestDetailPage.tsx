@@ -1,4 +1,4 @@
-import { ArrowLeft, Boxes, CalendarClock, ClipboardList, Package, Printer, UserRound } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Boxes, CalendarClock, CheckCircle2, ClipboardList, MinusCircle, Package, Printer, UserRound, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -11,6 +11,14 @@ import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import {
+  useAdjustRequestItems,
   useApproveRequest,
   useCompleteRequest,
   usePickupRequest,
@@ -19,10 +27,13 @@ import {
 } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
 import type { InternalRequestItem } from '@/types/request'
+import type { ApproveRequestPayload, AdjustItemsPayload, PickupRequestPayload } from '@/types/request'
 
 interface RequestDetailPageProps {
   backToPath: string
 }
+
+const NO_REASON_VALUE = 'NO_REASON'
 
 const detailDateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -46,6 +57,69 @@ function formatRequestDateTime(value: string) {
   return detailDateTimeFormatter.format(new Date(value))
 }
 
+function getReasonSelectValue(reason: string) {
+  return reason || NO_REASON_VALUE
+}
+
+function normalizeReasonSelectValue(value: string) {
+  return value === NO_REASON_VALUE ? '' : value
+}
+
+function clampQuantity(value: number, max: number) {
+  return Math.min(Math.max(0, value), max)
+}
+
+function getPositiveQuantity(max: number, preferred: number) {
+  if (max <= 0) {
+    return 0
+  }
+
+  return clampQuantity(preferred > 0 ? preferred : 1, max)
+}
+
+function getPartialFulfilledQuantity(approvedQuantity: number, preferred: number) {
+  if (approvedQuantity <= 1) {
+    return 0
+  }
+
+  return clampQuantity(preferred > 0 && preferred < approvedQuantity ? preferred : approvedQuantity - 1, approvedQuantity)
+}
+
+function formatIssueReason(reason: string) {
+  return reason.replace(/_/g, ' ').toLowerCase()
+}
+
+function getItemIssueQuantity(item: InternalRequestItem) {
+  if (!item.issueReason) {
+    return 0
+  }
+
+  const requestedQuantity = item.requestedQuantity ?? item.quantity
+  const approvedQuantity = item.approvedQuantity ?? requestedQuantity
+  const fulfilledQuantity = item.fulfilledQuantity
+
+  if (fulfilledQuantity != null && approvedQuantity > fulfilledQuantity) {
+    return approvedQuantity - fulfilledQuantity
+  }
+
+  if (requestedQuantity > approvedQuantity) {
+    return requestedQuantity - approvedQuantity
+  }
+
+  return 0
+}
+
+function getItemIssueLabel(item: InternalRequestItem) {
+  if (!item.issueReason) {
+    return null
+  }
+
+  const issueQuantity = getItemIssueQuantity(item)
+  const reason = formatIssueReason(item.issueReason)
+
+  return issueQuantity > 0 ? `${issueQuantity} ${reason}` : reason
+}
+
 function ProductMarker({ item }: { item: InternalRequestItem }) {
   return item.product.imageUrl ? (
     <img src={item.product.imageUrl} alt={item.product.name} className="size-10 rounded-lg border border-border bg-surface object-cover" loading="lazy" />
@@ -56,10 +130,53 @@ function ProductMarker({ item }: { item: InternalRequestItem }) {
   )
 }
 
+function ItemStatusBadge({ status }: { status: string }) {
+  const colorMap: Record<string, string> = {
+    PENDING: 'border-border bg-background text-text-secondary',
+    APPROVED: 'border-brand-200 bg-brand-50 text-brand-700',
+    REJECTED: 'border-error/20 bg-error-bg text-error',
+    FULFILLED: 'border-brand-200 bg-brand-50 text-brand-700',
+    PARTIALLY_FULFILLED: 'border-warning bg-pending-bg text-pending-text',
+  }
+
+  return (
+    <span className={`inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[11px] font-medium ${colorMap[status] ?? colorMap.PENDING}`}>
+      {status === 'APPROVED' || status === 'FULFILLED' ? <CheckCircle2 className="size-3" /> : null}
+      {status === 'REJECTED' ? <XCircle className="size-3" /> : null}
+      {status === 'PARTIALLY_FULFILLED' ? <MinusCircle className="size-3" /> : null}
+      {status.replace(/_/g, ' ')}
+    </span>
+  )
+}
+
 export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
   const navigate = useNavigate()
   const { id = '' } = useParams()
   const [comment, setComment] = useState('')
+  const [itemApprovalMode, setItemApprovalMode] = useState(false)
+  const [itemAdjustMode, setItemAdjustMode] = useState(false)
+  const [itemPickupMode, setItemPickupMode] = useState(false)
+  // Track per-item approval edits: keyed by item.id
+  const [itemApprovals, setItemApprovals] = useState<Record<string, {
+    approvedQuantity: number
+    status: 'APPROVED' | 'REJECTED'
+    reason: string
+    comment: string
+  }>>({})
+  // Track per-item pickup edits
+  const [itemPickups, setItemPickups] = useState<Record<string, {
+    fulfilledQuantity: number
+    status: 'PARTIALLY_FULFILLED' | 'REJECTED'
+    reason: string
+    comment: string
+  }>>({})
+  // Track per-item adjust edits
+  const [itemAdjusts, setItemAdjusts] = useState<Record<string, {
+    approvedQuantity: number
+    status: 'APPROVED' | 'REJECTED'
+    reason: string
+    comment: string
+  }>>({})
 
   const requestQuery = useRequest(id)
 
@@ -67,6 +184,7 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
   const rejectRequestMutation = useRejectRequest()
   const pickupRequestMutation = usePickupRequest()
   const completeRequestMutation = useCompleteRequest()
+  const adjustRequestItemsMutation = useAdjustRequestItems()
 
   if (requestQuery.isLoading) {
     return <PageSkeleton />
@@ -144,6 +262,198 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
     }
   }
 
+  // --- Item-level approval handlers ---
+
+  const enterItemApprovalMode = () => {
+    // Initialize item approvals from current request items
+    const initial: Record<string, { approvedQuantity: number; status: 'APPROVED' | 'REJECTED'; reason: string; comment: string }> = {}
+    for (const item of request.items) {
+      initial[item.id] = {
+        approvedQuantity: item.quantity,
+        status: 'APPROVED',
+        reason: '',
+        comment: '',
+      }
+    }
+    setItemApprovals(initial)
+    setItemApprovalMode(true)
+  }
+
+  const updateItemApproval = (itemId: string, field: string, value: string | number) => {
+    setItemApprovals((prev) => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], [field]: value },
+    }))
+  }
+
+  const submitItemApprovals = async () => {
+    const items: Array<{ itemId: string; approvedQuantity: number; status: 'APPROVED' | 'REJECTED'; reason?: string; comment?: string }> = request.items.map((item) => {
+      const edit = itemApprovals[item.id]
+      const nextQuantity = edit?.approvedQuantity ?? 0
+      const isRejected = edit?.status === 'REJECTED' || nextQuantity === 0
+      const approvedQuantity = isRejected ? 0 : nextQuantity
+      return {
+        itemId: item.id,
+        approvedQuantity,
+        status: isRejected ? 'REJECTED' as const : 'APPROVED' as const,
+        reason: edit?.reason || undefined,
+        comment: edit?.comment || undefined,
+      }
+    })
+
+    try {
+      await approveRequestMutation.mutateAsync({
+        id: request.id,
+        payload: { comment, items } as ApproveRequestPayload,
+      })
+      toast.success('Item approvals submitted')
+      setItemApprovalMode(false)
+      setComment('')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'approve' }))
+    }
+  }
+
+  const cancelItemApprovalMode = () => {
+    setItemApprovalMode(false)
+    setItemApprovals({})
+  }
+
+  // --- Item-level adjust handlers ---
+
+  const enterItemAdjustMode = () => {
+    const initial: Record<string, { approvedQuantity: number; status: 'APPROVED' | 'REJECTED'; reason: string; comment: string }> = {}
+    for (const item of request.items) {
+      initial[item.id] = {
+        approvedQuantity: item.approvedQuantity ?? item.quantity,
+        status: (item.approvedQuantity != null && item.approvedQuantity > 0) ? 'APPROVED' : 'REJECTED',
+        reason: item.issueReason ?? '',
+        comment: item.issueComment ?? '',
+      }
+    }
+    setItemAdjusts(initial)
+    setItemAdjustMode(true)
+  }
+
+  const updateItemAdjust = (itemId: string, field: string, value: string | number) => {
+    setItemAdjusts((prev) => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], [field]: value },
+    }))
+  }
+
+  const submitItemAdjusts = async () => {
+    // Send every line where quantity, status, reason, or comment changed.
+    const changedItems: Array<{ itemId: string; approvedQuantity: number; status: 'APPROVED' | 'REJECTED'; reason?: string; comment?: string }> = request.items
+      .map((item) => {
+        const edit = itemAdjusts[item.id]
+        if (!edit) return null
+        const currentApproved = item.approvedQuantity ?? item.quantity
+        const currentStatus = currentApproved > 0 ? 'APPROVED' : 'REJECTED'
+        const currentReason = item.issueReason ?? ''
+        const currentComment = item.issueComment ?? ''
+        const approvedQuantity = edit.status === 'REJECTED' ? 0 : edit.approvedQuantity
+        const status = approvedQuantity === 0 ? 'REJECTED' as const : 'APPROVED' as const
+        const changed =
+          approvedQuantity !== currentApproved ||
+          status !== currentStatus ||
+          edit.reason !== currentReason ||
+          edit.comment !== currentComment
+        if (!changed) return null
+        return {
+          itemId: item.id,
+          approvedQuantity,
+          status,
+          reason: edit.reason || undefined,
+          comment: edit.comment || undefined,
+        }
+      })
+      .filter(Boolean) as Array<{ itemId: string; approvedQuantity: number; status: 'APPROVED' | 'REJECTED'; reason?: string; comment?: string }>
+
+    if (changedItems.length === 0) {
+      toast.error('No items were changed.')
+      return
+    }
+
+    try {
+      await adjustRequestItemsMutation.mutateAsync({
+        id: request.id,
+        payload: { comment, items: changedItems } as AdjustItemsPayload,
+      })
+      toast.success('Items adjusted')
+      setItemAdjustMode(false)
+      setComment('')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
+    }
+  }
+
+  const cancelItemAdjustMode = () => {
+    setItemAdjustMode(false)
+    setItemAdjusts({})
+  }
+
+  // --- Item-level pickup handlers ---
+
+  const enterItemPickupMode = () => {
+    const initial: Record<string, { fulfilledQuantity: number; status: 'PARTIALLY_FULFILLED' | 'REJECTED'; reason: string; comment: string }> = {}
+    for (const item of request.items) {
+      initial[item.id] = {
+        fulfilledQuantity: item.approvedQuantity ?? 0,
+        status: 'PARTIALLY_FULFILLED',
+        reason: '',
+        comment: '',
+      }
+    }
+    setItemPickups(initial)
+    setItemPickupMode(true)
+  }
+
+  const updateItemPickup = (itemId: string, field: string, value: string | number) => {
+    setItemPickups((prev) => ({
+      ...prev,
+      [itemId]: { ...prev[itemId], [field]: value },
+    }))
+  }
+
+  const submitItemPickups = async () => {
+    // Send only problem items (where fulfilledQuantity < approvedQuantity)
+    const problemItems = request.items
+      .map((item) => {
+        const edit = itemPickups[item.id]
+        if (!edit) return null
+        const approvedQty = item.approvedQuantity ?? item.quantity
+        const fulfilledQuantity = edit.status === 'REJECTED' ? 0 : edit.fulfilledQuantity
+        if (fulfilledQuantity >= approvedQty) return null // fulfilled in full, omit
+        const isRejected = fulfilledQuantity === 0
+        return {
+          itemId: item.id,
+          fulfilledQuantity,
+          status: isRejected ? 'REJECTED' as const : 'PARTIALLY_FULFILLED' as const,
+          reason: edit.reason || undefined,
+          comment: edit.comment || undefined,
+        }
+      })
+      .filter(Boolean) as Array<{ itemId: string; fulfilledQuantity: number; status: 'REJECTED' | 'PARTIALLY_FULFILLED'; reason?: string; comment?: string }>
+
+    try {
+      await pickupRequestMutation.mutateAsync({
+        id: request.id,
+        payload: { comment, items: problemItems.length > 0 ? problemItems : undefined } as PickupRequestPayload,
+      })
+      toast.success('Pickup confirmed')
+      setItemPickupMode(false)
+      setComment('')
+    } catch (error) {
+      toast.error(getErrorMessage(error, { context: 'update' }))
+    }
+  }
+
+  const cancelItemPickupMode = () => {
+    setItemPickupMode(false)
+    setItemPickups({})
+  }
+
   return (
     <section className="space-y-6">
       <div className="request-screen-content">
@@ -202,7 +512,10 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
                 <th scope="col">#</th>
                 <th scope="col">Items</th>
                 <th scope="col">Requested</th>
+                <th scope="col">Approved</th>
+                <th scope="col">Fulfilled</th>
                 <th scope="col">Left in Stock</th>
+                <th scope="col">Issue</th>
               </tr>
             </thead>
             <tbody>
@@ -211,7 +524,10 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
                   <td>{index + 1}</td>
                   <td>{item.product.name}</td>
                   <td>{item.quantity}</td>
+                  <td>{item.approvedQuantity ?? '—'}</td>
+                  <td>{item.fulfilledQuantity ?? '—'}</td>
                   <td>{item.currentStock.availableQuantity}</td>
+                  <td>{getItemIssueLabel(item) ?? ''}</td>
                 </tr>
               ))}
             </tbody>
@@ -316,30 +632,237 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
           <span className="inline-flex w-fit items-center gap-1 rounded-lg border border-border bg-background px-2 py-1 text-xs font-medium tabular-nums text-text-secondary">
             <Boxes className="size-3.5" />
             {request.summary?.itemCount ?? request.items.length} items / {request.summary?.totalRequestedQuantity ?? request.items.reduce((total, item) => total + item.quantity, 0)} units
+            {request.summary?.totalApprovedQuantity != null ? ` | ${request.summary.totalApprovedQuantity} approved` : ''}
+            {request.summary?.totalFulfilledQuantity != null ? ` / ${request.summary.totalFulfilledQuantity} fulfilled` : ''}
+            {request.summary?.hasItemIssues ? ' | Has issues' : ''}
           </span>
         </div>
 
         <div className="mt-4 divide-y divide-border overflow-hidden rounded-lg border border-border bg-background">
           {request.items.map((item) => {
+            const itemStatus = item.itemStatus ?? 'PENDING'
+            const hasApproved = item.approvedQuantity != null
+            const hasFulfilled = item.fulfilledQuantity != null
+            const isEditingApproval = itemApprovalMode && itemApprovals[item.id] != null
+            const isEditingAdjust = itemAdjustMode && itemAdjusts[item.id] != null
+            const isEditingPickup = itemPickupMode && itemPickups[item.id] != null
+            const isEditing = isEditingApproval || isEditingAdjust || isEditingPickup
+
             return (
-              <article key={item.id} className="grid gap-3 px-3 py-3 md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
-                <div className="flex min-w-0 gap-3">
-                  <ProductMarker item={item} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-text-primary">{item.product.name}</p>
-                    <p className="text-xs text-text-muted">SKU {item.product.sku || 'N/A'}</p>
+              <article key={item.id} className="px-3 py-3">
+                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                  <div className="flex min-w-0 gap-3">
+                    <ProductMarker item={item} />
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-medium text-text-primary">{item.product.name}</p>
+                        <ItemStatusBadge status={itemStatus} />
+                      </div>
+                      <p className="text-xs text-text-muted">SKU {item.product.sku || 'N/A'}</p>
+                      {item.issueReason ? (
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-pending-text">
+                          <AlertTriangle className="size-3 shrink-0" />
+                          <span className="inline-flex rounded-md border border-warning bg-pending-bg px-1.5 py-0.5 font-medium tabular-nums text-pending-text">
+                            {getItemIssueLabel(item)}
+                          </span>
+                          {item.issueComment ? <span className="text-text-muted">{item.issueComment}</span> : null}
+                        </div>
+                      ) : null}
+                    </div>
                   </div>
+
+                  {!isEditing ? (
+                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-right sm:grid-cols-4 sm:min-w-[440px]">
+                      <div>
+                        <dt className="text-xs text-text-muted">Requested</dt>
+                        <dd className="text-sm font-medium tabular-nums text-text-primary">{item.quantity}</dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-text-muted">Approved</dt>
+                        <dd className="text-sm font-medium tabular-nums text-text-primary">
+                          {hasApproved ? item.approvedQuantity : '—'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-text-muted">Fulfilled</dt>
+                        <dd className="text-sm font-medium tabular-nums text-text-primary">
+                          {hasFulfilled ? item.fulfilledQuantity : '—'}
+                        </dd>
+                      </div>
+                      <div>
+                        <dt className="text-xs text-text-muted">Current Stock</dt>
+                        <dd className="text-sm font-medium tabular-nums text-text-primary">{item.currentStock.availableQuantity}</dd>
+                      </div>
+                    </dl>
+                  ) : null}
+
+                  {isEditingApproval || isEditingAdjust ? (
+                    <div className="flex flex-col gap-2 sm:min-w-[400px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-text-muted whitespace-nowrap">Qty:</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={item.quantity}
+                            className="h-8 w-20 text-sm"
+                            value={isEditingApproval ? itemApprovals[item.id].approvedQuantity : itemAdjusts[item.id].approvedQuantity}
+                            onChange={(e) => {
+                              const val = clampQuantity(Number(e.target.value), item.quantity)
+                              const status = val === 0 ? 'REJECTED' : 'APPROVED'
+                              if (isEditingApproval) {
+                                updateItemApproval(item.id, 'approvedQuantity', val)
+                                updateItemApproval(item.id, 'status', status)
+                              }
+                              if (isEditingAdjust) {
+                                updateItemAdjust(item.id, 'approvedQuantity', val)
+                                updateItemAdjust(item.id, 'status', status)
+                              }
+                            }}
+                          />
+                        </div>
+                        <Select
+                          value={isEditingApproval ? itemApprovals[item.id].status : itemAdjusts[item.id].status}
+                          onValueChange={(val: 'APPROVED' | 'REJECTED') => {
+                            const approvedQuantity = val === 'REJECTED'
+                              ? 0
+                              : getPositiveQuantity(
+                                  item.quantity,
+                                  isEditingApproval ? itemApprovals[item.id].approvedQuantity : itemAdjusts[item.id].approvedQuantity,
+                                )
+                            if (isEditingApproval) {
+                              updateItemApproval(item.id, 'status', val)
+                              updateItemApproval(item.id, 'approvedQuantity', approvedQuantity)
+                            }
+                            if (isEditingAdjust) {
+                              updateItemAdjust(item.id, 'status', val)
+                              updateItemAdjust(item.id, 'approvedQuantity', approvedQuantity)
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[120px] text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="APPROVED">Approve</SelectItem>
+                            <SelectItem value="REJECTED">Reject</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={getReasonSelectValue(isEditingApproval ? itemApprovals[item.id].reason : itemAdjusts[item.id].reason)}
+                          onValueChange={(val: string) => {
+                            const reason = normalizeReasonSelectValue(val)
+                            if (isEditingApproval) updateItemApproval(item.id, 'reason', reason)
+                            if (isEditingAdjust) updateItemAdjust(item.id, 'reason', reason)
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[140px] text-sm">
+                            <SelectValue placeholder="Reason" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_REASON_VALUE}>No reason</SelectItem>
+                            <SelectItem value="OUT_OF_STOCK">Out of stock</SelectItem>
+                            <SelectItem value="DAMAGED">Damaged</SelectItem>
+                            <SelectItem value="MISSING">Missing</SelectItem>
+                            <SelectItem value="OTHER">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Input
+                        placeholder="Line comment (optional)"
+                        className="h-8 text-sm"
+                        value={isEditingApproval ? itemApprovals[item.id].comment : itemAdjusts[item.id].comment}
+                        onChange={(e) => {
+                          if (isEditingApproval) updateItemApproval(item.id, 'comment', e.target.value)
+                          if (isEditingAdjust) updateItemAdjust(item.id, 'comment', e.target.value)
+                        }}
+                      />
+                    </div>
+                  ) : null}
+
+                  {isEditingPickup ? (
+                    <div className="flex flex-col gap-2 sm:min-w-[400px]">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <div className="flex items-center gap-1.5">
+                          <label className="text-xs text-text-muted whitespace-nowrap">Pick qty:</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            max={item.approvedQuantity ?? item.quantity}
+                            className="h-8 w-20 text-sm"
+                            value={itemPickups[item.id].fulfilledQuantity}
+                            onChange={(e) => {
+                              const approvedQuantity = item.approvedQuantity ?? item.quantity
+                              const val = clampQuantity(Number(e.target.value), approvedQuantity)
+                              updateItemPickup(item.id, 'fulfilledQuantity', val)
+                              updateItemPickup(item.id, 'status', val === 0 ? 'REJECTED' : 'PARTIALLY_FULFILLED')
+                            }}
+                          />
+                        </div>
+                        <Select
+                          value={itemPickups[item.id].status}
+                          onValueChange={(val: 'PARTIALLY_FULFILLED' | 'REJECTED') => {
+                            const approvedQuantity = item.approvedQuantity ?? item.quantity
+                            const fulfilledQuantity = val === 'REJECTED'
+                              ? 0
+                              : getPartialFulfilledQuantity(approvedQuantity, itemPickups[item.id].fulfilledQuantity)
+                            updateItemPickup(item.id, 'status', fulfilledQuantity === 0 ? 'REJECTED' : val)
+                            updateItemPickup(item.id, 'fulfilledQuantity', fulfilledQuantity)
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[160px] text-sm">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="PARTIALLY_FULFILLED">Partially fulfilled</SelectItem>
+                            <SelectItem value="REJECTED">Rejected</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Select
+                          value={getReasonSelectValue(itemPickups[item.id].reason)}
+                          onValueChange={(val: string) => {
+                            updateItemPickup(item.id, 'reason', normalizeReasonSelectValue(val))
+                          }}
+                        >
+                          <SelectTrigger className="h-8 w-[140px] text-sm">
+                            <SelectValue placeholder="Reason" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={NO_REASON_VALUE}>No reason</SelectItem>
+                            <SelectItem value="OUT_OF_STOCK">Out of stock</SelectItem>
+                            <SelectItem value="DAMAGED">Damaged</SelectItem>
+                            <SelectItem value="MISSING">Missing</SelectItem>
+                            <SelectItem value="OTHER">Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <Input
+                        placeholder="Line comment (optional)"
+                        className="h-8 text-sm"
+                        value={itemPickups[item.id].comment}
+                        onChange={(e) => updateItemPickup(item.id, 'comment', e.target.value)}
+                      />
+                    </div>
+                  ) : null}
                 </div>
-                <dl className="grid grid-cols-2 gap-2 text-right sm:min-w-[240px]">
-                  <div>
-                    <dt className="text-xs text-text-muted">Requested</dt>
-                    <dd className="text-sm font-medium tabular-nums text-text-primary">{item.quantity}</dd>
-                  </div>
-                  <div>
-                    <dt className="text-xs text-text-muted">Left in Stock</dt>
-                    <dd className="text-sm font-medium tabular-nums text-text-primary">{item.currentStock.availableQuantity}</dd>
-                  </div>
-                </dl>
+
+                {item.stockAtRequest ? (
+                  <details className="mt-2 group">
+                    <summary className="cursor-pointer text-xs text-text-muted hover:text-text-secondary">
+                      Stock snapshots
+                    </summary>
+                    <div className="mt-1.5 grid grid-cols-2 gap-4 rounded-md bg-surface px-3 py-2 text-xs">
+                      <div>
+                        <p className="font-medium text-text-secondary">At request time</p>
+                        <p className="text-text-muted">Total {item.stockAtRequest.totalQuantity} / Reserved {item.stockAtRequest.reservedQuantity} / Available {item.stockAtRequest.availableQuantity}</p>
+                      </div>
+                      <div>
+                        <p className="font-medium text-text-secondary">Current</p>
+                        <p className="text-text-muted">Total {item.currentStock.totalQuantity} / Reserved {item.currentStock.reservedQuantity} / Available {item.currentStock.availableQuantity}</p>
+                      </div>
+                    </div>
+                  </details>
+                ) : null}
               </article>
             )
           })}
@@ -361,44 +884,97 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
       <section className="request-screen-content flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-raised p-5">
         {request.status === 'PENDING' ? (
           <>
-            <ConfirmDialog
-              title="Approve request"
-              description="Approve this request and reserve stock?"
-              confirmLabel="Approve"
-              variant="default"
-              isLoading={approveRequestMutation.isPending}
-              onConfirm={onApprove}
-              trigger={<Button>Approve</Button>}
-            />
+            {!itemApprovalMode ? (
+              <>
+                <ConfirmDialog
+                  title="Approve all items"
+                  description="Approve this request in full and reserve stock? All requested items will be approved at the requested quantity."
+                  confirmLabel="Approve All"
+                  variant="default"
+                  isLoading={approveRequestMutation.isPending}
+                  onConfirm={onApprove}
+                  trigger={<Button>Approve All</Button>}
+                />
 
-            <ConfirmDialog
-              title="Reject request"
-              description="Reject this request? A comment with at least 10 characters is required."
-              confirmLabel="Reject"
-              variant="destructive"
-              isLoading={rejectRequestMutation.isPending}
-              onConfirm={async () => {
-                if (comment.trim().length < 10) {
-                  toast.error('Rejection comment must be at least 10 characters.')
-                  throw new Error('Invalid rejection comment')
-                }
+                <Button variant="secondary" onClick={enterItemApprovalMode}>
+                  Approve by Item
+                </Button>
 
-                await onReject()
-              }}
-              trigger={<Button variant="destructive">Reject</Button>}
-            />
+                <ConfirmDialog
+                  title="Reject entire request"
+                  description="Reject this request? A comment with at least 10 characters is required."
+                  confirmLabel="Reject All"
+                  variant="destructive"
+                  isLoading={rejectRequestMutation.isPending}
+                  onConfirm={async () => {
+                    if (comment.trim().length < 10) {
+                      toast.error('Rejection comment must be at least 10 characters.')
+                      throw new Error('Invalid rejection comment')
+                    }
+
+                    await onReject()
+                  }}
+                  trigger={<Button variant="destructive">Reject All</Button>}
+                />
+              </>
+            ) : (
+              <>
+                <Button onClick={submitItemApprovals} disabled={approveRequestMutation.isPending}>
+                  Submit Item Approvals
+                </Button>
+                <Button variant="secondary" onClick={cancelItemApprovalMode}>
+                  Cancel
+                </Button>
+              </>
+            )}
           </>
         ) : null}
 
         {request.status === 'APPROVED' ? (
-          <ConfirmDialog
-            title="Confirm pickup"
-            description="Mark this request as picked up?"
-            confirmLabel="Confirm Pickup"
-            isLoading={pickupRequestMutation.isPending}
-            onConfirm={onPickup}
-            trigger={<Button>Confirm Pickup</Button>}
-          />
+          <>
+            {!itemAdjustMode && !itemPickupMode ? (
+              <>
+                <Button variant="secondary" onClick={enterItemAdjustMode}>
+                  Edit Approved Items
+                </Button>
+
+                <ConfirmDialog
+                  title="Confirm pickup"
+                  description="Mark this request as picked up? All approved items will be fulfilled in full."
+                  confirmLabel="Confirm Pickup"
+                  isLoading={pickupRequestMutation.isPending}
+                  onConfirm={onPickup}
+                  trigger={<Button>Pickup All</Button>}
+                />
+
+                <Button variant="secondary" onClick={enterItemPickupMode}>
+                  Pickup with Issues
+                </Button>
+              </>
+            ) : null}
+
+            {itemAdjustMode ? (
+              <>
+                <Button onClick={submitItemAdjusts} disabled={adjustRequestItemsMutation.isPending}>
+                  Submit Adjustments
+                </Button>
+                <Button variant="secondary" onClick={cancelItemAdjustMode}>
+                  Cancel
+                </Button>
+              </>
+            ) : null}
+
+            {itemPickupMode ? (
+              <>
+                <Button onClick={submitItemPickups} disabled={pickupRequestMutation.isPending}>
+                  Submit Pickup
+                </Button>
+                <Button variant="secondary" onClick={cancelItemPickupMode}>
+                  Cancel
+                </Button>
+              </>
+            ) : null}
+          </>
         ) : null}
 
         {request.status === 'PICKED_UP' ? (
