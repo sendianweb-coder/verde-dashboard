@@ -183,6 +183,7 @@ function AssignedUsersField({
 export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManagementPageProps) {
   const navigate = useNavigate()
   const currentUserRole = useAuthStore((state) => state.user?.role)
+  const canManageProjectDetails = currentUserRole === 'ADMIN' || currentUserRole === 'STORE_KEEPER' || currentUserRole === 'EMPLOYEE'
   const canManageAssignments = currentUserRole === 'ADMIN'
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
@@ -298,35 +299,39 @@ export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManage
                 <Eye className="size-4" />
                 View project
               </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  setEditingProject(row.original)
-                  setUpdatedProjectName(row.original.name)
-                  setUpdatedProjectDescription(row.original.description ?? '')
-                  setUpdatedProjectClient(row.original.client ?? '')
-                  setUpdatedProjectLocation(row.original.location ?? '')
-                  setUpdatedProjectType(row.original.projectType ?? '')
-                  setUpdatedProjectAssignedUserIds(getProjectAssignmentIds(row.original))
-                }}
-              >
-                <Pencil className="size-4" />
-                Edit project
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                disabled={!row.original.isActive}
-                className="text-error focus:text-error"
-                onSelect={() => setProjectPendingDeactivation(row.original)}
-              >
-                <Power className="size-4" />
-                Deactivate
-              </DropdownMenuItem>
+              {canManageProjectDetails ? (
+                <>
+                  <DropdownMenuItem
+                    onSelect={() => {
+                      setEditingProject(row.original)
+                      setUpdatedProjectName(row.original.name)
+                      setUpdatedProjectDescription(row.original.description ?? '')
+                      setUpdatedProjectClient(row.original.client ?? '')
+                      setUpdatedProjectLocation(row.original.location ?? '')
+                      setUpdatedProjectType(row.original.projectType ?? '')
+                      setUpdatedProjectAssignedUserIds(getProjectAssignmentIds(row.original))
+                    }}
+                  >
+                    <Pencil className="size-4" />
+                    Edit project
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    disabled={!row.original.isActive}
+                    className="text-error focus:text-error"
+                    onSelect={() => setProjectPendingDeactivation(row.original)}
+                  >
+                    <Power className="size-4" />
+                    Deactivate
+                  </DropdownMenuItem>
+                </>
+              ) : null}
             </DropdownMenuContent>
           </DropdownMenu>
         ),
       },
     ],
-    [navigate, projectDetailBasePath],
+    [canManageProjectDetails, navigate, projectDetailBasePath],
   )
 
   const handleCreateProject = async (event: FormEvent<HTMLFormElement>) => {
@@ -410,9 +415,11 @@ export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManage
         title="Project Management"
         subtitle="Track and maintain active project records"
         action={
-          <Button type="button" onClick={() => setIsCreateProjectOpen(true)}>
-            Create project
-          </Button>
+          canManageProjectDetails ? (
+            <Button type="button" onClick={() => setIsCreateProjectOpen(true)}>
+              Create project
+            </Button>
+          ) : null
         }
       />
 

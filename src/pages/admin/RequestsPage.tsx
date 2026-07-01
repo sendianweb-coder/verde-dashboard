@@ -25,10 +25,11 @@ import { useApproveRequest, useCompleteRequest, usePickupRequest, useRejectReque
 import { useProjects } from '@/hooks/useProjects'
 import { useUsers } from '@/hooks/useUsers'
 import { getErrorMessage } from '@/lib/errors'
-import type { BulkRequestStatusPayload } from '@/types/admin'
+import type { BulkRequestStatusPayload, BulkRequestStatusResultItem } from '@/types/admin'
 import type { InternalRequest, RequestStatus } from '@/types/request'
 
-const DEFAULT_LIMIT = 20
+const DEFAULT_PAGE_SIZE = 20
+const PAGE_SIZE_OPTIONS = [5, 10, 20, 50]
 
 const requestDateFormatter = new Intl.DateTimeFormat('en-US', {
   month: 'short',
@@ -49,13 +50,6 @@ const bulkStatusOptions: Array<{ label: string; value: BulkRequestStatusPayload[
   { label: 'Pickup', value: 'PICKED_UP' },
   { label: 'Complete', value: 'COMPLETED' },
 ]
-
-type RequestActionDialog =
-  | { type: 'approve'; request: InternalRequest }
-  | { type: 'reject'; request: InternalRequest }
-  | { type: 'pickup'; request: InternalRequest }
-  | { type: 'complete'; request: InternalRequest }
-  | null
 
 function formatRequestDate(value: string) {
   const date = new Date(value)
@@ -79,17 +73,33 @@ function getRequesterInitials(name: string) {
   return initials || 'E'
 }
 
+function formatBulkFailureDescription(results: BulkRequestStatusResultItem[]) {
+  const failedResults = results.filter((result) => !result.success)
+
+  if (failedResults.length === 0) {
+    return undefined
+  }
+
+  const shownFailures = failedResults.slice(0, 3).map((result) => {
+    const message = result.error ?? result.code ?? 'Update failed'
+    return `Request ${result.requestId.slice(0, 8)}: ${message}`
+  })
+  const remainingCount = failedResults.length - shownFailures.length
+
+  return remainingCount > 0 ? `${shownFailures.join(' • ')} • +${remainingCount} more` : shownFailures.join(' • ')
+}
+
 export function AdminRequestsPage() {
   const navigate = useNavigate()
   const [status, setStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'PICKED_UP'>('ALL')
   const [projectId, setProjectId] = useState('')
   const [requesterId, setRequesterId] = useState('')
   const [page, setPage] = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
   const [selectedRequestIds, setSelectedRequestIds] = useState<string[]>([])
   const [bulkStatus, setBulkStatus] = useState<BulkRequestStatusPayload['status']>('APPROVED')
   const [bulkComment, setBulkComment] = useState('')
   const [rejectCommentsByRequestId, setRejectCommentsByRequestId] = useState<Record<string, string>>({})
-  const [actionDialog, setActionDialog] = useState<RequestActionDialog>(null)
 
   const sortingState: SortingState = useMemo(() => [{ id: 'createdAt', desc: true }], [])
   const handleSortingChange = useCallback(() => {}, [])
@@ -100,9 +110,9 @@ export function AdminRequestsPage() {
       projectId: projectId || undefined,
       requesterId: requesterId || undefined,
       page,
-      limit: DEFAULT_LIMIT,
+      limit: pageSize,
     }),
-    [status, projectId, requesterId, page],
+    [status, projectId, requesterId, page, pageSize],
   )
 
   const queueQuery = useAdminRequestQueue(queueParams)
@@ -118,10 +128,9 @@ export function AdminRequestsPage() {
   const pagination = queueQuery.data?.pagination
   const allOnPageSelected = queueItems.length > 0 && queueItems.every((request) => selectedRequestIds.includes(request.id))
   const someOnPageSelected = queueItems.some((request) => selectedRequestIds.includes(request.id))
-  const isNextDisabled = !pagination || pagination.page >= pagination.totalPages
   const hasActiveFilters = status !== 'ALL' || projectId !== '' || requesterId !== ''
 
-  const handleApprove = async (request: InternalRequest) => {
+  const handleApprove = useCallback(async (request: InternalRequest) => {
     try {
       await approveRequestMutation.mutateAsync({
         id: request.id,
@@ -132,9 +141,9 @@ export function AdminRequestsPage() {
       toast.error(getErrorMessage(error, { context: 'approve' }))
       throw error
     }
-  }
+  }, [approveRequestMutation])
 
-  const handleReject = async (request: InternalRequest, comment: string) => {
+  const handleReject = useCallback(async (request: InternalRequest, comment: string) => {
     const trimmedComment = comment.trim()
     if (trimmedComment.length < 10) {
       toast.error('Rejection comment must be at least 10 characters.')
@@ -151,9 +160,9 @@ export function AdminRequestsPage() {
       toast.error(getErrorMessage(error, { context: 'reject' }))
       throw error
     }
-  }
+  }, [rejectRequestMutation])
 
-  const handlePickup = async (request: InternalRequest) => {
+  const handlePickup = useCallback(async (request: InternalRequest) => {
     try {
       await pickupRequestMutation.mutateAsync({
         id: request.id,
@@ -164,9 +173,9 @@ export function AdminRequestsPage() {
       toast.error(getErrorMessage(error, { context: 'update' }))
       throw error
     }
-  }
+  }, [pickupRequestMutation])
 
-  const handleComplete = async (request: InternalRequest) => {
+  const handleComplete = useCallback(async (request: InternalRequest) => {
     try {
       await completeRequestMutation.mutateAsync({
         id: request.id,
@@ -177,7 +186,7 @@ export function AdminRequestsPage() {
       toast.error(getErrorMessage(error, { context: 'update' }))
       throw error
     }
-  }
+  }, [completeRequestMutation])
 
   const toggleAllOnPage = (checked: boolean) => {
     if (checked) {
@@ -321,50 +330,74 @@ export function AdminRequestsPage() {
         const request = row.original
 
         return (
-          <div className="flex items-center justify-end gap-1.5" onClick={(event) => event.stopPropagation()}>
+          <div className="flex justify-end gap-1.5" onClick={(event) => event.stopPropagation()}>
             {request.status === 'PENDING' ? (
               <>
-                <Button
-                  type="button"
-                  size="icon"
-                  className="size-8"
-                  aria-label="Approve request"
-                  onClick={() => setActionDialog({ type: 'approve', request })}
-                >
-                  <Check className="size-4" />
-                </Button>
-                <Button
-                  type="button"
+                <ConfirmDialog
+                  title="Approve request"
+                  description="Approve this request and move it to approved status?"
+                  confirmLabel="Approve"
+                  isLoading={approveRequestMutation.isPending}
+                  onConfirm={() => handleApprove(request)}
+                  trigger={
+                    <Button type="button" size="icon" className="size-8" disabled={approveRequestMutation.isPending} aria-label="Approve request">
+                      <Check className="size-4" />
+                    </Button>
+                  }
+                />
+                <ConfirmDialog
+                  title="Reject request"
+                  description="Reject this request? A comment with at least 10 characters is required."
+                  confirmLabel="Reject"
                   variant="destructive"
-                  size="icon"
-                  className="size-8"
-                  aria-label="Reject request"
-                  onClick={() => setActionDialog({ type: 'reject', request })}
+                  isLoading={rejectRequestMutation.isPending}
+                  onConfirm={() => handleReject(request, rejectCommentsByRequestId[request.id] ?? '')}
+                  trigger={
+                    <Button type="button" size="icon" variant="destructive" className="size-8" disabled={rejectRequestMutation.isPending} aria-label="Reject request">
+                      <X className="size-4" />
+                    </Button>
+                  }
                 >
-                  <X className="size-4" />
-                </Button>
+                  <Input
+                    value={rejectCommentsByRequestId[request.id] ?? ''}
+                    onChange={(event) => {
+                      setRejectCommentsByRequestId((prev) => ({
+                        ...prev,
+                        [request.id]: event.target.value,
+                      }))
+                    }}
+                    placeholder="Reason for rejection (min 10 characters)"
+                  />
+                </ConfirmDialog>
               </>
             ) : null}
             {request.status === 'APPROVED' ? (
-              <Button
-                type="button"
-                size="sm"
-                aria-label="Confirm request pickup"
-                onClick={() => setActionDialog({ type: 'pickup', request })}
-              >
-                Pickup
-              </Button>
+              <ConfirmDialog
+                title="Confirm pickup"
+                description="This will fulfill the currently approved quantities. To change items, open the request detail and edit approved items first."
+                confirmLabel="Confirm Pickup"
+                isLoading={pickupRequestMutation.isPending}
+                onConfirm={() => handlePickup(request)}
+                trigger={
+                  <Button type="button" size="sm" disabled={pickupRequestMutation.isPending}>
+                    Confirm Pickup
+                  </Button>
+                }
+              />
             ) : null}
             {request.status === 'PICKED_UP' ? (
-              <Button
-                type="button"
-                size="icon"
-                className="size-8"
-                aria-label="Mark request complete"
-                onClick={() => setActionDialog({ type: 'complete', request })}
-              >
-                <CheckCircle2 className="size-4" />
-              </Button>
+              <ConfirmDialog
+                title="Mark complete"
+                description="Mark this request as completed?"
+                confirmLabel="Mark Complete"
+                isLoading={completeRequestMutation.isPending}
+                onConfirm={() => handleComplete(request)}
+                trigger={
+                  <Button type="button" size="icon" className="size-8" disabled={completeRequestMutation.isPending} aria-label="Complete request">
+                    <CheckCircle2 className="size-4" />
+                  </Button>
+                }
+              />
             ) : null}
             <Button
               type="button"
@@ -402,7 +435,9 @@ export function AdminRequestsPage() {
       })
 
       if (result.failureCount > 0) {
-        toast.warning(`Updated ${result.successCount}/${result.total} requests. Some updates failed.`)
+        toast.warning(`Updated ${result.successCount}/${result.total} requests. Some updates failed.`, {
+          description: formatBulkFailureDescription(result.results),
+        })
       } else {
         toast.success(`Updated ${result.successCount} requests.`)
       }
@@ -417,17 +452,31 @@ export function AdminRequestsPage() {
 
   return (
     <section className="space-y-6">
-      <PageHeader title="Request Queue" subtitle="Review pending operational requests and apply bulk actions" />
+      <PageHeader title="Request Queue" subtitle="Review requests and move them through the lifecycle" />
 
       <DataTable
         data={queueItems}
         columns={columns}
         title="Requests"
-        description="Review requesters, projects, item counts, and queue status."
+        description="Scan request records by project, requester, status, and submitted date."
         resultsLabel="requests"
         enableSearch={false}
-        initialPageSize={DEFAULT_LIMIT}
-        hidePagination
+        initialPageSize={DEFAULT_PAGE_SIZE}
+        pageSizeOptions={PAGE_SIZE_OPTIONS}
+        manualPagination
+        pageIndex={Math.max(0, page - 1)}
+        pageSize={pageSize}
+        pageCount={pagination?.totalPages ?? 1}
+        totalResults={pagination?.total ?? queueItems.length}
+        onPageChange={(nextPageIndex) => {
+          setSelectedRequestIds([])
+          setPage(nextPageIndex + 1)
+        }}
+        onPageSizeChange={(nextPageSize) => {
+          setSelectedRequestIds([])
+          setPage(1)
+          setPageSize(nextPageSize)
+        }}
         getRowId={(request) => request.id}
         onRowClick={(request) => navigate(`/admin/requests/${request.id}`)}
         sorting={sortingState}
@@ -561,132 +610,10 @@ export function AdminRequestsPage() {
         }
         isLoading={queueQuery.isLoading}
         hasError={queueQuery.isError}
-        errorTitle="Unable to load request queue"
+        errorTitle="Unable to load requests"
         errorDescription={getErrorMessage(queueQuery.error, { context: 'load' })}
-        emptyTitle="No queue requests"
+        emptyTitle="No requests found"
         emptyDescription="No requests match the selected filters."
-      />
-
-      <div className="flex items-center justify-end gap-2">
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          disabled={page <= 1}
-          onClick={() => {
-            setSelectedRequestIds([])
-            setPage((prev) => Math.max(1, prev - 1))
-          }}
-        >
-          Previous
-        </Button>
-        <p className="text-sm text-text-secondary">Page {pagination?.page ?? 1} of {pagination?.totalPages ?? 1}</p>
-        <Button
-          type="button"
-          variant="secondary"
-          size="sm"
-          disabled={isNextDisabled}
-          onClick={() => {
-            setSelectedRequestIds([])
-            setPage((prev) => prev + 1)
-          }}
-        >
-          Next
-        </Button>
-      </div>
-
-      <ConfirmDialog
-        open={actionDialog?.type === 'approve'}
-        onOpenChange={(open) => {
-          if (!open) {
-            setActionDialog(null)
-          }
-        }}
-        title="Approve request"
-        description="Approve this request and move it to approved status?"
-        confirmLabel="Approve"
-        isLoading={approveRequestMutation.isPending}
-        onConfirm={async () => {
-          if (actionDialog?.type !== 'approve') {
-            return
-          }
-
-          await handleApprove(actionDialog.request)
-        }}
-      />
-
-      <ConfirmDialog
-        open={actionDialog?.type === 'reject'}
-        onOpenChange={(open) => {
-          if (!open) {
-            setActionDialog(null)
-          }
-        }}
-        title="Reject request"
-        description="Reject this request? A comment with at least 10 characters is required."
-        confirmLabel="Reject"
-        variant="destructive"
-        isLoading={rejectRequestMutation.isPending}
-        onConfirm={async () => {
-          if (actionDialog?.type !== 'reject') {
-            return
-          }
-
-          await handleReject(actionDialog.request, rejectCommentsByRequestId[actionDialog.request.id] ?? '')
-        }}
-      >
-        {actionDialog?.type === 'reject' ? (
-          <Input
-            value={rejectCommentsByRequestId[actionDialog.request.id] ?? ''}
-            onChange={(event) => {
-              setRejectCommentsByRequestId((prev) => ({
-                ...prev,
-                [actionDialog.request.id]: event.target.value,
-              }))
-            }}
-            placeholder="Reason for rejection (min 10 characters)"
-          />
-        ) : null}
-      </ConfirmDialog>
-
-      <ConfirmDialog
-        open={actionDialog?.type === 'pickup'}
-        onOpenChange={(open) => {
-          if (!open) {
-            setActionDialog(null)
-          }
-        }}
-        title="Confirm pickup"
-        description="Mark this request as picked up?"
-        confirmLabel="Confirm Pickup"
-        isLoading={pickupRequestMutation.isPending}
-        onConfirm={async () => {
-          if (actionDialog?.type !== 'pickup') {
-            return
-          }
-
-          await handlePickup(actionDialog.request)
-        }}
-      />
-
-      <ConfirmDialog
-        open={actionDialog?.type === 'complete'}
-        onOpenChange={(open) => {
-          if (!open) {
-            setActionDialog(null)
-          }
-        }}
-        title="Mark complete"
-        description="Mark this request as completed?"
-        confirmLabel="Mark Complete"
-        isLoading={completeRequestMutation.isPending}
-        onConfirm={async () => {
-          if (actionDialog?.type !== 'complete') {
-            return
-          }
-
-          await handleComplete(actionDialog.request)
-        }}
       />
     </section>
   )

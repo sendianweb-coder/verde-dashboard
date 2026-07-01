@@ -269,13 +269,13 @@ export function StoreKeeperRequestsPage() {
               {request.status === 'APPROVED' ? (
                 <ConfirmDialog
                   title="Confirm pickup"
-                  description="Mark this request as picked up?"
+                  description="This will fulfill the currently approved quantities. To change items, open the request detail and edit approved items first."
                   confirmLabel="Confirm Pickup"
                   isLoading={pickupRequestMutation.isPending}
                   onConfirm={() => handlePickup(request)}
                   trigger={
                     <Button type="button" size="sm" disabled={pickupRequestMutation.isPending}>
-                      Pickup
+                      Confirm Pickup
                     </Button>
                   }
                 />

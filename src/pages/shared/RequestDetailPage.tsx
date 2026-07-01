@@ -27,7 +27,7 @@ import {
 } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
 import type { InternalRequestItem } from '@/types/request'
-import type { ApproveRequestPayload, AdjustItemsPayload, PickupRequestPayload } from '@/types/request'
+import type { ApproveRequestPayload, AdjustItemsPayload } from '@/types/request'
 
 interface RequestDetailPageProps {
   backToPath: string
@@ -75,14 +75,6 @@ function getPositiveQuantity(max: number, preferred: number) {
   }
 
   return clampQuantity(preferred > 0 ? preferred : 1, max)
-}
-
-function getPartialFulfilledQuantity(approvedQuantity: number, preferred: number) {
-  if (approvedQuantity <= 1) {
-    return 0
-  }
-
-  return clampQuantity(preferred > 0 && preferred < approvedQuantity ? preferred : approvedQuantity - 1, approvedQuantity)
 }
 
 function formatIssueReason(reason: string) {
@@ -155,18 +147,10 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
   const [comment, setComment] = useState('')
   const [itemApprovalMode, setItemApprovalMode] = useState(false)
   const [itemAdjustMode, setItemAdjustMode] = useState(false)
-  const [itemPickupMode, setItemPickupMode] = useState(false)
   // Track per-item approval edits: keyed by item.id
   const [itemApprovals, setItemApprovals] = useState<Record<string, {
     approvedQuantity: number
     status: 'APPROVED' | 'REJECTED'
-    reason: string
-    comment: string
-  }>>({})
-  // Track per-item pickup edits
-  const [itemPickups, setItemPickups] = useState<Record<string, {
-    fulfilledQuantity: number
-    status: 'PARTIALLY_FULFILLED' | 'REJECTED'
     reason: string
     comment: string
   }>>({})
@@ -393,67 +377,6 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
     setItemAdjusts({})
   }
 
-  // --- Item-level pickup handlers ---
-
-  const enterItemPickupMode = () => {
-    const initial: Record<string, { fulfilledQuantity: number; status: 'PARTIALLY_FULFILLED' | 'REJECTED'; reason: string; comment: string }> = {}
-    for (const item of request.items) {
-      initial[item.id] = {
-        fulfilledQuantity: item.approvedQuantity ?? 0,
-        status: 'PARTIALLY_FULFILLED',
-        reason: '',
-        comment: '',
-      }
-    }
-    setItemPickups(initial)
-    setItemPickupMode(true)
-  }
-
-  const updateItemPickup = (itemId: string, field: string, value: string | number) => {
-    setItemPickups((prev) => ({
-      ...prev,
-      [itemId]: { ...prev[itemId], [field]: value },
-    }))
-  }
-
-  const submitItemPickups = async () => {
-    // Send only problem items (where fulfilledQuantity < approvedQuantity)
-    const problemItems = request.items
-      .map((item) => {
-        const edit = itemPickups[item.id]
-        if (!edit) return null
-        const approvedQty = item.approvedQuantity ?? item.quantity
-        const fulfilledQuantity = edit.status === 'REJECTED' ? 0 : edit.fulfilledQuantity
-        if (fulfilledQuantity >= approvedQty) return null // fulfilled in full, omit
-        const isRejected = fulfilledQuantity === 0
-        return {
-          itemId: item.id,
-          fulfilledQuantity,
-          status: isRejected ? 'REJECTED' as const : 'PARTIALLY_FULFILLED' as const,
-          reason: edit.reason || undefined,
-          comment: edit.comment || undefined,
-        }
-      })
-      .filter(Boolean) as Array<{ itemId: string; fulfilledQuantity: number; status: 'REJECTED' | 'PARTIALLY_FULFILLED'; reason?: string; comment?: string }>
-
-    try {
-      await pickupRequestMutation.mutateAsync({
-        id: request.id,
-        payload: { comment, items: problemItems.length > 0 ? problemItems : undefined } as PickupRequestPayload,
-      })
-      toast.success('Pickup confirmed')
-      setItemPickupMode(false)
-      setComment('')
-    } catch (error) {
-      toast.error(getErrorMessage(error, { context: 'update' }))
-    }
-  }
-
-  const cancelItemPickupMode = () => {
-    setItemPickupMode(false)
-    setItemPickups({})
-  }
-
   return (
     <section className="space-y-6">
       <div className="request-screen-content">
@@ -645,8 +568,7 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
             const hasFulfilled = item.fulfilledQuantity != null
             const isEditingApproval = itemApprovalMode && itemApprovals[item.id] != null
             const isEditingAdjust = itemAdjustMode && itemAdjusts[item.id] != null
-            const isEditingPickup = itemPickupMode && itemPickups[item.id] != null
-            const isEditing = isEditingApproval || isEditingAdjust || isEditingPickup
+            const isEditing = isEditingApproval || isEditingAdjust
 
             return (
               <article key={item.id} className="px-3 py-3">
@@ -780,70 +702,6 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
                     </div>
                   ) : null}
 
-                  {isEditingPickup ? (
-                    <div className="flex flex-col gap-2 sm:min-w-[400px]">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <label className="text-xs text-text-muted whitespace-nowrap">Pick qty:</label>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={item.approvedQuantity ?? item.quantity}
-                            className="h-8 w-20 text-sm"
-                            value={itemPickups[item.id].fulfilledQuantity}
-                            onChange={(e) => {
-                              const approvedQuantity = item.approvedQuantity ?? item.quantity
-                              const val = clampQuantity(Number(e.target.value), approvedQuantity)
-                              updateItemPickup(item.id, 'fulfilledQuantity', val)
-                              updateItemPickup(item.id, 'status', val === 0 ? 'REJECTED' : 'PARTIALLY_FULFILLED')
-                            }}
-                          />
-                        </div>
-                        <Select
-                          value={itemPickups[item.id].status}
-                          onValueChange={(val: 'PARTIALLY_FULFILLED' | 'REJECTED') => {
-                            const approvedQuantity = item.approvedQuantity ?? item.quantity
-                            const fulfilledQuantity = val === 'REJECTED'
-                              ? 0
-                              : getPartialFulfilledQuantity(approvedQuantity, itemPickups[item.id].fulfilledQuantity)
-                            updateItemPickup(item.id, 'status', fulfilledQuantity === 0 ? 'REJECTED' : val)
-                            updateItemPickup(item.id, 'fulfilledQuantity', fulfilledQuantity)
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-[160px] text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="PARTIALLY_FULFILLED">Partially fulfilled</SelectItem>
-                            <SelectItem value="REJECTED">Rejected</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={getReasonSelectValue(itemPickups[item.id].reason)}
-                          onValueChange={(val: string) => {
-                            updateItemPickup(item.id, 'reason', normalizeReasonSelectValue(val))
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-[140px] text-sm">
-                            <SelectValue placeholder="Reason" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={NO_REASON_VALUE}>No reason</SelectItem>
-                            <SelectItem value="OUT_OF_STOCK">Out of stock</SelectItem>
-                            <SelectItem value="DAMAGED">Damaged</SelectItem>
-                            <SelectItem value="MISSING">Missing</SelectItem>
-                            <SelectItem value="OTHER">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <Input
-                        placeholder="Line comment (optional)"
-                        className="h-8 text-sm"
-                        value={itemPickups[item.id].comment}
-                        onChange={(e) => updateItemPickup(item.id, 'comment', e.target.value)}
-                      />
-                    </div>
-                  ) : null}
                 </div>
 
                 {item.stockAtRequest ? (
@@ -932,44 +790,33 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
 
         {request.status === 'APPROVED' ? (
           <>
-            {!itemAdjustMode && !itemPickupMode ? (
+            {!itemAdjustMode ? (
               <>
+                <p className="w-full text-sm text-text-secondary">
+                  Adjust quantities or reject items before confirming pickup. Pickup will fulfill the approved quantities exactly.
+                </p>
+
                 <Button variant="secondary" onClick={enterItemAdjustMode}>
                   Edit Approved Items
                 </Button>
 
                 <ConfirmDialog
                   title="Confirm pickup"
-                  description="Mark this request as picked up? All approved items will be fulfilled in full."
+                  description="This will pick up exactly the currently approved quantities. To change quantities or reject products, cancel and use Edit Approved Items first."
                   confirmLabel="Confirm Pickup"
                   isLoading={pickupRequestMutation.isPending}
                   onConfirm={onPickup}
-                  trigger={<Button>Pickup All</Button>}
+                  trigger={<Button>Confirm Pickup</Button>}
                 />
-
-                <Button variant="secondary" onClick={enterItemPickupMode}>
-                  Pickup with Issues
-                </Button>
               </>
             ) : null}
 
             {itemAdjustMode ? (
               <>
                 <Button onClick={submitItemAdjusts} disabled={adjustRequestItemsMutation.isPending}>
-                  Submit Adjustments
+                  Save Item Changes
                 </Button>
                 <Button variant="secondary" onClick={cancelItemAdjustMode}>
-                  Cancel
-                </Button>
-              </>
-            ) : null}
-
-            {itemPickupMode ? (
-              <>
-                <Button onClick={submitItemPickups} disabled={pickupRequestMutation.isPending}>
-                  Submit Pickup
-                </Button>
-                <Button variant="secondary" onClick={cancelItemPickupMode}>
                   Cancel
                 </Button>
               </>

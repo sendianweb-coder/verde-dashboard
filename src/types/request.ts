@@ -108,14 +108,6 @@ export interface ItemApprovalPayload {
   comment?: string
 }
 
-export interface ItemPickupPayload {
-  itemId: string
-  fulfilledQuantity: number
-  status?: 'REJECTED' | 'PARTIALLY_FULFILLED'
-  reason?: RequestItemIssueReason
-  comment?: string
-}
-
 export interface ApproveRequestPayload {
   comment?: string
   items?: ItemApprovalPayload[]
@@ -128,7 +120,6 @@ export interface AdjustItemsPayload {
 
 export interface PickupRequestPayload {
   comment?: string
-  items?: ItemPickupPayload[]
 }
 
 // --- Legacy payload types ---
