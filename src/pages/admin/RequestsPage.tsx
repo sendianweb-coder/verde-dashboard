@@ -37,11 +37,14 @@ const requestDateFormatter = new Intl.DateTimeFormat('en-US', {
   year: 'numeric',
 })
 
-const queueStatusOptions: Array<{ label: string; value: 'ALL' | 'PENDING' | 'APPROVED' | 'PICKED_UP' }> = [
-  { label: 'All statuses', value: 'ALL' },
+const queueStatusOptions: Array<{ label: string; value: 'ALL' | RequestStatus }> = [
+  { label: 'All', value: 'ALL' },
   { label: 'Pending', value: 'PENDING' },
   { label: 'Approved', value: 'APPROVED' },
   { label: 'Picked up', value: 'PICKED_UP' },
+  { label: 'Completed', value: 'COMPLETED' },
+  { label: 'Rejected', value: 'REJECTED' },
+  { label: 'Canceled', value: 'CANCELED' },
 ]
 
 const bulkStatusOptions: Array<{ label: string; value: BulkRequestStatusPayload['status'] }> = [
@@ -91,7 +94,7 @@ function formatBulkFailureDescription(results: BulkRequestStatusResultItem[]) {
 
 export function AdminRequestsPage() {
   const navigate = useNavigate()
-  const [status, setStatus] = useState<'ALL' | 'PENDING' | 'APPROVED' | 'PICKED_UP'>('ALL')
+  const [status, setStatus] = useState<'ALL' | RequestStatus>('ALL')
   const [projectId, setProjectId] = useState('')
   const [requesterId, setRequesterId] = useState('')
   const [page, setPage] = useState(1)
@@ -454,6 +457,24 @@ export function AdminRequestsPage() {
     <section className="space-y-6">
       <PageHeader title="Request Queue" subtitle="Review requests and move them through the lifecycle" />
 
+      <div className="flex flex-wrap gap-2">
+        {queueStatusOptions.map((option) => (
+          <Button
+            key={option.value}
+            type="button"
+            variant={status === option.value ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => {
+              setStatus(option.value)
+              setPage(1)
+              setSelectedRequestIds([])
+            }}
+          >
+            {option.label}
+          </Button>
+        ))}
+      </div>
+
       <DataTable
         data={queueItems}
         columns={columns}
@@ -491,21 +512,6 @@ export function AdminRequestsPage() {
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-60">
-              <DropdownMenuLabel>Status</DropdownMenuLabel>
-              {queueStatusOptions.map((option) => (
-                <DropdownMenuCheckboxItem
-                  key={option.value}
-                  checked={status === option.value}
-                  onCheckedChange={() => {
-                    setStatus(option.value)
-                    setPage(1)
-                    setSelectedRequestIds([])
-                  }}
-                >
-                  {option.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-              <DropdownMenuSeparator />
               <DropdownMenuLabel>Project</DropdownMenuLabel>
               <DropdownMenuCheckboxItem
                 checked={projectId === ''}

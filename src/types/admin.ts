@@ -48,7 +48,7 @@ export interface AdminDashboardOverview {
 }
 
 export interface AdminRequestQueueParams {
-  status?: 'PENDING' | 'APPROVED' | 'PICKED_UP'
+  status?: RequestStatus
   projectId?: string
   requesterId?: string
   page?: number
