@@ -1,13 +1,14 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { ChevronLeft, ChevronRight, Filter, Search, X } from 'lucide-react'
-import { useDeferredValue, useMemo, useState } from 'react'
+import { ChevronLeft, ChevronRight, Filter, QrCode, Search, X } from 'lucide-react'
+import { useDeferredValue, useMemo, useRef, useState } from 'react'
 import { useForm, useWatch } from 'react-hook-form'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
-import { ProductCatalogRow, RequestTray } from '@/components/shared/RequestCatalog'
+import { ProductScanSheet } from '@/components/shared/ProductScanSheet'
+import { ProductCatalogRow, RequestTray, type RequestTrayProduct } from '@/components/shared/RequestCatalog'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
@@ -19,7 +20,7 @@ import { useCreateRequest } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
 import { stockFilterLabels, type ProductStockFilter } from '@/lib/requestCatalog'
 import { createRequestSchema, type CreateRequestFormValues } from '@/lib/validators'
-import type { Product } from '@/types/product'
+import type { Product, ResolvedScanItem } from '@/types/product'
 
 const PRODUCT_PAGE_SIZE = 12
 const EMPTY_PRODUCTS: Product[] = []
@@ -34,7 +35,10 @@ export function EmployeeNewRequestPage() {
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [stockFilter, setStockFilter] = useState<ProductStockFilter>('all')
   const [pageIndex, setPageIndex] = useState(0)
-  const [selectedProductsById, setSelectedProductsById] = useState<Map<string, Product>>(() => new Map())
+  const [selectedProductsById, setSelectedProductsById] = useState<Map<string, RequestTrayProduct>>(() => new Map())
+  const [isScanSheetOpen, setIsScanSheetOpen] = useState(false)
+  const [highlightedProductId, setHighlightedProductId] = useState<string | null>(null)
+  const highlightTimeoutRef = useRef<number | null>(null)
   const deferredSearch = useDeferredValue(search)
 
   const projectsQuery = useProjects()
@@ -78,6 +82,7 @@ export function EmployeeNewRequestPage() {
   const totalProducts = productsQuery.data?.pagination.total ?? 0
   const pageCount = Math.max(1, Math.ceil(totalProducts / PRODUCT_PAGE_SIZE))
   const watchedItems = watchedItemsValue ?? EMPTY_REQUEST_ITEMS
+  const selectedProductIds = useMemo(() => new Set(watchedItems.map((item) => item.productId)), [watchedItems])
   const hasActiveFilters = categoryFilter !== 'all' || stockFilter !== 'all'
 
   const allKnownProducts = useMemo(() => {
@@ -176,6 +181,60 @@ export function EmployeeNewRequestPage() {
     )
   }
 
+  const highlightProduct = (productId: string) => {
+    setHighlightedProductId(productId)
+
+    if (highlightTimeoutRef.current) {
+      window.clearTimeout(highlightTimeoutRef.current)
+    }
+
+    highlightTimeoutRef.current = window.setTimeout(() => {
+      setHighlightedProductId((currentProductId) => (currentProductId === productId ? null : currentProductId))
+      highlightTimeoutRef.current = null
+    }, 1800)
+  }
+
+  const handleResolvedScanItems = (scanItems: ResolvedScanItem[]) => {
+    const resolvedItems = scanItems.filter((item) => item.status === 'RESOLVED' && item.product)
+
+    if (resolvedItems.length === 0) {
+      return
+    }
+
+    setSelectedProductsById((currentProducts) => {
+      const nextProducts = new Map(currentProducts)
+
+      resolvedItems.forEach((item) => {
+        if (item.product) {
+          nextProducts.set(item.product.id, item.product)
+        }
+      })
+
+      return nextProducts
+    })
+
+    const currentProductIds = new Set(watchedItems.map((item) => item.productId))
+    const newItems = resolvedItems
+      .map((item) => item.product)
+      .filter((product): product is RequestTrayProduct => Boolean(product))
+      .filter((product) => !currentProductIds.has(product.id))
+      .map((product) => ({
+        productId: product.id,
+        quantity: 1,
+        availableQuantity: product.availableQuantity,
+      }))
+
+    const firstResolvedProduct = resolvedItems[0]?.product
+
+    if (newItems.length > 0) {
+      setItems([...watchedItems, ...newItems])
+    }
+
+    if (firstResolvedProduct) {
+      highlightProduct(firstResolvedProduct.id)
+    }
+  }
+
   const onSubmit = async (values: CreateRequestFormValues) => {
     const hasUnavailableItem = values.items.some((item) => {
       const availableQuantity = allKnownProducts.get(item.productId)?.availableQuantity ?? item.availableQuantity ?? 0
@@ -238,7 +297,13 @@ export function EmployeeNewRequestPage() {
     <section className="space-y-6 pb-24 xl:pb-0">
       <PageHeader
         title="New Request"
-        subtitle="Search the catalog, add products to the tray, and submit one clear material request."
+        subtitle="Scan QR codes or search the catalog, then choose a project before submitting."
+        action={
+          <Button type="button" onClick={() => setIsScanSheetOpen(true)}>
+            <QrCode className="size-4" />
+            Scan QR
+          </Button>
+        }
       />
 
       <form className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]" onSubmit={handleSubmit(onSubmit)}>
@@ -246,7 +311,7 @@ export function EmployeeNewRequestPage() {
           <section className="rounded-xl border border-border bg-surface-raised p-5">
             <div className="mb-4 flex flex-col gap-1">
               <h2 className="text-lg font-semibold text-text-primary">Request details</h2>
-              <p className="text-sm text-text-secondary">Choose the project first so every requested product has a clear destination.</p>
+              <p className="text-sm text-text-secondary">You can scan products first, then choose the project before submitting.</p>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
@@ -342,7 +407,7 @@ export function EmployeeNewRequestPage() {
               <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
                 <div>
                   <h2 className="text-lg font-semibold text-text-primary">Product catalog</h2>
-                  <p className="text-sm text-text-secondary">Browse products with stock context before adding them to the request tray.</p>
+                  <p className="text-sm text-text-secondary">Scan QR labels or browse products with stock context before adding them to the request tray.</p>
                 </div>
                 <p className="text-sm tabular-nums text-text-secondary">
                   {productsQuery.isLoading ? 'Loading products...' : `${totalProducts} products found`}
@@ -509,6 +574,7 @@ export function EmployeeNewRequestPage() {
             isSubmitting={createRequestMutation.isPending}
             canSubmit={canSubmit}
             onQuantityChange={updateQuantity}
+            highlightedProductId={highlightedProductId}
             onRemove={removeProduct}
           />
           {errors.items?.message ? <p className="mt-2 text-xs text-error">{errors.items.message}</p> : null}
@@ -526,6 +592,13 @@ export function EmployeeNewRequestPage() {
           </div>
         </div>
       </form>
+
+      <ProductScanSheet
+        open={isScanSheetOpen}
+        selectedProductIds={selectedProductIds}
+        onOpenChange={setIsScanSheetOpen}
+        onResolvedItems={handleResolvedScanItems}
+      />
     </section>
   )
 }

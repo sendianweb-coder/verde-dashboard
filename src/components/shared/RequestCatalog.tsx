@@ -1,12 +1,14 @@
 import { AlertTriangle, Minus, Package, Plus, ShoppingCart, Trash2 } from 'lucide-react'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { StockIndicator } from '@/components/shared/StockIndicator'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { cn } from '@/lib/utils'
 import type { CreateRequestFormValues } from '@/lib/validators'
-import type { Product } from '@/types/product'
+import type { Product, ScannedProduct } from '@/types/product'
+
+export type RequestTrayProduct = ScannedProduct & Partial<Pick<Product, 'brand' | 'potSize' | 'height'>>
 
 function clampQuantity(quantity: number, maxQuantity?: number) {
   const safeQuantity = Number.isFinite(quantity) ? Math.floor(quantity) : 1
@@ -19,7 +21,7 @@ function clampQuantity(quantity: number, maxQuantity?: number) {
   return Math.min(minimumQuantity, maxQuantity)
 }
 
-export function ProductImage({ product }: { product: Product }) {
+export function ProductImage({ product }: { product: Pick<Product, 'imageUrl' | 'name'> }) {
   return product.imageUrl ? (
     <img
       src={product.imageUrl}
@@ -47,7 +49,7 @@ export function ProductCategoryBadge({ categoryName }: { categoryName: string | 
   )
 }
 
-export function ProductMeta({ product }: { product: Product }) {
+export function ProductMeta({ product }: { product: RequestTrayProduct }) {
   const metadata = [product.sku ? `SKU ${product.sku}` : null, product.brand, product.potSize, product.height, product.unitOfMeasure]
     .filter(Boolean)
     .slice(0, 4)
@@ -185,11 +187,12 @@ export function ProductCatalogRow({ product, selectedQuantity, onAdd, onQuantity
 }
 
 interface RequestTrayProps {
-  productsById: Map<string, Product>
+  productsById: Map<string, RequestTrayProduct>
   items: CreateRequestFormValues['items']
   hasStockConflict: boolean
   isSubmitting: boolean
   canSubmit: boolean
+  highlightedProductId?: string | null
   onQuantityChange: (productId: string, quantity: number) => void
   onRemove: (productId: string) => void
 }
@@ -200,10 +203,20 @@ export function RequestTray({
   hasStockConflict,
   isSubmitting,
   canSubmit,
+  highlightedProductId,
   onQuantityChange,
   onRemove,
 }: RequestTrayProps) {
   const totalQuantity = items.reduce((total, item) => total + item.quantity, 0)
+  const rowRefs = useRef(new Map<string, HTMLElement>())
+
+  useEffect(() => {
+    if (!highlightedProductId) {
+      return
+    }
+
+    rowRefs.current.get(highlightedProductId)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+  }, [highlightedProductId])
 
   return (
     <aside className="sticky top-6 rounded-xl border border-border bg-surface-raised">
@@ -231,7 +244,21 @@ export function RequestTray({
             const exceedsStock = item.quantity > availableQuantity
 
             return (
-              <article key={item.productId} className="rounded-lg border border-border bg-background p-3">
+              <article
+                key={item.productId}
+                ref={(node) => {
+                  if (node) {
+                    rowRefs.current.set(item.productId, node)
+                  } else {
+                    rowRefs.current.delete(item.productId)
+                  }
+                }}
+                className={cn(
+                  'rounded-lg border border-border bg-background p-3 transition-colors',
+                  highlightedProductId === item.productId && !exceedsStock && 'border-brand-600/50 bg-brand-50',
+                  highlightedProductId === item.productId && exceedsStock && 'ring-2 ring-warning/40',
+                )}
+              >
                 <div className="flex gap-3">
                   {product ? <ProductImage product={product} /> : null}
                   <div className="min-w-0 flex-1">

@@ -9,6 +9,49 @@ export interface ProductCategoryRef {
   name: string
 }
 
+export type ScanResolveStatus = 'RESOLVED' | 'INVALID_PAYLOAD' | 'NOT_FOUND' | 'INACTIVE' | 'OUT_OF_STOCK'
+
+export interface ScannedProduct {
+  id: string
+  sku: string
+  name: string
+  imageUrl: string | null
+  unitOfMeasure: string | null
+  category: ProductCategoryRef | null
+  totalQuantity: number
+  reservedQuantity: number
+  availableQuantity: number
+  stockStatus: ProductStockStatus | null
+  isActive: boolean
+  published: boolean
+}
+
+export interface ResolvedScanItem {
+  input: string
+  sku?: string
+  status: ScanResolveStatus
+  quantity: number
+  product?: ScannedProduct
+  message?: string
+}
+
+export interface ResolveScannedProductsPayload {
+  codes: string[]
+  mode?: 'sku'
+}
+
+export interface ResolveScannedProductsResponse {
+  items: ResolvedScanItem[]
+  summary: {
+    total: number
+    resolved: number
+    invalid: number
+    notFound: number
+    inactive: number
+    outOfStock: number
+  }
+}
+
 export interface Product {
   id: string
   woocommerceId: number | null

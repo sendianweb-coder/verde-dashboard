@@ -9,12 +9,14 @@ import {
   getProducts,
   getStockMovements,
   getWooCommerceSyncStatus,
+  resolveScannedProducts,
   syncWooCommerceProducts,
   type GetProductsParams,
   updateProduct,
 } from '@/api/products.api'
 import type {
   CreateProductPayload,
+  ResolveScannedProductsPayload,
   StockAdjustmentPayload,
   SyncWooCommerceProductsParams,
   UpdateProductPayload,
@@ -71,6 +73,12 @@ export function useWooCommerceSyncStatus() {
     queryKey: productsQueryKeys.syncStatus,
     queryFn: getWooCommerceSyncStatus,
     staleTime: PRODUCTS_DETAIL_STALE_TIME,
+  })
+}
+
+export function useResolveScannedProducts() {
+  return useMutation({
+    mutationFn: (payload: ResolveScannedProductsPayload) => resolveScannedProducts(payload),
   })
 }
 

@@ -4,6 +4,8 @@ import type {
   CreateProductPayload,
   Product,
   ProductStockStatus,
+  ResolveScannedProductsPayload,
+  ResolveScannedProductsResponse,
   IntegrationSyncState,
   StockAdjustmentPayload,
   StockMovement,
@@ -55,6 +57,13 @@ export async function getAllProducts(params?: Omit<GetProductsParams, 'limit' | 
 
 export async function getProductById(id: string): Promise<Product> {
   const { data } = await apiClient.get<ApiSuccessResponse<Product>>(`/products/${id}`)
+  return data.data
+}
+
+export async function resolveScannedProducts(
+  payload: ResolveScannedProductsPayload,
+): Promise<ResolveScannedProductsResponse> {
+  const { data } = await apiClient.post<ApiSuccessResponse<ResolveScannedProductsResponse>>('/products/scan/resolve', payload)
   return data.data
 }
 
