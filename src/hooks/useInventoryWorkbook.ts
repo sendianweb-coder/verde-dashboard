@@ -1,6 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { getInventoryWorkbook } from '@/api/inventoryWorkbook.api'
+import { getInventoryWorkbook, saveInventoryWorkbook } from '@/api/inventoryWorkbook.api'
 
 const INVENTORY_WORKBOOK_STALE_TIME = 30_000
 
@@ -15,5 +15,16 @@ export function useInventoryWorkbook(category?: string) {
     queryFn: () => getInventoryWorkbook(category ? { category } : { categories: 'all' }),
     enabled: category === undefined || Boolean(category),
     staleTime: INVENTORY_WORKBOOK_STALE_TIME,
+  })
+}
+
+export function useSaveInventoryWorkbook() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: saveInventoryWorkbook,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: inventoryWorkbookQueryKeys.all })
+    },
   })
 }

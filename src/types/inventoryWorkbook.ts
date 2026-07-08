@@ -81,6 +81,7 @@ export interface InventoryWorkbookSheetMetadata {
   firstDataRowIndex: number
   productIdColumnIndex: number
   columns: InventoryWorkbookColumnMetadata[]
+  rowIdentities?: Record<string, string>
 }
 
 export interface InventoryWorkbookMetadata {
@@ -93,4 +94,37 @@ export interface InventoryWorkbookMetadata {
 export interface InventoryWorkbookResponse {
   workbook: UniverWorkbookSnapshot
   metadata: InventoryWorkbookMetadata
+}
+
+export interface SaveInventoryWorkbookRequest {
+  workbook: UniverWorkbookSnapshot
+  metadata: InventoryWorkbookMetadata
+}
+
+export type InventoryWorkbookSaveRowStatus = 'changed' | 'skipped' | 'failed' | 'conflict'
+
+export interface InventoryWorkbookSaveRowResult {
+  sheetId: string
+  sheetName: string
+  rowIndex: number
+  displayRowNumber: number
+  sku?: string
+  status: InventoryWorkbookSaveRowStatus
+  changedFields?: string[]
+  message?: string
+  code?: string
+}
+
+export interface InventoryWorkbookSaveSummary {
+  processedRows: number
+  changedRows: number
+  skippedRows: number
+  failedRows: number
+  conflictedRows: number
+}
+
+export interface InventoryWorkbookSaveResponse {
+  savedAt: string
+  summary: InventoryWorkbookSaveSummary
+  rows: InventoryWorkbookSaveRowResult[]
 }
