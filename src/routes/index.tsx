@@ -1,6 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 
-import { AppShell } from '@/components/layout/AppShell'
 import { AdminAuditLogPage } from '@/pages/admin/AuditLogPage'
 import { AdminDashboardPage } from '@/pages/admin/DashboardPage'
 import { AdminNewRequestPage } from '@/pages/admin/NewRequestPage'
@@ -20,6 +19,7 @@ import { EmployeeProjectsPage } from '@/pages/employee/ProjectsPage'
 import { EmployeeRequestDetailPage } from '@/pages/employee/RequestDetailPage'
 import { EmployeeRequestsPage } from '@/pages/employee/RequestsPage'
 import { LoginPage } from '@/pages/auth/LoginPage'
+import { RouteErrorFallback } from '@/components/shared/RouteErrorFallback'
 import { StoreKeeperDashboardPage } from '@/pages/store-keeper/DashboardPage'
 import { StoreKeeperInventoryPage } from '@/pages/store-keeper/InventoryPage'
 import { StoreKeeperOrdersPage } from '@/pages/store-keeper/OrdersPage'
@@ -29,26 +29,32 @@ import { StoreKeeperProjectsPage } from '@/pages/store-keeper/ProjectsPage'
 import { StoreKeeperRequestDetailPage } from '@/pages/store-keeper/RequestDetailPage'
 import { StoreKeeperRequestsPage } from '@/pages/store-keeper/RequestsPage'
 
+import { AppShellErrorBoundaryRoute, LazyInventoryGridRoute } from './LazyRoutes'
 import { ProtectedRoute } from './ProtectedRoute'
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     element: <LoginPage />,
+    errorElement: <RouteErrorFallback />,
   },
   {
     element: <ProtectedRoute allowRoles={['ADMIN', 'STORE_KEEPER', 'EMPLOYEE']} />,
+    errorElement: <RouteErrorFallback />,
     children: [
       {
-        element: <AppShell />,
+        element: <AppShellErrorBoundaryRoute />,
+        errorElement: <RouteErrorFallback />,
         children: [
           {
             element: <ProtectedRoute allowRoles={['ADMIN']} />,
+            errorElement: <RouteErrorFallback />,
             children: [
               { path: '/admin/dashboard', element: <AdminDashboardPage /> },
               { path: '/admin/users', element: <AdminUsersPage /> },
               { path: '/admin/users/:id', element: <AdminUserDetailPage /> },
               { path: '/admin/products', element: <AdminProductsPage /> },
+              { path: '/admin/inventory-grid', element: <LazyInventoryGridRoute /> },
               { path: '/admin/products/:id', element: <AdminProductDetailPage /> },
               { path: '/admin/projects', element: <AdminProjectsPage /> },
               { path: '/admin/projects/:id', element: <AdminProjectDetailPage /> },
@@ -61,6 +67,7 @@ export const router = createBrowserRouter([
           },
           {
             element: <ProtectedRoute allowRoles={['STORE_KEEPER']} />,
+            errorElement: <RouteErrorFallback />,
             children: [
               { path: '/store-keeper/dashboard', element: <StoreKeeperDashboardPage /> },
               { path: '/store-keeper/requests', element: <StoreKeeperRequestsPage /> },
@@ -68,6 +75,7 @@ export const router = createBrowserRouter([
               { path: '/store-keeper/projects', element: <StoreKeeperProjectsPage /> },
               { path: '/store-keeper/projects/:id', element: <StoreKeeperProjectDetailPage /> },
               { path: '/store-keeper/inventory', element: <StoreKeeperInventoryPage /> },
+              { path: '/store-keeper/inventory-grid', element: <LazyInventoryGridRoute /> },
               { path: '/store-keeper/products/:id', element: <StoreKeeperProductDetailPage /> },
               { path: '/store-keeper/inventory/:id', element: <StoreKeeperProductDetailPage /> },
               { path: '/store-keeper/orders', element: <StoreKeeperOrdersPage /> },
@@ -75,6 +83,7 @@ export const router = createBrowserRouter([
           },
           {
             element: <ProtectedRoute allowRoles={['EMPLOYEE']} />,
+            errorElement: <RouteErrorFallback />,
             children: [
               { path: '/employee/dashboard', element: <EmployeeDashboardPage /> },
               { path: '/employee/projects', element: <EmployeeProjectsPage /> },

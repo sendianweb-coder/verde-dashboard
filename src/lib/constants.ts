@@ -29,6 +29,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', path: '/admin/dashboard', icon: Home },
     { label: 'Users', path: '/admin/users', icon: Users },
     { label: 'Products', path: '/admin/products', icon: Package },
+    { label: 'Inventory Grid', path: '/admin/inventory-grid', icon: Boxes },
     { label: 'Projects', path: '/admin/projects', icon: FolderKanban },
     { label: 'New Request', path: '/admin/requests/new', icon: PlusCircle },
     { label: 'Requests', path: '/admin/requests', icon: ClipboardList, inactivePaths: ['/admin/requests/new'] },
@@ -40,6 +41,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Projects', path: '/store-keeper/projects', icon: FolderKanban },
     { label: 'Requests', path: '/store-keeper/requests', icon: ClipboardList },
     { label: 'Products', path: '/store-keeper/inventory', icon: Package },
+    { label: 'Inventory Grid', path: '/store-keeper/inventory-grid', icon: Boxes },
     { label: 'Orders', path: '/store-keeper/orders', icon: Receipt },
   ],
   EMPLOYEE: [

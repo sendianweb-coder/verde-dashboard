@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
 
+import { FrontendErrorListeners } from '@/components/shared/FrontendErrorListeners'
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
 import { useSSE } from '@/hooks/useSSE'
 import { useAuthStore } from '@/store/authStore'
@@ -19,6 +20,7 @@ export function AppShell() {
 
   return (
     <div className="min-h-screen bg-page lg:flex">
+      <FrontendErrorListeners />
       <Sidebar />
 
       <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>

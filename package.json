@@ -22,6 +22,8 @@
     "@radix-ui/react-slot": "^1.2.4",
     "@tanstack/react-query": "^5.91.0",
     "@tanstack/react-table": "^8.21.3",
+    "@univerjs/preset-sheets-core": "^0.25.1",
+    "@univerjs/presets": "^0.25.1",
     "axios": "^1.13.6",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
