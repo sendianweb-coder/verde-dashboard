@@ -101,6 +101,47 @@ export interface SaveInventoryWorkbookRequest {
   metadata: InventoryWorkbookMetadata
 }
 
+export type InventoryWorkbookFieldValue = string | number | boolean | null
+
+export type InventoryWorkbookWritableField =
+  | 'sku'
+  | 'name'
+  | 'latinName'
+  | 'potSize'
+  | 'height'
+  | 'price'
+  | 'regularPrice'
+  | 'salePrice'
+  | 'totalQuantity'
+  | 'stockStatus'
+  | 'imageUrl'
+  | 'published'
+  | 'featured'
+
+export interface InventoryWorkbookFieldPatch {
+  oldValue?: InventoryWorkbookFieldValue
+  newValue: InventoryWorkbookFieldValue
+}
+
+export interface InventoryWorkbookRowChange {
+  sheetId: string
+  sheetName?: string
+  categoryId: string
+  rowIndex: number
+  displayRowNumber?: number
+  rowToken: string
+  baseUpdatedAt: string
+  fields: Partial<Record<InventoryWorkbookWritableField, InventoryWorkbookFieldPatch>>
+}
+
+export interface SaveInventoryWorkbookChangesRequest {
+  workbookId: string
+  workbookGeneratedAt: string
+  clientMutationId: string
+  saveMode: 'manual' | 'autosave'
+  changes: InventoryWorkbookRowChange[]
+}
+
 export type InventoryWorkbookSaveRowStatus = 'changed' | 'skipped' | 'failed' | 'conflict'
 
 export interface InventoryWorkbookSaveRowResult {
@@ -111,6 +152,8 @@ export interface InventoryWorkbookSaveRowResult {
   sku?: string
   status: InventoryWorkbookSaveRowStatus
   changedFields?: string[]
+  refreshedRowToken?: string
+  refreshedUpdatedAt?: string
   message?: string
   code?: string
 }
@@ -127,4 +170,8 @@ export interface InventoryWorkbookSaveResponse {
   savedAt: string
   summary: InventoryWorkbookSaveSummary
   rows: InventoryWorkbookSaveRowResult[]
+}
+
+export interface InventoryWorkbookChangesResponse extends InventoryWorkbookSaveResponse {
+  clientMutationId: string
 }

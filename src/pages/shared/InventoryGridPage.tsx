@@ -3,16 +3,44 @@ import enUS from '@univerjs/preset-sheets-core/locales/en-US'
 import { createUniver, LocaleType } from '@univerjs/presets'
 import type { IWorkbookData } from '@univerjs/presets'
 import { AlertCircle, CheckCircle2, RefreshCw, Save } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import '@univerjs/preset-sheets-core/lib/index.css'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
-import { useInventoryWorkbook, useSaveInventoryWorkbook } from '@/hooks/useInventoryWorkbook'
+import { useInventoryWorkbook, useSaveInventoryWorkbookChanges } from '@/hooks/useInventoryWorkbook'
 import { getErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
-import type { InventoryWorkbookSaveResponse, UniverWorkbookSnapshot } from '@/types/inventoryWorkbook'
+import type {
+  InventoryWorkbookChangesResponse,
+  InventoryWorkbookFieldValue,
+  InventoryWorkbookResponse,
+  InventoryWorkbookRowChange,
+  InventoryWorkbookSaveResponse,
+  InventoryWorkbookWritableField,
+  UniverCellPrimitive,
+  UniverWorkbookSnapshot,
+} from '@/types/inventoryWorkbook'
+
+const AUTOSAVE_ENABLED = import.meta.env.VITE_INVENTORY_WORKBOOK_AUTOSAVE_ENABLED === 'true'
+const AUTOSAVE_DEBOUNCE_MS = 2_000
+
+const writableFieldKeys = new Set<InventoryWorkbookWritableField>([
+  'sku',
+  'name',
+  'latinName',
+  'potSize',
+  'height',
+  'price',
+  'regularPrice',
+  'salePrice',
+  'totalQuantity',
+  'stockStatus',
+  'imageUrl',
+  'published',
+  'featured',
+])
 
 function InventoryGridLoadingState() {
   return (
@@ -53,6 +81,25 @@ type UniverDisposable = { dispose: () => void }
 type UniverAPIWithEvents = UniverInstances['univerAPI'] & {
   Event?: { SheetValueChanged?: unknown }
   addEvent?: (event: unknown, handler: () => void) => UniverDisposable
+}
+
+type DirtyRows = Map<string, InventoryWorkbookRowChange>
+
+type BaselineRow = {
+  sheetId: string
+  sheetName: string
+  categoryId: string
+  rowIndex: number
+  displayRowNumber: number
+  rowToken: string
+  baseUpdatedAt: string
+  values: Partial<Record<InventoryWorkbookWritableField, InventoryWorkbookFieldValue>>
+}
+
+type WorkbookBaseline = {
+  rows: Map<string, BaselineRow>
+  writableColumnsBySheet: Map<string, Map<number, InventoryWorkbookWritableField>>
+  updatedAtColumnBySheet: Map<string, number>
 }
 
 function InventoryGridSaveSummary({ result }: { result: InventoryWorkbookSaveResponse }) {
@@ -104,14 +151,160 @@ function InventoryGridSaveError({ error }: { error: unknown }) {
   )
 }
 
+const rowKey = (sheetId: string, rowIndex: number) => `${sheetId}:${rowIndex}`
+
+const isBlank = (value: unknown) => value === undefined || value === null || (typeof value === 'string' && value.trim() === '')
+
+const normalizeWorkbookCellValue = (key: string, value: UniverCellPrimitive | undefined): InventoryWorkbookFieldValue => {
+  if (['sku', 'name'].includes(key)) {
+    return isBlank(value) ? '' : String(value).trim()
+  }
+
+  if (['latinName', 'potSize', 'height', 'stockStatus', 'imageUrl'].includes(key)) {
+    return isBlank(value) ? null : String(value).trim()
+  }
+
+  if (['price', 'regularPrice'].includes(key)) {
+    return isBlank(value) ? Number.NaN : Number(value)
+  }
+
+  if (key === 'salePrice') {
+    return isBlank(value) ? null : Number(value)
+  }
+
+  if (key === 'totalQuantity') {
+    return isBlank(value) ? Number.NaN : Math.trunc(Number(value))
+  }
+
+  if (['published', 'featured'].includes(key)) {
+    if (typeof value === 'boolean') return value
+    if (typeof value === 'number') return value === 1
+    if (typeof value === 'string') return ['true', '1', 'yes', 'y', 'on'].includes(value.trim().toLowerCase())
+    return Boolean(value)
+  }
+
+  return value ?? null
+}
+
+const isSameCellValue = (left: InventoryWorkbookFieldValue | undefined, right: InventoryWorkbookFieldValue | undefined) => {
+  if (typeof left === 'number' && Number.isNaN(left) && typeof right === 'number' && Number.isNaN(right)) {
+    return true
+  }
+
+  return left === right
+}
+
+const getCellValue = (workbook: UniverWorkbookSnapshot, sheetId: string, rowIndex: number, columnIndex: number) =>
+  workbook.sheets[sheetId]?.cellData?.[rowIndex]?.[columnIndex]?.v
+
+const buildWorkbookBaseline = (workbookData?: InventoryWorkbookResponse): WorkbookBaseline => {
+  const baseline: WorkbookBaseline = {
+    rows: new Map(),
+    writableColumnsBySheet: new Map(),
+    updatedAtColumnBySheet: new Map(),
+  }
+
+  if (!workbookData) {
+    return baseline
+  }
+
+  for (const sheetMetadata of workbookData.metadata.sheets) {
+    const sheet = workbookData.workbook.sheets[sheetMetadata.sheetId]
+    if (!sheet) {
+      continue
+    }
+
+    const writableColumns = new Map<number, InventoryWorkbookWritableField>()
+    const updatedAtColumn = sheetMetadata.columns.find((column) => column.key === 'updatedAt')?.columnIndex
+
+    for (const column of sheetMetadata.columns) {
+      if (!column.readOnly && writableFieldKeys.has(column.key as InventoryWorkbookWritableField)) {
+        writableColumns.set(column.columnIndex, column.key as InventoryWorkbookWritableField)
+      }
+    }
+
+    baseline.writableColumnsBySheet.set(sheetMetadata.sheetId, writableColumns)
+    if (updatedAtColumn !== undefined) {
+      baseline.updatedAtColumnBySheet.set(sheetMetadata.sheetId, updatedAtColumn)
+    }
+
+    for (const [rowIndexText, token] of Object.entries(sheetMetadata.rowIdentities ?? {})) {
+      const rowIndex = Number(rowIndexText)
+      if (!Number.isInteger(rowIndex)) {
+        continue
+      }
+
+      const values: BaselineRow['values'] = {}
+      for (const [columnIndex, field] of writableColumns.entries()) {
+        values[field] = normalizeWorkbookCellValue(field, getCellValue(workbookData.workbook, sheetMetadata.sheetId, rowIndex, columnIndex))
+      }
+
+      const updatedAtValue = updatedAtColumn === undefined ? '' : getCellValue(workbookData.workbook, sheetMetadata.sheetId, rowIndex, updatedAtColumn)
+
+      baseline.rows.set(rowKey(sheetMetadata.sheetId, rowIndex), {
+        sheetId: sheetMetadata.sheetId,
+        sheetName: sheet.name || sheetMetadata.categoryName,
+        categoryId: sheetMetadata.categoryId,
+        rowIndex,
+        displayRowNumber: rowIndex + 1,
+        rowToken: token,
+        baseUpdatedAt: typeof updatedAtValue === 'string' ? updatedAtValue : String(updatedAtValue ?? ''),
+        values,
+      })
+    }
+  }
+
+  return baseline
+}
+
+const buildDirtyRowsFromWorkbook = (workbook: UniverWorkbookSnapshot, baseline: WorkbookBaseline): DirtyRows => {
+  const dirtyRows: DirtyRows = new Map()
+
+  for (const baseRow of baseline.rows.values()) {
+    const writableColumns = baseline.writableColumnsBySheet.get(baseRow.sheetId)
+    if (!writableColumns) {
+      continue
+    }
+
+    const fields: InventoryWorkbookRowChange['fields'] = {}
+    for (const [columnIndex, field] of writableColumns.entries()) {
+      const oldValue = baseRow.values[field]
+      const newValue = normalizeWorkbookCellValue(field, getCellValue(workbook, baseRow.sheetId, baseRow.rowIndex, columnIndex))
+
+      if (!isSameCellValue(oldValue, newValue)) {
+        fields[field] = { oldValue, newValue }
+      }
+    }
+
+    if (Object.keys(fields).length > 0) {
+      dirtyRows.set(rowKey(baseRow.sheetId, baseRow.rowIndex), {
+        sheetId: baseRow.sheetId,
+        sheetName: baseRow.sheetName,
+        categoryId: baseRow.categoryId,
+        rowIndex: baseRow.rowIndex,
+        displayRowNumber: baseRow.displayRowNumber,
+        rowToken: baseRow.rowToken,
+        baseUpdatedAt: baseRow.baseUpdatedAt,
+        fields,
+      })
+    }
+  }
+
+  return dirtyRows
+}
+
 export function InventoryGridPage() {
   const univerContainerRef = useRef<HTMLDivElement>(null)
   const univerAPIRef = useRef<UniverInstances['univerAPI'] | null>(null)
   const activeWorkbookRef = useRef<SaveableWorkbook | null>(null)
+  const tokenOverridesRef = useRef<Map<string, { rowToken: string; baseUpdatedAt: string }>>(new Map())
+  const saveInFlightRef = useRef(false)
+  const queuedAutosaveRef = useRef(false)
   const inventoryWorkbookQuery = useInventoryWorkbook()
-  const saveWorkbookMutation = useSaveInventoryWorkbook()
-  const [isDirty, setIsDirty] = useState(false)
-  const [saveResult, setSaveResult] = useState<InventoryWorkbookSaveResponse | null>(null)
+  const saveWorkbookChangesMutation = useSaveInventoryWorkbookChanges()
+  const [dirtyRows, setDirtyRows] = useState<DirtyRows>(() => new Map())
+  const [saveResult, setSaveResult] = useState<InventoryWorkbookChangesResponse | null>(null)
+  const [hasConflict, setHasConflict] = useState(false)
   const workbookData = inventoryWorkbookQuery.data
   const workbook = workbookData?.workbook
   const workbookName = workbook?.name ?? 'Verde Inventory'
@@ -122,6 +315,32 @@ export function InventoryGridPage() {
 
     return total + Math.max(rowCount, 0)
   }, 0)
+  const workbookBaseline = useMemo(() => buildWorkbookBaseline(workbookData), [workbookData])
+  const dirtyRowCount = dirtyRows.size
+  const dirtyCellCount = [...dirtyRows.values()].reduce((total, row) => total + Object.keys(row.fields).length, 0)
+
+  const rebuildDirtyRowsFromRuntime = useCallback(async () => {
+    const fWorkbook = activeWorkbookRef.current ?? (univerAPIRef.current?.getActiveWorkbook() as unknown as SaveableWorkbook | null)
+    if (!fWorkbook) {
+      return
+    }
+
+    const runtimeWorkbook = (await Promise.resolve(fWorkbook.save())) as unknown as UniverWorkbookSnapshot
+    const nextDirtyRows = buildDirtyRowsFromWorkbook(runtimeWorkbook, workbookBaseline)
+
+    for (const [key, override] of tokenOverridesRef.current.entries()) {
+      const dirtyRow = nextDirtyRows.get(key)
+      if (dirtyRow) {
+        dirtyRow.rowToken = override.rowToken
+        dirtyRow.baseUpdatedAt = override.baseUpdatedAt
+      }
+    }
+
+    setDirtyRows(nextDirtyRows)
+    if (nextDirtyRows.size > 0) {
+      setSaveResult(null)
+    }
+  }, [workbookBaseline])
 
   useEffect(() => {
     const container = univerContainerRef.current
@@ -132,6 +351,7 @@ export function InventoryGridPage() {
 
     activeWorkbookRef.current = null
     univerAPIRef.current = null
+    tokenOverridesRef.current.clear()
     container.replaceChildren()
 
     const { univer, univerAPI } = createUniver({
@@ -168,8 +388,7 @@ export function InventoryGridPage() {
     if (eventApi.Event?.SheetValueChanged && typeof eventApi.addEvent === 'function') {
       disposables.push(
         eventApi.addEvent(eventApi.Event.SheetValueChanged, () => {
-          setIsDirty(true)
-          setSaveResult(null)
+          void rebuildDirtyRowsFromRuntime()
         }),
       )
     }
@@ -184,31 +403,102 @@ export function InventoryGridPage() {
       univer.dispose()
       container.replaceChildren()
     }
-  }, [workbook])
+  }, [rebuildDirtyRowsFromRuntime, workbook])
+
+  const flushDeltaSave = useCallback(
+    async (saveMode: 'manual' | 'autosave') => {
+      if (!workbookData || dirtyRows.size === 0 || (hasConflict && saveMode === 'autosave')) {
+        return null
+      }
+
+      if (saveInFlightRef.current) {
+        queuedAutosaveRef.current = true
+        return null
+      }
+
+      saveInFlightRef.current = true
+      setSaveResult(null)
+
+      try {
+        const clientMutationId = `inventory-workbook-${Date.now()}-${Math.random().toString(36).slice(2)}`
+        const changes = [...dirtyRows.values()]
+        const result = await saveWorkbookChangesMutation.mutateAsync({
+          workbookId: workbookData.workbook.id,
+          workbookGeneratedAt: workbookData.metadata.generatedAt,
+          clientMutationId,
+          saveMode,
+          changes,
+        })
+
+        setSaveResult(result)
+        setHasConflict(result.summary.conflictedRows > 0)
+
+        const successfulRows = new Set<string>()
+        for (const row of result.rows) {
+          const key = rowKey(row.sheetId, row.rowIndex)
+          if ((row.status === 'changed' || row.status === 'skipped') && row.refreshedRowToken && row.refreshedUpdatedAt) {
+            tokenOverridesRef.current.set(key, { rowToken: row.refreshedRowToken, baseUpdatedAt: row.refreshedUpdatedAt })
+          }
+          if (row.status === 'changed' || row.status === 'skipped') {
+            successfulRows.add(key)
+          }
+        }
+
+        setDirtyRows((currentDirtyRows) => {
+          const nextDirtyRows = new Map(currentDirtyRows)
+          for (const key of successfulRows) {
+            nextDirtyRows.delete(key)
+          }
+          return nextDirtyRows
+        })
+
+        if (result.summary.failedRows === 0 && result.summary.conflictedRows === 0) {
+          await inventoryWorkbookQuery.refetch()
+        }
+
+        return result
+      } finally {
+        saveInFlightRef.current = false
+        if (queuedAutosaveRef.current && dirtyRows.size > 0 && !hasConflict) {
+          queuedAutosaveRef.current = false
+          void flushDeltaSave('autosave')
+        }
+      }
+    },
+    [dirtyRows, hasConflict, inventoryWorkbookQuery, saveWorkbookChangesMutation, workbookData],
+  )
+
+  useEffect(() => {
+    if (!AUTOSAVE_ENABLED || dirtyRows.size === 0 || hasConflict) {
+      return
+    }
+
+    const timeout = window.setTimeout(() => {
+      void flushDeltaSave('autosave')
+    }, AUTOSAVE_DEBOUNCE_MS)
+
+    return () => window.clearTimeout(timeout)
+  }, [dirtyRows, flushDeltaSave, hasConflict])
 
   const handleSave = async () => {
-    if (!workbookData) {
-      return
-    }
-
-    const fWorkbook = activeWorkbookRef.current ?? (univerAPIRef.current?.getActiveWorkbook() as unknown as SaveableWorkbook | null)
-    if (!fWorkbook) {
-      return
-    }
-
-    setSaveResult(null)
-    const savedWorkbook = await Promise.resolve(fWorkbook.save())
-    const result = await saveWorkbookMutation.mutateAsync({
-      workbook: savedWorkbook as unknown as UniverWorkbookSnapshot,
-      metadata: workbookData.metadata,
-    })
-
-    setSaveResult(result)
-    if (result.summary.failedRows === 0 && result.summary.conflictedRows === 0) {
-      setIsDirty(false)
-    }
-    await inventoryWorkbookQuery.refetch()
+    await flushDeltaSave('manual')
   }
+
+  const saveButtonText = saveWorkbookChangesMutation.isPending
+    ? 'Saving...'
+    : dirtyCellCount > 0
+      ? `Save ${dirtyRowCount} row${dirtyRowCount === 1 ? '' : 's'} / ${dirtyCellCount} cell${dirtyCellCount === 1 ? '' : 's'}`
+      : 'Saved'
+
+  const statusText = saveWorkbookChangesMutation.isPending
+    ? 'Saving'
+    : hasConflict
+      ? 'Conflict'
+      : saveWorkbookChangesMutation.isError
+        ? 'Save failed'
+        : dirtyCellCount > 0
+          ? 'Unsaved'
+          : 'Saved'
 
   return (
     <section className="space-y-6">
@@ -220,7 +510,7 @@ export function InventoryGridPage() {
             <Button
               type="button"
               variant="secondary"
-              disabled={inventoryWorkbookQuery.isFetching || saveWorkbookMutation.isPending}
+              disabled={inventoryWorkbookQuery.isFetching || saveWorkbookChangesMutation.isPending || dirtyCellCount > 0}
               onClick={() => void inventoryWorkbookQuery.refetch()}
             >
               <RefreshCw className={cn('size-4', inventoryWorkbookQuery.isFetching && 'animate-spin')} />
@@ -228,11 +518,11 @@ export function InventoryGridPage() {
             </Button>
             <Button
               type="button"
-              disabled={!workbookData || !isDirty || saveWorkbookMutation.isPending || inventoryWorkbookQuery.isFetching}
+              disabled={!workbookData || dirtyCellCount === 0 || saveWorkbookChangesMutation.isPending || inventoryWorkbookQuery.isFetching}
               onClick={() => void handleSave()}
             >
-              <Save className={cn('size-4', saveWorkbookMutation.isPending && 'animate-pulse')} />
-              {saveWorkbookMutation.isPending ? 'Saving...' : isDirty ? 'Save changes' : 'Saved'}
+              <Save className={cn('size-4', saveWorkbookChangesMutation.isPending && 'animate-pulse')} />
+              {saveButtonText}
             </Button>
           </div>
         }
@@ -248,7 +538,7 @@ export function InventoryGridPage() {
         />
       ) : null}
 
-      {saveWorkbookMutation.isError ? <InventoryGridSaveError error={saveWorkbookMutation.error} /> : null}
+      {saveWorkbookChangesMutation.isError ? <InventoryGridSaveError error={saveWorkbookChangesMutation.error} /> : null}
       {saveResult ? <InventoryGridSaveSummary result={saveResult} /> : null}
 
       {workbookData && !inventoryWorkbookQuery.isError ? (
@@ -257,7 +547,9 @@ export function InventoryGridPage() {
             <div className="min-w-0">
               <h2 className="text-base font-semibold text-text-primary">{workbookName}</h2>
               <p className="text-sm text-text-secondary">
-                {productCount ?? 0} products · {sheetCount} workbook sheet{sheetCount === 1 ? '' : 's'} · {isDirty ? 'unsaved changes' : 'saved'}
+                {productCount ?? 0} products · {sheetCount} workbook sheet{sheetCount === 1 ? '' : 's'} · {statusText}
+                {dirtyCellCount > 0 ? ` · ${dirtyRowCount} changed rows / ${dirtyCellCount} cells` : ''}
+                {AUTOSAVE_ENABLED ? ' · autosave on' : ''}
               </p>
             </div>
             <span className="inline-flex w-fit items-center rounded-full border border-border bg-background px-2.5 py-1 text-xs font-medium text-text-secondary">
