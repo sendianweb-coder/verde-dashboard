@@ -96,6 +96,16 @@ export interface InventoryWorkbookResponse {
   metadata: InventoryWorkbookMetadata
 }
 
+export interface InventoryWorkbookImageUploadPayload {
+  rowToken: string
+  image: File
+}
+
+export interface InventoryWorkbookImageUploadResult {
+  attachmentId: number
+  imageUrl: string
+}
+
 export interface SaveInventoryWorkbookRequest {
   workbook: UniverWorkbookSnapshot
   metadata: InventoryWorkbookMetadata
@@ -110,13 +120,9 @@ export type InventoryWorkbookWritableField =
   | 'potSize'
   | 'height'
   | 'price'
-  | 'regularPrice'
-  | 'salePrice'
   | 'totalQuantity'
-  | 'stockStatus'
   | 'imageUrl'
   | 'published'
-  | 'featured'
 
 export interface InventoryWorkbookFieldPatch {
   oldValue?: InventoryWorkbookFieldValue

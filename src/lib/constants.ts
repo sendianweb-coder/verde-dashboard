@@ -29,7 +29,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', path: '/admin/dashboard', icon: Home },
     { label: 'Users', path: '/admin/users', icon: Users },
     { label: 'Products', path: '/admin/products', icon: Package },
-    { label: 'Inventory Grid', path: '/admin/inventory-grid', icon: Boxes },
+    { label: 'Inventory Excel', path: '/admin/inventory-grid', icon: Boxes },
     { label: 'Projects', path: '/admin/projects', icon: FolderKanban },
     { label: 'New Request', path: '/admin/requests/new', icon: PlusCircle },
     { label: 'Requests', path: '/admin/requests', icon: ClipboardList, inactivePaths: ['/admin/requests/new'] },

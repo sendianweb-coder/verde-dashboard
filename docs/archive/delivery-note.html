@@ -1,0 +1,517 @@
+<html lang="en"><head><meta name="viewport" content="width=device-width, initial-scale=1.0"><script>window.__AIFX_MAX_DPR__=1.25;window.__AIFX_FPS_CAP__=30;</script>
+        <script>
+            (function() {
+                function tuneImage(img) {
+                    try {
+                        img.loading = 'lazy';
+                        img.decoding = 'async';
+                        img.fetchPriority = 'low';
+                    } catch (_) {}
+                }
+                function tuneAllImages() {
+                    document.querySelectorAll('img').forEach(tuneImage);
+                }
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', tuneAllImages, { once: true });
+                } else {
+                    tuneAllImages();
+                }
+            })();
+        </script>
+       
+        <script>
+            (function() {
+                const OriginalIntersectionObserver = window.IntersectionObserver;
+                if (!OriginalIntersectionObserver) return;
+                window.__editor_force_intersection_enabled = true;
+                function shouldForceIntersection() {
+                    return window.__editor_force_intersection_enabled === true;
+                }
+                window.IntersectionObserver = function(callback, options) {
+                    const observer = new OriginalIntersectionObserver(function(entries, obs) {
+                        if (!shouldForceIntersection()) {
+                            callback(entries, obs);
+                            return;
+                        }
+                        // Force all entries to appear as intersecting
+                        const modifiedEntries = entries.map(entry => ({
+                            target: entry.target,
+                            isIntersecting: true,
+                            intersectionRatio: 1,
+                            boundingClientRect: entry.boundingClientRect,
+                            intersectionRect: entry.intersectionRect,
+                            rootBounds: entry.rootBounds,
+                            time: entry.time,
+                        }));
+                        callback(modifiedEntries, obs);
+                    }, options);
+
+                    // Also immediately trigger for any observed element
+                    const originalObserve = observer.observe.bind(observer);
+                    observer.observe = function(target) {
+                        originalObserve(target);
+                        // Trigger callback immediately with the element as intersecting
+                        setTimeout(() => {
+                            if (!shouldForceIntersection()) return;
+                            callback([{
+                                target: target,
+                                isIntersecting: true,
+                                intersectionRatio: 1,
+                                boundingClientRect: target.getBoundingClientRect(),
+                                intersectionRect: target.getBoundingClientRect(),
+                                rootBounds: null,
+                                time: performance.now(),
+                            }], observer);
+                        }, 0);
+                    };
+
+                    return observer;
+                };
+                window.IntersectionObserver.prototype = OriginalIntersectionObserver.prototype;
+            })();
+        </script>
+       
+        <script>
+            (function() {
+                function hasTailwindScript() {
+                    return !!document.querySelector('script[src*="cdn.tailwindcss.com"], script[src*="@tailwindcss/browser"]');
+                }
+                function hasTailwindConfig() {
+                    return /tailwind\s*\.\s*config/i.test(document.documentElement.innerHTML);
+                }
+                function hasLikelyTailwindClasses() {
+                    var matches = 0;
+                    var classAttrs = document.querySelectorAll('[class]');
+                    for (var i = 0; i < classAttrs.length; i++) {
+                        var tokens = String(classAttrs[i].getAttribute('class') || '').split(/\s+/);
+                        for (var j = 0; j < tokens.length; j++) {
+                            var token = tokens[j].split(':').pop().replace(/^!/, '');
+                            if (
+                                /^(flex|grid|block|inline-block|inline-flex|hidden|relative|absolute|fixed|sticky|container|sr-only|antialiased|isolate)$/.test(token) ||
+                                /^-?(m|p)([trblxy])?-(\d|px|auto|\[)/.test(token) ||
+                                /^(text|bg|border|rounded|shadow|ring|divide|outline|decoration|underline|font|leading|tracking|w|h|min-w|max-w|min-h|max-h|size|z|top|right|bottom|left|inset|translate|scale|rotate|skew|origin|opacity|overflow|object|aspect|gap|space|items|justify|content|self|place|col|row|order|duration|delay|ease|animate|backdrop|blur|brightness|contrast|drop-shadow|grayscale|hue-rotate|invert|saturate|sepia|from|via|to|prose)-/.test(token)
+                            ) {
+                                matches++;
+                                if (matches >= 3) return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+                function ensureTailwind() {
+                    if (hasTailwindScript() || document.getElementById('__editor_tailwind_fallback')) return;
+                    if (!hasTailwindConfig() && !hasLikelyTailwindClasses()) return;
+                    var script = document.createElement('script');
+                    script.id = '__editor_tailwind_fallback';
+                    script.src = 'https://cdn.tailwindcss.com';
+                    document.head.appendChild(script);
+                }
+                if (document.readyState === 'loading') {
+                    document.addEventListener('DOMContentLoaded', ensureTailwind, { once: true });
+                } else {
+                    ensureTailwind();
+                }
+            })();
+        </script>
+       
+        <script>
+            (function() {
+                // console.log("[Iframe] Script injected and running");
+                document.addEventListener('error', function(e) {
+                    // console.log("[Iframe] Error event captured:", e);
+                    if (e.target && e.target.tagName) {
+                         // console.log("[Iframe] Target tag:", e.target.tagName);
+                    }
+                    
+                    if (e.target && e.target.tagName.toLowerCase() === 'img') {
+                        // console.log("[Iframe] Image error detected:", e.target.src);
+                        const img = e.target;
+                        const alt = img.alt;
+                        if (alt && !img.dataset.retried) {
+                            // console.log("[Iframe] Posting IMAGE_ERROR for:", alt);
+                            img.dataset.retried = 'true';
+                            window.parent.postMessage({
+                                type: 'IMAGE_ERROR',
+                                pageId: "b7b3fc0e-82ce-4739-b437-b2f979b41010",
+                                alt: alt,
+                                src: img.src
+                            }, '*');
+                        } else {
+                            // console.log("[Iframe] Skipping IMAGE_ERROR (no alt or already retried):", { alt, retried: img.dataset.retried });
+                        }
+                    }
+                }, true);
+
+                window.addEventListener('message', function(e) {
+                    if (e.data?.type === 'IMAGE_REPLACED' && e.data?.newSrc) {
+                        // console.log("[Iframe] Received IMAGE_REPLACED:", e.data);
+                        const images = document.getElementsByTagName('img');
+                        for (let img of images) {
+                            if (img.src === e.data.originalSrc || (img.dataset.retried === 'true' && !img.complete)) {
+                                // Stash the original src so the stream-end
+                                // body-innerHTML swap can replay this rewrite
+                                // onto the freshly-parsed <img> nodes. Without
+                                // this, the swap drops our Serper-replaced src
+                                // and the image re-requests on parse, causing
+                                // duplicate Serper calls and visible flicker.
+                                if (!img.dataset.originalSrc) {
+                                    img.dataset.originalSrc = e.data.originalSrc;
+                                }
+                                img.src = e.data.newSrc;
+                            }
+                        }
+                    }
+                });
+            })();
+        </script>
+       
+        <script>
+            (function() {
+                window.__image_debug_v1 = true;
+                if (window.__tailwind_warn_suppressed) return;
+                window.__tailwind_warn_suppressed = true;
+                const originalWarn = console.warn;
+                console.warn = (...args) => {
+                    if (args[0] && typeof args[0] === 'string' && args[0].includes('cdn.tailwindcss.com')) {
+                        return;
+                    }
+                    originalWarn.apply(console, args);
+                };
+            })();
+        </script>
+        <script>
+            (function() {
+                 // Removed Link Editing Interception
+            })();
+        </script>
+        <style>
+            .h-screen { min-height: 800px !important; height: auto !important; }
+            .min-h-screen { min-height: 800px !important; }
+            
+            html, body {
+                min-height: 800px !important;
+                height: auto !important;
+                width: 100% !important;
+                overflow: auto !important;
+                -ms-overflow-style: none;
+                scrollbar-width: none;
+            }
+            ::-webkit-scrollbar {
+                display: none;
+            }
+            .editor-link-hover {
+                outline: 2px solid #3b82f6 !important;
+                cursor: pointer !important;
+            }
+            /* Fix h-full in flex containers - use stretch instead of percentage */
+            .flex > .h-full {
+                height: auto !important;
+                align-self: stretch !important;
+                min-height: 0;
+            }
+            /* Fix fixed-positioned full-height sidebars */
+            /* Convert to absolute so height: 100% is relative to document, not viewport */
+            .fixed.h-full,
+            nav.fixed.h-full,
+            aside.fixed.h-full {
+                position: absolute !important;
+            }
+            /* Force visibility on scroll-animation hidden elements */
+            /* These override common patterns used by AOS, ScrollReveal, GSAP, and custom animations */
+            [style*="opacity: 0"],
+            [style*="opacity:0"] {
+                opacity: 1 !important;
+            }
+            [style*="clip-path: inset"],
+            [style*="clip-path:inset"] {
+                clip-path: none !important;
+            }
+            [style*="visibility: hidden"],
+            [style*="visibility:hidden"] {
+                visibility: visible !important;
+            }
+            /* AOS library data attributes */
+            [data-aos] {
+                opacity: 1 !important;
+                transform: none !important;
+                visibility: visible !important;
+            }
+            /* Common animation class patterns */
+            [class*="aos-"],
+            [class*="scroll-"],
+            [class*="reveal"],
+            [class*="fade-"],
+            [class*="slide-"] {
+                opacity: 1 !important;
+                transform: none !important;
+                clip-path: none !important;
+                visibility: visible !important;
+            }
+        </style>
+       
+    
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delivery Note - Verde</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        verde: {
+                            dark: '#3A5A35',
+                            light: '#4C7345',
+                            border: '#D4E0D1',
+                            row: '#F9FAF9'
+                        }
+                    },
+                    fontFamily: {
+                        serif: ['Cinzel', 'serif'],
+                        sans: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @media print {
+            body {
+                -webkit-print-color-adjust: exact !important;
+                print-color-adjust: exact !important;
+                background-color: white !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .page-break {
+                page-break-after: always;
+            }
+        }
+        
+        .grid-bg {
+            background-size: 100% 28px;
+            background-image: linear-gradient(to bottom, transparent 27px, #e5e7eb 28px);
+        }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:Inter, sans-serif;font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.absolute{position:absolute}.relative{position:relative}.inset-0{inset:0px}.bottom-6{bottom:1.5rem}.right-6{right:1.5rem}.right-4{right:1rem}.top-4{top:1rem}.my-0\.5{margin-top:0.125rem;margin-bottom:0.125rem}.mb-6{margin-bottom:1.5rem}.mt-1{margin-top:0.25rem}.mt-2{margin-top:0.5rem}.mb-0\.5{margin-bottom:0.125rem}.mb-4{margin-bottom:1rem}.mr-2{margin-right:0.5rem}.mt-3{margin-top:0.75rem}.ml-4{margin-left:1rem}.mb-1{margin-bottom:0.25rem}.mt-6{margin-top:1.5rem}.inline-block{display:inline-block}.flex{display:flex}.grid{display:grid}.hidden{display:none}.aspect-square{aspect-ratio:1 / 1}.h-20{height:5rem}.h-64{height:16rem}.h-36{height:9rem}.h-full{height:100%}.h-12{height:3rem}.h-16{height:4rem}.min-h-\[800px\]{min-height:800px}.w-full{width:100%}.w-20{width:5rem}.w-24{width:6rem}.w-16{width:4rem}.w-1\/4{width:25%}.w-32{width:8rem}.w-10{width:2.5rem}.max-w-\[800px\]{max-width:800px}.flex-shrink-0{flex-shrink:0}.flex-grow{flex-grow:1}.border-collapse{border-collapse:collapse}.origin-bottom-right{transform-origin:bottom right}.-rotate-2{--tw-rotate:-2deg;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.scale-75{--tw-scale-x:.75;--tw-scale-y:.75;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.scale-90{--tw-scale-x:.9;--tw-scale-y:.9;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.transform{transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}.flex-col{flex-direction:column}.items-start{align-items:flex-start}.items-end{align-items:flex-end}.items-center{align-items:center}.justify-start{justify-content:flex-start}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-4{gap:1rem}.gap-3{gap:0.75rem}.space-y-1 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.25rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.divide-x > :not([hidden]) ~ :not([hidden]){--tw-divide-x-reverse:0;border-right-width:calc(1px * var(--tw-divide-x-reverse));border-left-width:calc(1px * calc(1 - var(--tw-divide-x-reverse)))}.divide-y > :not([hidden]) ~ :not([hidden]){--tw-divide-y-reverse:0;border-top-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));border-bottom-width:calc(1px * var(--tw-divide-y-reverse))}.divide-verde-border > :not([hidden]) ~ :not([hidden]){--tw-divide-opacity:1;border-color:rgb(212 224 209 / var(--tw-divide-opacity, 1))}.divide-gray-200 > :not([hidden]) ~ :not([hidden]){--tw-divide-opacity:1;border-color:rgb(229 231 235 / var(--tw-divide-opacity, 1))}.overflow-hidden{overflow:hidden}.whitespace-nowrap{white-space:nowrap}.rounded-sm{border-radius:0.125rem}.rounded-full{border-radius:9999px}.rounded{border-radius:0.25rem}.border{border-width:1px}.border-2{border-width:2px}.border-b{border-bottom-width:1px}.border-t{border-top-width:1px}.border-r{border-right-width:1px}.border-l{border-left-width:1px}.border-dashed{border-style:dashed}.border-dotted{border-style:dotted}.border-verde-border{--tw-border-opacity:1;border-color:rgb(212 224 209 / var(--tw-border-opacity, 1))}.border-verde-light{--tw-border-opacity:1;border-color:rgb(76 115 69 / var(--tw-border-opacity, 1))}.border-verde-dark{--tw-border-opacity:1;border-color:rgb(58 90 53 / var(--tw-border-opacity, 1))}.border-verde-light\/30{border-color:rgb(76 115 69 / 0.3)}.border-gray-200{--tw-border-opacity:1;border-color:rgb(229 231 235 / var(--tw-border-opacity, 1))}.border-blue-800{--tw-border-opacity:1;border-color:rgb(30 64 175 / var(--tw-border-opacity, 1))}.border-blue-800\/30{border-color:rgb(30 64 175 / 0.3)}.border-gray-400{--tw-border-opacity:1;border-color:rgb(156 163 175 / var(--tw-border-opacity, 1))}.border-gray-300{--tw-border-opacity:1;border-color:rgb(209 213 219 / var(--tw-border-opacity, 1))}.bg-gray-100{--tw-bg-opacity:1;background-color:rgb(243 244 246 / var(--tw-bg-opacity, 1))}.bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.bg-gray-50\/50{background-color:rgb(249 250 251 / 0.5)}.bg-verde-dark{--tw-bg-opacity:1;background-color:rgb(58 90 53 / var(--tw-bg-opacity, 1))}.bg-verde-row{--tw-bg-opacity:1;background-color:rgb(249 250 249 / var(--tw-bg-opacity, 1))}.bg-white\/80{background-color:rgb(255 255 255 / 0.8)}.bg-gray-800{--tw-bg-opacity:1;background-color:rgb(31 41 55 / var(--tw-bg-opacity, 1))}.object-contain{object-fit:contain}.object-cover{object-fit:cover}.p-4{padding:1rem}.p-2\.5{padding:0.625rem}.p-1{padding:0.25rem}.p-6{padding:1.5rem}.p-2{padding:0.5rem}.py-10{padding-top:2.5rem;padding-bottom:2.5rem}.px-8{padding-left:2rem;padding-right:2rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.py-0\.5{padding-top:0.125rem;padding-bottom:0.125rem}.px-4{padding-left:1rem;padding-right:1rem}.py-2{padding-top:0.5rem;padding-bottom:0.5rem}.py-1{padding-top:0.25rem;padding-bottom:0.25rem}.py-2\.5{padding-top:0.625rem;padding-bottom:0.625rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.px-1{padding-left:0.25rem;padding-right:0.25rem}.pl-2{padding-left:0.5rem}.pt-0\.5{padding-top:0.125rem}.pb-0\.5{padding-bottom:0.125rem}.pb-0{padding-bottom:0px}.pl-3{padding-left:0.75rem}.pt-2{padding-top:0.5rem}.text-left{text-align:left}.text-center{text-align:center}.text-right{text-align:right}.font-sans{font-family:Inter, sans-serif}.font-serif{font-family:Cinzel, serif}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-2xl{font-size:1.5rem;line-height:2rem}.text-\[9px\]{font-size:9px}.text-\[10px\]{font-size:10px}.text-xs{font-size:0.75rem;line-height:1rem}.text-\[8px\]{font-size:8px}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-\[4px\]{font-size:4px}.font-light{font-weight:300}.font-semibold{font-weight:600}.font-medium{font-weight:500}.font-bold{font-weight:700}.uppercase{text-transform:uppercase}.leading-none{line-height:1}.leading-\[1\.3\]{line-height:1.3}.leading-tight{line-height:1.25}.tracking-wider{letter-spacing:0.05em}.tracking-widest{letter-spacing:0.1em}.tracking-wide{letter-spacing:0.025em}.text-gray-800{--tw-text-opacity:1;color:rgb(31 41 55 / var(--tw-text-opacity, 1))}.text-\[\#333\]{--tw-text-opacity:1;color:rgb(51 51 51 / var(--tw-text-opacity, 1))}.text-gray-500{--tw-text-opacity:1;color:rgb(107 114 128 / var(--tw-text-opacity, 1))}.text-gray-400{--tw-text-opacity:1;color:rgb(156 163 175 / var(--tw-text-opacity, 1))}.text-verde-light{--tw-text-opacity:1;color:rgb(76 115 69 / var(--tw-text-opacity, 1))}.text-gray-600{--tw-text-opacity:1;color:rgb(75 85 99 / var(--tw-text-opacity, 1))}.text-verde-dark{--tw-text-opacity:1;color:rgb(58 90 53 / var(--tw-text-opacity, 1))}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.text-gray-700{--tw-text-opacity:1;color:rgb(55 65 81 / var(--tw-text-opacity, 1))}.text-blue-800{--tw-text-opacity:1;color:rgb(30 64 175 / var(--tw-text-opacity, 1))}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.opacity-90{opacity:0.9}.opacity-80{opacity:0.8}.opacity-30{opacity:0.3}.opacity-40{opacity:0.4}.mix-blend-multiply{mix-blend-mode:multiply}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow{--tw-shadow:0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 1px 3px 0 var(--tw-shadow-color), 0 1px 2px -1px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.brightness-50{--tw-brightness:brightness(.5);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.brightness-75{--tw-brightness:brightness(.75);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.contrast-125{--tw-contrast:contrast(1.25);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.grayscale-\[0\.2\]{--tw-grayscale:grayscale(0.2);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.hue-rotate-\[70deg\]{--tw-hue-rotate:hue-rotate(70deg);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.hue-rotate-\[200deg\]{--tw-hue-rotate:hue-rotate(200deg);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.invert{--tw-invert:invert(100%);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.saturate-150{--tw-saturate:saturate(1.5);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.saturate-200{--tw-saturate:saturate(2);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.sepia-\[0\.3\]{--tw-sepia:sepia(0.3);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.sepia{--tw-sepia:sepia(100%);filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.filter{filter:var(--tw-blur) var(--tw-brightness) var(--tw-contrast) var(--tw-grayscale) var(--tw-hue-rotate) var(--tw-invert) var(--tw-saturate) var(--tw-sepia) var(--tw-drop-shadow)}.transition{transition-property:color, background-color, border-color, fill, stroke, opacity, box-shadow, transform, filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow, transform, filter, backdrop-filter, -webkit-text-decoration-color, -webkit-backdrop-filter;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.hover\:bg-gray-700:hover{--tw-bg-opacity:1;background-color:rgb(55 65 81 / var(--tw-bg-opacity, 1))}@media (min-width: 640px){.sm\:block{display:block}}@media (min-width: 768px){.md\:text-sm{font-size:0.875rem;line-height:1.25rem}}@media print{.print\:bg-white{--tw-bg-opacity:1;background-color:rgb(255 255 255 / var(--tw-bg-opacity, 1))}.print\:py-0{padding-top:0px;padding-bottom:0px}.print\:px-4{padding-left:1rem;padding-right:1rem}.print\:py-4{padding-top:1rem;padding-bottom:1rem}.print\:shadow-none{--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}}</style></head>
+<body class="bg-gray-100 font-sans text-gray-800 text-sm md:text-sm antialiased flex justify-center py-10 print:py-0 print:bg-white min-h-[800px]" style="margin: 0px; padding: 0px; width: 100%; overflow: hidden;">
+
+    <div class="bg-white w-full max-w-[800px] shadow-lg print:shadow-none relative px-8 py-10 print:px-4 print:py-4">
+        
+        <!-- Header -->
+        <header class="flex justify-between items-start mb-6">
+            <div class="flex flex-col items-center">
+                <img src="https://cdn.aidesigner.ai/image-tools/a72af3f46e1c5d89/1784457664279-0541ccc3-d04d-490f-b272-904ffad0f4a1.png" alt="Verde Logo Mark" class="w-20 h-20 object-contain mix-blend-multiply opacity-90 filter brightness-50 contrast-125 sepia-[0.3] hue-rotate-[70deg] saturate-150 grayscale-[0.2]" loading="lazy" decoding="async" fetchpriority="low">
+                <h1 class="font-serif text-2xl tracking-widest text-[#333] mt-2 leading-none uppercase">Verde</h1>
+                <p class="text-[9px] tracking-wider text-gray-500 uppercase mt-1">Landscaping &amp; Gardening</p>
+            </div>
+            
+            <div class="text-[10px] text-gray-500 text-right leading-[1.3] font-light hidden sm:block">
+                <div class="flex items-center justify-end gap-2 mb-0.5">
+                    <span>GROUND FLOOR</span>
+                    <i class="fas fa-building text-gray-400"></i>
+                </div>
+                <div class="flex items-center justify-end gap-2 mb-0.5">
+                    <span>BUILDING 106</span>
+                </div>
+                <div class="flex items-center justify-end gap-2 mb-0.5">
+                    <span>STRT 102 | ZONE 69</span>
+                    <i class="fas fa-map-marker-alt text-gray-400"></i>
+                </div>
+                <div class="flex items-center justify-end gap-2 mb-0.5">
+                    <span>+974 40 17 35 25</span>
+                    <i class="fas fa-phone-alt text-gray-400"></i>
+                </div>
+                <div class="flex items-center justify-end gap-2 mb-0.5">
+                    <span>+974 66 67 08 50</span>
+                    <i class="fab fa-whatsapp text-gray-400"></i>
+                </div>
+                <div class="flex items-center justify-end gap-2 mb-0.5">
+                    <span>+974 40 17 20 62</span>
+                    <i class="fas fa-print text-gray-400"></i>
+                </div>
+                <div class="flex items-center justify-end gap-2 mb-0.5">
+                    <span>VERDEQATAR</span>
+                    <i class="fas fa-envelope text-gray-400"></i>
+                </div>
+                <div class="flex items-center justify-end gap-2 mb-0.5">
+                    <span>VERDEQATAR.COM</span>
+                    <i class="fas fa-globe text-gray-400"></i>
+                </div>
+                <div class="flex items-center justify-end gap-2">
+                    <span>31403, DOHA, QATAR</span>
+                    <i class="fas fa-mail-bulk text-gray-400"></i>
+                </div>
+            </div>
+        </header>
+
+        <!-- Document Info Container -->
+        <div class="border border-verde-border rounded-sm mb-4">
+            <!-- Title Bar -->
+            <div class="flex justify-end p-4 border-b border-verde-border bg-gray-50/50">
+                <div class="text-right">
+                    <h2 class="font-serif text-2xl text-verde-light tracking-wide uppercase font-semibold">Delivery Note</h2>
+                    <div class="mt-1 flex justify-end items-center text-xs">
+                        <span class="mr-2 font-medium text-gray-600">Ref. No:</span>
+                        <span class="border border-verde-light text-verde-dark px-2 py-0.5 font-bold tracking-wide">YPD-DN-001</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Meta Information Grid -->
+            <div class="grid grid-cols-2 text-xs divide-x divide-verde-border">
+                <div class="flex flex-col divide-y divide-verde-border">
+                    <div class="flex p-2.5">
+                        <span class="font-semibold text-gray-600 w-24 flex-shrink-0">To:</span>
+                        <span class="text-gray-800">Sheikh Faisal Al Thani</span>
+                    </div>
+                    <div class="flex p-2.5">
+                        <span class="font-semibold text-gray-600 w-24 flex-shrink-0">Company:</span>
+                        <span class="text-gray-800 uppercase">QATAR</span>
+                    </div>
+                </div>
+                <div class="flex flex-col divide-y divide-verde-border">
+                    <div class="flex p-2.5">
+                        <span class="font-semibold text-gray-600 w-24 flex-shrink-0">Date:</span>
+                        <span class="text-gray-800">12/12/2024</span>
+                    </div>
+                    <div class="flex p-2.5">
+                        <span class="font-semibold text-gray-600 w-24 flex-shrink-0">Delivery To:</span>
+                        <span class="text-gray-800">Main Store, Al Dafna.</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Reference Tag -->
+            <div class="px-4 py-2 border-t border-verde-border">
+                <div class="bg-verde-dark text-white text-xs font-semibold py-1 px-4 inline-block tracking-wider">
+                    Ref: YP-5732-24
+                </div>
+                <div class="mt-3 text-xs pl-2 space-y-1">
+                    <div class="flex">
+                        <i class="far fa-folder mr-2 pt-0.5 text-gray-400"></i> 
+                        <span class="font-semibold w-24 uppercase text-gray-700">Project:</span>
+                        <span class="text-gray-800">Private Palace @ Al Dafna</span>
+                    </div>
+                    <div class="flex">
+                        <i class="fas fa-tag mr-2 pt-0.5 text-gray-400"></i>
+                        <span class="font-semibold w-24 uppercase text-gray-700">Subject:</span>
+                        <span class="text-gray-800">Supply of Plants</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Table -->
+        <div class="border border-verde-dark bg-white rounded-sm overflow-hidden mb-6">
+            <table class="w-full text-xs text-center border-collapse">
+                <thead>
+                    <tr class="bg-verde-dark text-white font-medium uppercase tracking-wider">
+                        <th class="py-2.5 px-2 border-r border-verde-light/30 w-16">Item</th>
+                        <th class="py-2.5 px-4 text-left border-r border-verde-light/30">Description</th>
+                        <th class="py-2.5 px-2 border-r border-verde-light/30 w-1/4">Specs</th>
+                        <th class="py-2.5 px-2 border-r border-verde-light/30 w-16">Unit</th>
+                        <th class="py-2.5 px-2 w-24">Quantity</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    <tr class="bg-white">
+                        <td class="py-3 px-2 border-r border-gray-200 text-gray-600">1</td>
+                        <td class="py-3 px-4 text-left border-r border-gray-200 font-medium text-gray-800">Supply of Sansevieria zeylanica</td>
+                        <td class="py-3 px-2 border-r border-gray-200 text-gray-600">60cm, Ht. | 18cm, Pot</td>
+                        <td class="py-3 px-2 border-r border-gray-200 text-gray-600">No</td>
+                        <td class="py-3 px-2 text-gray-800 font-medium">10</td>
+                    </tr>
+                    <!-- Empty rows for structure typical of forms -->
+                    <tr class="bg-verde-row"><td class="py-4 border-r border-gray-200"></td><td class="border-r border-gray-200"></td><td class="border-r border-gray-200"></td><td class="border-r border-gray-200"></td><td></td></tr>
+                    <tr><td class="py-4 border-r border-gray-200"></td><td class="border-r border-gray-200"></td><td class="border-r border-gray-200"></td><td class="border-r border-gray-200"></td><td></td></tr>
+                    <tr class="bg-verde-row"><td class="py-4 border-r border-gray-200"></td><td class="border-r border-gray-200"></td><td class="border-r border-gray-200"></td><td class="border-r border-gray-200"></td><td></td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Lower Section (Signatures & Stamps) -->
+        <div class="grid grid-cols-2 gap-4 border border-verde-border rounded-sm h-64 overflow-hidden grid-bg">
+            <!-- Left Side / Stamp -->
+            <div class="p-4 border-r border-verde-border relative flex flex-col justify-start">
+                <h3 class="text-verde-dark font-medium mb-6 uppercase text-xs">Verde Landscaping &amp; Gardening</h3>
+                
+                <!-- Recreated Stamp -->
+                <div class="w-32 h-36 border-2 border-blue-800 p-1 flex flex-col items-center justify-between text-blue-800 bg-white ml-4 transform -rotate-2">
+                    <div class="w-full aspect-square border border-blue-800/30 rounded-sm overflow-hidden mb-1 relative flex items-center justify-center p-1">
+                        <img src="https://cdn.aidesigner.ai/image-tools/a72af3f46e1c5d89/1784457664279-0541ccc3-d04d-490f-b272-904ffad0f4a1.png" class="w-full h-full object-contain filter invert sepia saturate-200 hue-rotate-[200deg] brightness-75 contrast-125 opacity-80" alt="stamp logo" loading="lazy" decoding="async" fetchpriority="low">
+                        <div class="absolute inset-0 border border-blue-800 border-dashed rounded-full scale-90 opacity-40"></div>
+                        <div class="absolute inset-0 border border-blue-800 border-dotted rounded-full scale-75 opacity-30"></div>
+                    </div>
+                    <div class="text-center w-full">
+                        <div class="font-serif font-bold text-xs leading-none uppercase tracking-wide">VERDE</div>
+                        <div class="text-[9px] font-semibold leading-tight border-b border-blue-800 pb-0.5 mb-0.5 uppercase">Gardening</div>
+                        <div class="text-[8px] leading-tight font-arabic arabic-text whitespace-nowrap">فيردي للحدائق</div>
+                        <div class="text-[8px] leading-tight font-arabic arabic-text border-b border-blue-800 pb-0.5 mb-0.5 whitespace-nowrap">الدوحة - قطر</div>
+                        <div class="text-[8px] font-bold uppercase tracking-wider">Doha - Qatar</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side / Signatures -->
+            <div class="p-6 relative">
+                <h4 class="text-xs font-semibold mb-6 text-gray-700">Received by:</h4>
+                <div class="space-y-4 text-xs bg-white/80 p-2 pb-0 inline-block w-full">
+                    <div class="flex items-end">
+                        <span class="w-16 text-gray-600">Name:</span>
+                        <div class="flex-grow border-b border-gray-400"></div>
+                    </div>
+                    <div class="flex items-end">
+                        <span class="w-16 text-gray-600">Mobile:</span>
+                        <div class="flex-grow border-b border-gray-400"></div>
+                    </div>
+                    <div class="flex items-end">
+                        <span class="w-16 text-gray-600">Signature:</span>
+                        <div class="flex-grow border-b border-gray-400"></div>
+                    </div>
+                </div>
+
+                <!-- ISO Certification -->
+                <div class="absolute bottom-6 right-6 border border-gray-300 rounded p-2 flex items-center bg-white gap-3 scale-90 transform origin-bottom-right">
+                    <div class="text-[9px] uppercase tracking-widest text-gray-500 flex flex-col justify-center leading-tight">
+                        <span>Certified</span>
+                        <span class="text-verde-dark font-bold text-sm tracking-widest my-0.5">Verde</span>
+                        <span>ISO 9001</span>
+                    </div>
+                    <div class="w-10 h-12 flex flex-col items-center border-l border-gray-200 pl-3">
+                        <i class="fas fa-certificate text-gray-400 text-xl mb-1"></i>
+                        <div class="text-[4px] uppercase font-bold bg-gray-800 text-white px-1 w-full text-center tracking-widest">BUREAU<br>VERITAS</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer Visual -->
+        <div class="mt-6 w-full h-16 relative overflow-hidden flex items-end justify-center mix-blend-multiply opacity-40">
+             <img src="https://cdn.aidesigner.ai/image-tools/a72af3f46e1c5d89/1784457664364-f05975fe-f293-44ca-9b62-0e2b6748114c.png" alt="Tree Line Illustration" class="w-full object-cover filter invert" loading="lazy" decoding="async" fetchpriority="low">
+        </div>
+        
+        <!-- Document Footer -->
+        <div class="flex justify-between items-center text-[10px] text-gray-500 pt-2 border-t border-gray-200 mt-2">
+            <div>Doc. No.: F-209</div>
+            <div class="text-center">
+                <div>Rev. No.: 00</div>
+                <div>12/12/2024</div>
+            </div>
+            <div>Rev. Date : <span class="ml-4">CR-4135S</span></div>
+        </div>
+
+        <!-- Print Button (non-printable) -->
+        <div class="absolute top-4 right-4 no-print flex gap-2">
+            <button onclick="window.print()" class="bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm transition shadow">
+                <i class="fas fa-print mr-2"></i> Print Note
+            </button>
+        </div>
+    </div>
+
+
+</body></html>

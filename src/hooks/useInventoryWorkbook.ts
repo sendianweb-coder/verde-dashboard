@@ -1,6 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { getInventoryWorkbook, saveInventoryWorkbook, saveInventoryWorkbookChanges } from '@/api/inventoryWorkbook.api'
+import {
+  getInventoryWorkbook,
+  saveInventoryWorkbook,
+  saveInventoryWorkbookChanges,
+  uploadInventoryWorkbookImage,
+} from '@/api/inventoryWorkbook.api'
+import type { InventoryWorkbookImageUploadPayload } from '@/types/inventoryWorkbook'
 
 const INVENTORY_WORKBOOK_STALE_TIME = 30_000
 
@@ -15,6 +21,13 @@ export function useInventoryWorkbook(category?: string) {
     queryFn: () => getInventoryWorkbook(category ? { category } : { categories: 'all' }),
     enabled: category === undefined || Boolean(category),
     staleTime: INVENTORY_WORKBOOK_STALE_TIME,
+  })
+}
+
+export function useUploadInventoryWorkbookImage() {
+  return useMutation({
+    mutationFn: (payload: InventoryWorkbookImageUploadPayload) => uploadInventoryWorkbookImage(payload),
+    retry: false,
   })
 }
 

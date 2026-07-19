@@ -29,30 +29,32 @@
     margin: 0 !important;
   }
 
-  body.printing-request #root,
-  body.printing-request main,
-  body.printing-request .min-h-screen {
+  body:is(.printing-request, .printing-delivery-note) #root,
+  body:is(.printing-request, .printing-delivery-note) main,
+  body:is(.printing-request, .printing-delivery-note) .min-h-screen {
     min-height: 0 !important;
   }
 
-  body.printing-request main {
+  body:is(.printing-request, .printing-delivery-note) main {
     padding: 0 !important;
   }
 
-  body.printing-request * {
+  body:is(.printing-request, .printing-delivery-note) * {
     visibility: hidden;
   }
 
-  body.printing-request .request-screen-content {
+  body:is(.printing-request, .printing-delivery-note) .request-screen-content {
     display: none !important;
   }
 
   body.printing-request #request-print-content,
-  body.printing-request #request-print-content * {
+  body.printing-request #request-print-content *,
+  body.printing-delivery-note #delivery-note-print-content,
+  body.printing-delivery-note #delivery-note-print-content * {
     visibility: visible;
   }
 
-  body.printing-request #request-print-content {
+  :is(body.printing-request #request-print-content, body.printing-delivery-note #delivery-note-print-content) {
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
@@ -67,7 +69,7 @@
     line-height: 1.35;
   }
 
-  body.printing-request #request-print-content * {
+  :is(body.printing-request #request-print-content, body.printing-delivery-note #delivery-note-print-content) * {
     box-shadow: none !important;
   }
 
@@ -147,14 +149,14 @@
     white-space: pre-wrap;
   }
 
-  body.printing-request #request-print-content table {
+  body:is(.printing-request, .printing-delivery-note) .request-print-document table {
     width: 100%;
     border-collapse: collapse;
     margin-top: 1mm;
   }
 
-  body.printing-request #request-print-content th,
-  body.printing-request #request-print-content td {
+  body:is(.printing-request, .printing-delivery-note) .request-print-document th,
+  body:is(.printing-request, .printing-delivery-note) .request-print-document td {
     border: 0;
     border-bottom: 1px solid #cfcfcf;
     padding: 1.8mm 0;
@@ -162,21 +164,21 @@
     vertical-align: top;
   }
 
-  body.printing-request #request-print-content th {
+  body:is(.printing-request, .printing-delivery-note) .request-print-document th {
     border-bottom: 1.5px solid #345c4c;
     background: transparent !important;
     color: #111111;
     font-weight: 700;
   }
 
-  body.printing-request #request-print-content th:first-child,
-  body.printing-request #request-print-content td:first-child {
+  body:is(.printing-request, .printing-delivery-note) .request-print-document th:first-child,
+  body:is(.printing-request, .printing-delivery-note) .request-print-document td:first-child {
     width: 10mm;
     text-align: center;
   }
 
-  body.printing-request #request-print-content th:last-child,
-  body.printing-request #request-print-content td:last-child {
+  body:is(.printing-request, .printing-delivery-note) .request-print-document th:last-child,
+  body:is(.printing-request, .printing-delivery-note) .request-print-document td:last-child {
     width: 28mm;
     text-align: center;
   }

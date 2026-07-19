@@ -31,6 +31,7 @@ import type { ApproveRequestPayload, AdjustItemsPayload } from '@/types/request'
 
 interface RequestDetailPageProps {
   backToPath: string
+  showDeliveryNote?: boolean
 }
 
 const NO_REASON_VALUE = 'NO_REASON'
@@ -141,7 +142,7 @@ function ItemStatusBadge({ status }: { status: string }) {
   )
 }
 
-export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
+export function RequestDetailPage({ backToPath, showDeliveryNote = false }: RequestDetailPageProps) {
   const navigate = useNavigate()
   const { id = '' } = useParams()
   const [comment, setComment] = useState('')
@@ -184,16 +185,19 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
   }
 
   const requestHistory = request.history ?? []
+  const pickupEvent = requestHistory.find((event) => event.action === 'PICKED_UP')
+  const pickedItems = request.items.filter((item) => (item.fulfilledQuantity ?? 0) > 0)
   const submittedAt = formatRequestDateTime(request.createdAt)
+  const pickedAt = pickupEvent ? formatRequestDateTime(pickupEvent.createdAt) : '—'
   const statusLabel = request.status.replace(/_/g, ' ')
   const projectDetails = [request.project.client, request.project.location, request.project.projectType].filter(Boolean).join(' / ')
 
-  const handlePrint = () => {
+  const handlePrint = (printClass: 'printing-request' | 'printing-delivery-note') => {
     const cleanupPrintClass = () => {
-      document.body.classList.remove('printing-request')
+      document.body.classList.remove(printClass)
     }
 
-    document.body.classList.add('printing-request')
+    document.body.classList.add(printClass)
     window.addEventListener('afterprint', cleanupPrintClass, { once: true })
     window.print()
   }
@@ -385,10 +389,16 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
           subtitle={`Submitted ${submittedAt}`}
           action={
             <div className="flex flex-wrap justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={handlePrint}>
+              <Button type="button" variant="secondary" onClick={() => handlePrint('printing-request')}>
                 <Printer className="h-4 w-4" />
                 Print Details
               </Button>
+              {showDeliveryNote && request.status === 'PICKED_UP' ? (
+                <Button type="button" variant="secondary" onClick={() => handlePrint('printing-delivery-note')}>
+                  <Printer className="h-4 w-4" />
+                  Print Delivery Note
+                </Button>
+              ) : null}
               <Button type="button" variant="secondary" onClick={() => navigate(backToPath)}>
                 <ArrowLeft className="h-4 w-4" />
                 Back to queue
@@ -508,6 +518,88 @@ export function RequestDetailPage({ backToPath }: RequestDetailPageProps) {
           <span>Verde Group - Qatar</span>
         </footer>
       </article>
+
+      {showDeliveryNote ? (
+        <article id="delivery-note-print-content" className="request-print-document" aria-label="Printable delivery note">
+          <header className="request-print-header">
+            <h1>Delivery Note</h1>
+            <p>Verde Group Material Delivery</p>
+          </header>
+
+          <section className="request-print-section request-print-summary" aria-label="Delivery summary">
+            <div>
+              <span>Request No.</span>
+              <strong>{request.id}</strong>
+            </div>
+            <div>
+              <span>Pickup Date</span>
+              <strong>{pickedAt}</strong>
+            </div>
+            <div>
+              <span>Project</span>
+              <strong>{request.project.name}</strong>
+            </div>
+            <div>
+              <span>Received By</span>
+              <strong>{request.requester.name}</strong>
+            </div>
+            <div>
+              <span>Issued By</span>
+              <strong>{pickupEvent?.actor?.name ?? '—'}</strong>
+            </div>
+          </section>
+
+          <section className="request-print-section" aria-label="Delivered items">
+            <h2>Delivered Items</h2>
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">#</th>
+                  <th scope="col">Item</th>
+                  <th scope="col">SKU</th>
+                  <th scope="col">Unit</th>
+                  <th scope="col">Delivered</th>
+                </tr>
+              </thead>
+              <tbody>
+                {pickedItems.map((item, index) => (
+                  <tr key={item.id}>
+                    <td>{index + 1}</td>
+                    <td>{item.product.name}</td>
+                    <td>{item.product.sku || '—'}</td>
+                    <td>{item.product.unitOfMeasure || '—'}</td>
+                    <td>{item.fulfilledQuantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+
+          <section className="request-print-signatures" aria-label="Delivery signatures">
+            <div>
+              <span>Received By</span>
+              <strong />
+            </div>
+            <div>
+              <span>Date</span>
+              <strong />
+            </div>
+            <div>
+              <span>Store Keeper</span>
+              <strong />
+            </div>
+            <div>
+              <span>Date</span>
+              <strong />
+            </div>
+          </section>
+
+          <footer className="request-print-footer">
+            <span>Generated from Verde Support</span>
+            <span>Verde Group - Qatar</span>
+          </footer>
+        </article>
+      ) : null}
 
       <section className="request-screen-content rounded-xl border border-border bg-surface-raised p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

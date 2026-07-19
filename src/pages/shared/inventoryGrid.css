@@ -1,0 +1,38 @@
+.inventory-grid-workspace {
+  --univer-primary-50: #f0fdf4;
+  --univer-primary-200: #bbf7d0;
+  --univer-primary-300: #86efac;
+  --univer-primary-500: #22c55e;
+  --univer-primary-600: #16a34a;
+  --univer-primary-700: #15803d;
+  --univer-primary-900: #14532d;
+  --univer-gray-50: #f3f3f3;
+  --univer-gray-100: #f8f8f8;
+  --univer-gray-200: #ededed;
+  --univer-gray-300: #e2e2e2;
+  --univer-gray-400: #a3a3a3;
+  --univer-gray-500: #7c7c7c;
+  --univer-gray-600: #525252;
+  --univer-gray-700: #383838;
+  --univer-gray-800: #262626;
+  --univer-gray-900: #171717;
+}
+
+.inventory-grid-workspace:fullscreen {
+  box-sizing: border-box;
+  display: flex;
+  height: 100vh;
+  max-height: 100vh;
+  max-width: none;
+  width: 100vw;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.inventory-grid-workspace:fullscreen .inventory-grid-host {
+  height: auto;
+  min-height: 0;
+  flex: 1 1 auto;
+}
