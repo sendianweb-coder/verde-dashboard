@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Delivery Note - Verde</title>
+    <title>Invoice - Verde</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -39,9 +39,7 @@
             justify-content: space-between;
         }
 
-        .brand {
-            text-align: center;
-        }
+        .brand { text-align: center; }
 
         .brand img {
             width: 126px;
@@ -53,6 +51,7 @@
             color: #666;
             font-family: Cinzel, serif;
             font-size: 11px;
+            font-style: italic;
             line-height: 1.35;
             text-align: left;
             text-transform: uppercase;
@@ -68,13 +67,13 @@
 
         .contact i { text-align: center; }
 
-        .delivery-grid {
+        .invoice-grid {
             width: 100%;
             table-layout: fixed;
             border-collapse: collapse;
         }
 
-        .delivery-grid caption {
+        .invoice-grid caption {
             position: absolute;
             width: 1px;
             height: 1px;
@@ -82,8 +81,8 @@
             clip: rect(0 0 0 0);
         }
 
-        .delivery-grid td,
-        .delivery-grid th {
+        .invoice-grid td,
+        .invoice-grid th {
             height: 26px;
             padding: 1px 4px;
             vertical-align: middle;
@@ -126,8 +125,18 @@
             font-weight: 700;
         }
 
-        .detail {
-            font-size: 14px;
+        .detail { font-size: 14px; }
+
+        .invoice-meta td {
+            height: 20px;
+            font-size: 12px;
+            padding: 2px 4px;
+        }
+
+        .invoice-meta td:first-child {
+            font-weight: 600;
+            width: 18%;
+            text-align: right;
         }
 
         .item-head th {
@@ -135,7 +144,7 @@
             border: 2px solid #111;
             padding: 1px 3px;
             background: #fff;
-            font-size: 15px;
+            font-size: 13px;
             font-weight: 700;
             line-height: 1;
             text-align: center;
@@ -150,42 +159,83 @@
         }
 
         .item-row .description { text-align: left; }
+        .item-row .amount { text-align: right; }
+
+        .subtotal-row td,
+        .total-row td {
+            height: 26px;
+            font-size: 13px;
+            font-weight: 600;
+            text-align: right;
+            border: 1px solid #111;
+        }
+
+        .total-row td {
+            height: 28px;
+            font-size: 14px;
+            font-weight: 700;
+            border-top: 2px solid #111;
+        }
+
+        .subtotal-row td:last-child,
+        .total-row td:last-child {
+            text-align: right;
+        }
 
         .lower-cell {
-            height: 566px !important;
+            height: 480px !important;
             padding: 0 !important;
             vertical-align: top !important;
         }
 
-        .lower-field {
-            position: relative;
-            height: 100%;
-        }
+        .lower-field { position: relative; height: 100%; }
 
         .company-name,
-        .received-label,
-        .signature-fields {
+        .bank-details,
+        .terms-section {
             position: absolute;
             background: #fff;
         }
 
         .company-name {
-            top: 48px;
+            top: 24px;
             left: 4px;
             padding-right: 4px;
             font-size: 14px;
             text-transform: uppercase;
         }
 
-        .received-label {
-            top: 68px;
-            left: 68%;
-            padding: 0 4px;
-            font-size: 13px;
+        .bank-details {
+            top: 56px;
+            left: 4px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .bank-details strong {
+            display: block;
+            font-size: 11px;
+            text-transform: uppercase;
+        }
+
+        .terms-section {
+            bottom: 24px;
+            left: 4px;
+            font-size: 11px;
+            line-height: 1.4;
+            color: #555;
+        }
+
+        .terms-section p {
+            margin: 0 0 4px;
+            font-weight: 600;
+            font-size: 12px;
+            color: var(--ink);
         }
 
         .signature-fields {
-            top: 118px;
+            position: absolute;
+            top: 80px;
             left: 54%;
             width: 40%;
             padding: 0 4px;
@@ -289,44 +339,102 @@
             </address>
         </header>
 
-        <table class="delivery-grid">
-            <caption>Delivery note YPD-DN-001</caption>
-            <colgroup>
-                <col span="12">
-            </colgroup>
+        <table class="invoice-grid">
+            <caption>Invoice YPD-INV-001</caption>
+            <colgroup><col span="12"></colgroup>
             <tbody>
                 <tr>
                     <td class="title-cell" colspan="12">
-                        <h2>Delivery Note</h2>
-                        <p>Ref. No: <span>YPD-DN-001</span></p>
+                        <h2>Invoice</h2>
+                        <p>Invoice No: <span>YPD-INV-001</span></p>
                     </td>
                 </tr>
-                <tr><td></td><td colspan="5"></td><td colspan="3"></td><td colspan="3"></td></tr>
+                <tr><td></td><td colspan="11"></td></tr>
                 <tr><td colspan="9"></td><td class="recipient" colspan="3">Sheikh Faisal Al Thani</td></tr>
                 <tr><td colspan="9"></td><td class="recipient" colspan="3">QATAR</td></tr>
                 <tr><td class="reference" colspan="12">Ref: YP-5732-24</td></tr>
-                <tr><td colspan="6"></td><td colspan="3"></td><td colspan="3"></td></tr>
-                <tr><td class="detail" colspan="6">PROJECT : Private Palace @ Al Dafna</td><td colspan="3"></td><td colspan="3"></td></tr>
-                <tr><td class="detail" colspan="6">SUBJECT : Supply of Plants</td><td colspan="3"></td><td colspan="3"></td></tr>
+                <tr><td colspan="6"></td><td colspan="6"></td></tr>
+                <tr><td class="detail" colspan="6">PROJECT : Private Palace @ Al Dafna</td><td colspan="6"></td></tr>
+                <tr><td class="detail" colspan="6">SUBJECT : Supply of Plants</td><td colspan="6"></td></tr>
+
+                <tr><td colspan="12" style="height: 6px;"></td></tr>
+
+                <tr class="invoice-meta">
+                    <td colspan="9"></td>
+                    <td colspan="3">
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="padding: 2px 4px; font-weight: 600; width: 30%;">Date:</td><td style="padding: 2px 4px;">12/12/2024</td></tr>
+                            <tr><td style="padding: 2px 4px; font-weight: 600;">Due Date:</td><td style="padding: 2px 4px;">26/12/2024</td></tr>
+                            <tr><td style="padding: 2px 4px; font-weight: 600;">PO Ref:</td><td style="padding: 2px 4px;">YP-5732-24</td></tr>
+                        </table>
+                    </td>
+                </tr>
+
+                <tr><td colspan="12" style="height: 8px;"></td></tr>
+
                 <tr class="item-head">
                     <th scope="col">ITEM</th>
-                    <th scope="col" colspan="5">DESCRIPTION</th>
-                    <th scope="col" colspan="3">Specs</th>
+                    <th scope="col" colspan="4">DESCRIPTION</th>
+                    <th scope="col" colspan="2">Specs</th>
+                    <th scope="col">QTY</th>
                     <th scope="col">UNIT</th>
-                    <th scope="col" colspan="2">QUANTITY</th>
+                    <th scope="col">PRICE</th>
+                    <th scope="col" colspan="2">AMOUNT (QAR)</th>
                 </tr>
+
                 <tr class="item-row">
                     <td>1</td>
-                    <td class="description" colspan="5">Supply of Sansevieria zeylanica</td>
-                    <td colspan="3">60cm. Ht. | 18cm. Pot</td>
-                    <td>No</td>
-                    <td colspan="2">10</td>
+                    <td class="description" colspan="4">Supply of Sansevieria zeylanica</td>
+                    <td colspan="2">60cm Ht | 18cm Pot</td>
+                    <td>10</td>
+                    <td>Pc</td>
+                    <td class="amount">150.00</td>
+                    <td class="amount" colspan="2">1,500.00</td>
                 </tr>
+                <tr class="item-row">
+                    <td>2</td>
+                    <td class="description" colspan="4">Supply of Dracaena reflexa</td>
+                    <td colspan="2">120cm Ht | 25cm Pot</td>
+                    <td>5</td>
+                    <td>Pc</td>
+                    <td class="amount">280.00</td>
+                    <td class="amount" colspan="2">1,400.00</td>
+                </tr>
+                <tr class="item-row">
+                    <td>3</td>
+                    <td class="description" colspan="4">Supply of Ficus lyrata</td>
+                    <td colspan="2">150cm Ht | 30cm Pot</td>
+                    <td>3</td>
+                    <td>Pc</td>
+                    <td class="amount">450.00</td>
+                    <td class="amount" colspan="2">1,350.00</td>
+                </tr>
+
+                <tr><td colspan="12" style="height: 12px;"></td></tr>
+
+                <tr class="subtotal-row">
+                    <td colspan="9" style="border: none;"></td>
+                    <td colspan="2">Subtotal:</td>
+                    <td class="amount">4,250.00</td>
+                </tr>
+                <tr class="total-row">
+                    <td colspan="9" style="border: none;"></td>
+                    <td colspan="2">Total Due:</td>
+                    <td class="amount">QAR 4,250.00</td>
+                </tr>
+
                 <tr>
                     <td class="lower-cell" colspan="12">
                         <div class="lower-field">
                             <div class="company-name">Verde Landscaping &amp; Gardening</div>
-                            <div class="received-label">Received by:</div>
+
+                            <div class="bank-details">
+                                <strong>Bank Details</strong>
+                                Bank: Qatar National Bank<br>
+                                Account Name: Verde Landscaping &amp; Gardening<br>
+                                Account No: 1234-5678-9012-3456<br>
+                                IBAN: QA58 QNBA 0000 0000 1234 5678 9012 3456
+                            </div>
 
                             <div class="signature-fields">
                                 <div><span>Name:</span><span class="line"></span></div>
@@ -334,6 +442,11 @@
                                 <div><span>Signature:</span><span class="line"></span></div>
                             </div>
 
+                            <div class="terms-section">
+                                <p>Terms &amp; Conditions:</p>
+                                Payment due within 14 days of invoice date.<br>
+                                Goods remain property of Verde Landscaping until paid in full.
+                            </div>
                         </div>
                     </td>
                 </tr>
@@ -341,20 +454,19 @@
         </table>
 
         <div class="tree-line" aria-label="Revision artwork">
-            <span class="tree-revision">CR-41355</span>
+            <span class="tree-revision">CR-4135S</span>
             <img src="../../src/assets/trees.png" alt="">
         </div>
 
         <footer class="document-footer">
-            <div>Doc. No.: F-209</div>
+            <div>Doc. No.: F-210</div>
             <div>Rev. No.: 00</div>
             <div>Rev. Date : 12/12/2024</div>
         </footer>
-
     </main>
 
     <button class="print-button" type="button" onclick="window.print()">
-        <i class="fas fa-print" aria-hidden="true"></i> Print Note
+        <i class="fas fa-print" aria-hidden="true"></i> Print Invoice
     </button>
 </body>
 </html>

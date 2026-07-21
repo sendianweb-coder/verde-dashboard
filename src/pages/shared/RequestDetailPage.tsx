@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
+import { DeliveryNoteDocument } from '@/components/shared/DeliveryNoteDocument'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -56,6 +57,12 @@ function formatRequestDate(value: string) {
 
 function formatRequestDateTime(value: string) {
   return detailDateTimeFormatter.format(new Date(value))
+}
+
+function createDeliveryNoteFilename() {
+  const randomValue = new Uint32Array(1)
+  crypto.getRandomValues(randomValue)
+  return `delivery-note-${100 + (randomValue[0] % 900)}`
 }
 
 function getReasonSelectValue(reason: string) {
@@ -188,15 +195,21 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
   const pickupEvent = requestHistory.find((event) => event.action === 'PICKED_UP')
   const pickedItems = request.items.filter((item) => (item.fulfilledQuantity ?? 0) > 0)
   const submittedAt = formatRequestDateTime(request.createdAt)
-  const pickedAt = pickupEvent ? formatRequestDateTime(pickupEvent.createdAt) : '—'
   const statusLabel = request.status.replace(/_/g, ' ')
   const projectDetails = [request.project.client, request.project.location, request.project.projectType].filter(Boolean).join(' / ')
 
-  const handlePrint = (printClass: 'printing-request' | 'printing-delivery-note') => {
+  const handlePrint = (printClass: 'printing-request' | 'printing-delivery-note', printTitle?: string) => {
+    const previousTitle = document.title
     const cleanupPrintClass = () => {
       document.body.classList.remove(printClass)
+      if (printTitle) {
+        document.title = previousTitle
+      }
     }
 
+    if (printTitle) {
+      document.title = printTitle
+    }
     document.body.classList.add(printClass)
     window.addEventListener('afterprint', cleanupPrintClass, { once: true })
     window.print()
@@ -393,8 +406,12 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
                 <Printer className="h-4 w-4" />
                 Print Details
               </Button>
-              {showDeliveryNote && request.status === 'PICKED_UP' ? (
-                <Button type="button" variant="secondary" onClick={() => handlePrint('printing-delivery-note')}>
+              {showDeliveryNote && (request.status === 'PICKED_UP' || request.status === 'COMPLETED') ? (
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={() => handlePrint('printing-delivery-note', createDeliveryNoteFilename())}
+                >
                   <Printer className="h-4 w-4" />
                   Print Delivery Note
                 </Button>
@@ -519,87 +536,7 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
         </footer>
       </article>
 
-      {showDeliveryNote ? (
-        <article id="delivery-note-print-content" className="request-print-document" aria-label="Printable delivery note">
-          <header className="request-print-header">
-            <h1>Delivery Note</h1>
-            <p>Verde Group Material Delivery</p>
-          </header>
-
-          <section className="request-print-section request-print-summary" aria-label="Delivery summary">
-            <div>
-              <span>Request No.</span>
-              <strong>{request.id}</strong>
-            </div>
-            <div>
-              <span>Pickup Date</span>
-              <strong>{pickedAt}</strong>
-            </div>
-            <div>
-              <span>Project</span>
-              <strong>{request.project.name}</strong>
-            </div>
-            <div>
-              <span>Received By</span>
-              <strong>{request.requester.name}</strong>
-            </div>
-            <div>
-              <span>Issued By</span>
-              <strong>{pickupEvent?.actor?.name ?? '—'}</strong>
-            </div>
-          </section>
-
-          <section className="request-print-section" aria-label="Delivered items">
-            <h2>Delivered Items</h2>
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">#</th>
-                  <th scope="col">Item</th>
-                  <th scope="col">SKU</th>
-                  <th scope="col">Unit</th>
-                  <th scope="col">Delivered</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pickedItems.map((item, index) => (
-                  <tr key={item.id}>
-                    <td>{index + 1}</td>
-                    <td>{item.product.name}</td>
-                    <td>{item.product.sku || '—'}</td>
-                    <td>{item.product.unitOfMeasure || '—'}</td>
-                    <td>{item.fulfilledQuantity}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
-
-          <section className="request-print-signatures" aria-label="Delivery signatures">
-            <div>
-              <span>Received By</span>
-              <strong />
-            </div>
-            <div>
-              <span>Date</span>
-              <strong />
-            </div>
-            <div>
-              <span>Store Keeper</span>
-              <strong />
-            </div>
-            <div>
-              <span>Date</span>
-              <strong />
-            </div>
-          </section>
-
-          <footer className="request-print-footer">
-            <span>Generated from Verde Support</span>
-            <span>Verde Group - Qatar</span>
-          </footer>
-        </article>
-      ) : null}
+      {showDeliveryNote ? <DeliveryNoteDocument request={request} pickupEvent={pickupEvent} pickedItems={pickedItems} /> : null}
 
       <section className="request-screen-content rounded-xl border border-border bg-surface-raised p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">

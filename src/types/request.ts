@@ -19,6 +19,11 @@ export interface InternalRequestProduct {
   name: string
   imageUrl: string | null
   unitOfMeasure: string | null
+  height?: string | null
+  potSize?: string | null
+  lengthCm?: number | null
+  widthCm?: number | null
+  heightCm?: number | null
   totalQuantity: number
   reservedQuantity: number
   availableQuantity: number

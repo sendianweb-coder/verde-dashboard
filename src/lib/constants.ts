@@ -49,6 +49,7 @@ export const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Projects', path: '/employee/projects', icon: FolderKanban },
     { label: 'New Request', path: '/employee/requests/new', icon: PlusCircle },
     { label: 'My Requests', path: '/employee/requests', icon: ClipboardList, inactivePaths: ['/employee/requests/new'] },
+    { label: 'Orders', path: '/employee/orders', icon: Receipt },
   ],
 }
 

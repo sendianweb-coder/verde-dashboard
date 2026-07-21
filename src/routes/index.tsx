@@ -13,6 +13,7 @@ import { AdminRequestsPage } from '@/pages/admin/RequestsPage'
 import { AdminUserDetailPage } from '@/pages/admin/UserDetailPage'
 import { AdminUsersPage } from '@/pages/admin/UsersPage'
 import { EmployeeDashboardPage } from '@/pages/employee/DashboardPage'
+import { EmployeeOrdersPage } from '@/pages/employee/OrdersPage'
 import { EmployeeNewRequestPage } from '@/pages/employee/NewRequestPage'
 import { EmployeeProjectDetailPage } from '@/pages/employee/ProjectDetailPage'
 import { EmployeeProjectsPage } from '@/pages/employee/ProjectsPage'
@@ -91,6 +92,7 @@ export const router = createBrowserRouter([
               { path: '/employee/requests/new', element: <EmployeeNewRequestPage /> },
               { path: '/employee/requests', element: <EmployeeRequestsPage /> },
               { path: '/employee/requests/:id', element: <EmployeeRequestDetailPage /> },
+              { path: '/employee/orders', element: <EmployeeOrdersPage /> },
             ],
           },
         ],

@@ -15,10 +15,11 @@ export const ordersQueryKeys = {
   detail: (id: string) => ['orders', 'detail', id] as const,
 }
 
-export function useOrders(params?: GetOrdersParams) {
+export function useOrders(params?: GetOrdersParams, enabled = true) {
   return useQuery({
     queryKey: ordersQueryKeys.list(params),
     queryFn: () => getOrders(params),
+    enabled,
     staleTime: ORDERS_LIST_STALE_TIME,
   })
 }

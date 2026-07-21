@@ -36,7 +36,12 @@ const statusFilterOptions: Array<{ label: string; value: 'ALL' | OrderStatus }> 
   { label: 'Cancelled', value: 'CANCELLED' },
 ]
 
+type OrderSource = 'WEBSITE' | 'STORE'
+
+const storeOrderColumns: Array<ColumnDef<Order>> = [{ id: 'storeOrder', header: 'Store Order' }]
+
 export function AdminOrdersPage() {
+  const [source, setSource] = useState<OrderSource>('WEBSITE')
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'ALL' | OrderStatus>('ALL')
   const [pageIndex, setPageIndex] = useState(0)
@@ -48,7 +53,7 @@ export function AdminOrdersPage() {
     }),
     [search, statusFilter],
   )
-  const ordersQuery = useOrders(orderParams)
+  const ordersQuery = useOrders(orderParams, source === 'WEBSITE')
   const updateOrderStatusMutation = useUpdateOrderStatus()
   const hasActiveFilters = statusFilter !== 'ALL'
 
@@ -112,71 +117,94 @@ export function AdminOrdersPage() {
   return (
     <section className="space-y-6">
       <PageHeader title="Order Overview" subtitle="Track and update all customer orders" />
-      <DataTable
-        data={ordersQuery.data ?? []}
-        columns={columns}
-        title="Orders"
-        description="Track customer orders, fulfillment status, and totals."
-        resultsLabel="orders"
-        searchPlaceholder="Search orders..."
-        searchValue={search}
-        onSearchChange={(value) => {
-          setSearch(value)
-          setPageIndex(0)
-        }}
-        pageIndex={pageIndex}
-        pageSize={pageSize}
-        onPageChange={setPageIndex}
-        onPageSizeChange={(nextPageSize) => {
-          setPageSize(nextPageSize)
-          setPageIndex(0)
-        }}
-        filters={
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button type="button" variant="secondary" size="sm" className="relative h-9">
-                <Filter className="size-4" />
-                Filter
-                {hasActiveFilters ? <span className="absolute -right-1 -top-1 size-2 rounded-full bg-brand-600" /> : null}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuLabel>Status</DropdownMenuLabel>
-              {statusFilterOptions.map((option) => (
-                <DropdownMenuCheckboxItem
-                  key={option.value}
-                  checked={statusFilter === option.value}
-                  onCheckedChange={() => {
-                    setStatusFilter(option.value)
-                    setPageIndex(0)
-                  }}
-                >
-                  {option.label}
-                </DropdownMenuCheckboxItem>
-              ))}
-              {hasActiveFilters ? (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem
-                    onSelect={() => {
-                      setStatusFilter('ALL')
+
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Order source">
+        <Button type="button" variant={source === 'WEBSITE' ? 'default' : 'secondary'} size="sm" aria-pressed={source === 'WEBSITE'} onClick={() => setSource('WEBSITE')}>
+          Website Orders
+        </Button>
+        <Button type="button" variant={source === 'STORE' ? 'default' : 'secondary'} size="sm" aria-pressed={source === 'STORE'} onClick={() => setSource('STORE')}>
+          Store Orders
+        </Button>
+      </div>
+
+      {source === 'WEBSITE' ? (
+        <DataTable
+          data={ordersQuery.data ?? []}
+          columns={columns}
+          title="Orders"
+          description="Track customer orders, fulfillment status, and totals."
+          resultsLabel="orders"
+          searchPlaceholder="Search orders..."
+          searchValue={search}
+          onSearchChange={(value) => {
+            setSearch(value)
+            setPageIndex(0)
+          }}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          onPageChange={setPageIndex}
+          onPageSizeChange={(nextPageSize) => {
+            setPageSize(nextPageSize)
+            setPageIndex(0)
+          }}
+          filters={
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="secondary" size="sm" className="relative h-9">
+                  <Filter className="size-4" />
+                  Filter
+                  {hasActiveFilters ? <span className="absolute -right-1 -top-1 size-2 rounded-full bg-brand-600" /> : null}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>Status</DropdownMenuLabel>
+                {statusFilterOptions.map((option) => (
+                  <DropdownMenuCheckboxItem
+                    key={option.value}
+                    checked={statusFilter === option.value}
+                    onCheckedChange={() => {
+                      setStatusFilter(option.value)
                       setPageIndex(0)
                     }}
                   >
-                    Clear filters
-                  </DropdownMenuItem>
-                </>
-              ) : null}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        }
-        isLoading={ordersQuery.isLoading}
-        hasError={ordersQuery.isError}
-        errorTitle="Unable to load orders"
-        errorDescription={getErrorMessage(ordersQuery.error, { context: 'load' })}
-        emptyTitle="No orders found"
-        emptyDescription="Orders will appear here once synced from commerce system."
-      />
+                    {option.label}
+                  </DropdownMenuCheckboxItem>
+                ))}
+                {hasActiveFilters ? (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onSelect={() => {
+                        setStatusFilter('ALL')
+                        setPageIndex(0)
+                      }}
+                    >
+                      Clear filters
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          }
+          isLoading={ordersQuery.isLoading}
+          hasError={ordersQuery.isError}
+          errorTitle="Unable to load orders"
+          errorDescription={getErrorMessage(ordersQuery.error, { context: 'load' })}
+          emptyTitle="No orders found"
+          emptyDescription="Orders will appear here once synced from commerce system."
+        />
+      ) : (
+        <DataTable
+          data={[]}
+          columns={storeOrderColumns}
+          title="Store Orders"
+          description="Review orders entered for in-store sales."
+          resultsLabel="store orders"
+          enableSearch={false}
+          emptyTitle="Store orders are not available yet"
+          emptyDescription="Store orders will appear here once store-order entry is connected."
+        />
+      )}
     </section>
   )
 }
