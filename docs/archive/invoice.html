@@ -30,6 +30,12 @@
             margin: 24px auto;
             padding: 28px 36px 24px;
             background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page .invoice-grid {
+            flex: 1 1 auto;
         }
 
         .document-header {
@@ -191,7 +197,6 @@
         .lower-field { position: relative; height: 100%; }
 
         .company-name,
-        .bank-details,
         .terms-section {
             position: absolute;
             background: #fff;
@@ -202,19 +207,6 @@
             left: 4px;
             padding-right: 4px;
             font-size: 14px;
-            text-transform: uppercase;
-        }
-
-        .bank-details {
-            top: 56px;
-            left: 4px;
-            font-size: 12px;
-            line-height: 1.6;
-        }
-
-        .bank-details strong {
-            display: block;
-            font-size: 11px;
             text-transform: uppercase;
         }
 
@@ -252,10 +244,25 @@
         .signature-fields span:first-child { width: 64px; }
         .signature-fields .line { flex: 1; border-bottom: 1px solid #222; }
 
+        .iso-certification {
+            position: absolute;
+            top: 190px;
+            left: 61%;
+            width: 190px;
+            height: 56px;
+        }
+
+        .iso-certification img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
         .tree-line {
             position: relative;
-            height: 66px;
-            margin-top: -2px;
+            height: 80px;
+            margin-top: auto;
             overflow: hidden;
         }
 
@@ -312,10 +319,33 @@
         }
 
         @media print {
-            @page { size: A4; margin: 0; }
+            @page { size: A4; margin: 10mm 0; }
             body { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            .page { width: 210mm; min-height: 297mm; margin: 0; box-shadow: none; }
+            .page { width: 210mm; height: 297mm; margin: 0; padding: 18px 28px 10px; box-shadow: none; display: flex; flex-direction: column; }
+            .page .invoice-grid { flex: 1 1 auto; }
             .print-button { display: none; }
+            .document-header { min-height: 140px; }
+            .lower-cell { height: 260px !important; }
+            .iso-certification { top: 160px; left: 63%; width: 165px; height: 45px; }
+            .contact { font-size: 9px; }
+            .contact div { gap: 2px; }
+            .contact i { font-size: 9px; }
+            .item-row td { height: 22px; font-size: 10px; }
+            .item-head th { height: 24px; font-size: 11px; }
+            .invoice-grid td, .invoice-grid th { height: 22px; }
+            .title-cell { height: 46px !important; }
+            .title-cell h2 { font-size: 20px; }
+            .title-cell p { font-size: 11px; }
+            .reference { height: 22px !important; }
+            .detail { font-size: 12px; }
+            .recipient { font-size: 12px; }
+            .tree-line { height: 90px; margin-top: auto; }
+            .tree-revision { bottom: 22px; font-size: 8px; }
+            .document-footer { font-size: 9px; }
+            .item-row { page-break-inside: avoid; }
+            .total-row td { height: 24px; font-size: 12px; }
+            .subtotal-row td { height: 22px; font-size: 11px; }
+            .lower-cell { page-break-inside: avoid; }
         }
     </style>
 </head>
@@ -364,7 +394,6 @@
                     <td colspan="3">
                         <table style="width: 100%; border-collapse: collapse;">
                             <tr><td style="padding: 2px 4px; font-weight: 600; width: 30%;">Date:</td><td style="padding: 2px 4px;">12/12/2024</td></tr>
-                            <tr><td style="padding: 2px 4px; font-weight: 600;">Due Date:</td><td style="padding: 2px 4px;">26/12/2024</td></tr>
                             <tr><td style="padding: 2px 4px; font-weight: 600;">PO Ref:</td><td style="padding: 2px 4px;">YP-5732-24</td></tr>
                         </table>
                     </td>
@@ -414,13 +443,13 @@
 
                 <tr class="subtotal-row">
                     <td colspan="9" style="border: none;"></td>
-                    <td colspan="2">Subtotal:</td>
-                    <td class="amount">4,250.00</td>
+                    <td colspan="1">Subtotal:</td>
+                    <td colspan="2" class="amount">4,250.00</td>
                 </tr>
                 <tr class="total-row">
                     <td colspan="9" style="border: none;"></td>
-                    <td colspan="2">Total Due:</td>
-                    <td class="amount">QAR 4,250.00</td>
+                    <td colspan="1">Total Due:</td>
+                    <td colspan="2" class="amount">QAR 4,250.00</td>
                 </tr>
 
                 <tr>
@@ -428,18 +457,14 @@
                         <div class="lower-field">
                             <div class="company-name">Verde Landscaping &amp; Gardening</div>
 
-                            <div class="bank-details">
-                                <strong>Bank Details</strong>
-                                Bank: Qatar National Bank<br>
-                                Account Name: Verde Landscaping &amp; Gardening<br>
-                                Account No: 1234-5678-9012-3456<br>
-                                IBAN: QA58 QNBA 0000 0000 1234 5678 9012 3456
-                            </div>
-
                             <div class="signature-fields">
                                 <div><span>Name:</span><span class="line"></span></div>
                                 <div><span>Mobile:</span><span class="line"></span></div>
                                 <div><span>Signature:</span><span class="line"></span></div>
+                            </div>
+
+                            <div class="iso-certification">
+                                <img src="../../public/iso-certification.svg" alt="Verde ISO 9001 certification">
                             </div>
 
                             <div class="terms-section">

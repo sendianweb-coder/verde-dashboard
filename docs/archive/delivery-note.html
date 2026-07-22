@@ -30,6 +30,12 @@
             margin: 24px auto;
             padding: 28px 36px 24px;
             background: #fff;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .page .delivery-grid {
+            flex: 1 1 auto;
         }
 
         .document-header {
@@ -164,7 +170,8 @@
 
         .company-name,
         .received-label,
-        .signature-fields {
+        .signature-fields,
+        .iso-certification {
             position: absolute;
             background: #fff;
         }
@@ -202,10 +209,24 @@
         .signature-fields span:first-child { width: 64px; }
         .signature-fields .line { flex: 1; border-bottom: 1px solid #222; }
 
+        .iso-certification {
+            top: 244px;
+            left: 61%;
+            width: 190px;
+            height: 56px;
+        }
+
+        .iso-certification img {
+            display: block;
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+
         .tree-line {
             position: relative;
             height: 66px;
-            margin-top: -2px;
+            margin-top: auto;
             overflow: hidden;
         }
 
@@ -262,10 +283,34 @@
         }
 
         @media print {
-            @page { size: A4; margin: 0; }
+            @page { size: A4; margin: 10mm 0; }
             body { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-            .page { width: 210mm; min-height: 297mm; margin: 0; box-shadow: none; }
+            .page { width: 210mm; height: 297mm; margin: 0; padding: 18px 28px 10px; box-shadow: none; display: flex; flex-direction: column; }
+            .page .delivery-grid { flex: 1 1 auto; }
             .print-button { display: none; }
+            .document-header { min-height: 140px; }
+            .lower-cell { height: 260px !important; }
+            .signature-fields { top: 82px; font-size: 10px; }
+            .signature-fields div { height: 18px; }
+            .signature-fields span:first-child { width: 54px; }
+            .iso-certification { top: 190px; left: 63%; width: 165px; height: 45px; }
+            .contact { font-size: 9px; }
+            .contact div { gap: 2px; }
+            .contact i { font-size: 9px; }
+            .item-row td { height: 22px; font-size: 10px; }
+            .item-head th { height: 24px; font-size: 11px; }
+            .delivery-grid td, .delivery-grid th { height: 22px; }
+            .title-cell { height: 46px !important; }
+            .title-cell h2 { font-size: 20px; }
+            .title-cell p { font-size: 11px; }
+            .reference { height: 22px !important; }
+            .detail { font-size: 12px; }
+            .recipient { font-size: 12px; }
+            .tree-line { height: 90px; margin-top: auto; }
+            .tree-revision { bottom: 22px; font-size: 8px; }
+            .document-footer { font-size: 9px; }
+            .item-row { page-break-inside: avoid; }
+            .lower-cell { page-break-inside: avoid; }
         }
     </style>
 </head>
@@ -334,6 +379,9 @@
                                 <div><span>Signature:</span><span class="line"></span></div>
                             </div>
 
+                            <div class="iso-certification">
+                                <img src="../../public/iso-certification.svg" alt="Verde ISO 9001 certification">
+                            </div>
                         </div>
                     </td>
                 </tr>

@@ -1,13 +1,7 @@
-import { Building2, Globe, Landmark, Mail, MapPin, MessageCircle, Phone, Printer, Signpost } from 'lucide-react'
 import type { JSX } from 'react'
 
-import type {
-  ApprovalEvent,
-  InternalRequest,
-  InternalRequestItem,
-  InternalRequestProduct,
-} from '@/types/request'
 import treesImage from '@/assets/trees.png'
+import type { ApprovalEvent, InternalRequest, InternalRequestItem, InternalRequestProduct } from '@/types/request'
 
 interface DeliveryNoteDocumentProps {
   request: InternalRequest
@@ -15,97 +9,105 @@ interface DeliveryNoteDocumentProps {
   pickedItems: InternalRequestItem[]
 }
 
+const BLANK_VALUE = '\u00a0'
+
 const deliveryDateFormatter = new Intl.DateTimeFormat('en-GB', {
   day: '2-digit',
   month: '2-digit',
   year: 'numeric',
 })
 
-const MINIMUM_ITEM_ROWS = 6
-const BLANK_VALUE = '\u00a0'
+function displayValue(value: string | null | undefined) {
+  return value?.trim() || BLANK_VALUE
+}
+
+function formatDeliveryDate(value?: string) {
+  return value ? deliveryDateFormatter.format(new Date(value)) : BLANK_VALUE
+}
+
+function formatProductSpecs(product: InternalRequestProduct) {
+  return [
+    product.height ? `${product.height}. Ht.` : null,
+    product.potSize ? `${product.potSize}. Pot` : null,
+    product.lengthCm != null ? `L ${product.lengthCm} cm` : null,
+    product.widthCm != null ? `W ${product.widthCm} cm` : null,
+    product.heightCm != null ? `H ${product.heightCm} cm` : null,
+  ].filter(Boolean).join(' | ') || BLANK_VALUE
+}
 
 const deliveryNoteStyles = `
-@media print {
-  @page {
-    size: A4;
-    margin: 5mm;
-  }
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
-  body.printing-delivery-note #delivery-note-print-content {
-    display: block !important;
-    width: 100%;
-    min-height: 287mm;
-    margin: 0 !important;
-    color: #222;
-    background: #fff;
-    font-family: Inter, Arial, sans-serif;
-    font-size: 10pt;
-    line-height: 1.25;
-  }
+@media print {
+  @page { size: A4; margin: 10mm 0; }
+
+  body.printing-delivery-note { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 
   body.printing-delivery-note #delivery-note-print-content,
-  body.printing-delivery-note #delivery-note-print-content * {
-    box-sizing: border-box;
+  body.printing-delivery-note #delivery-note-print-content * { box-sizing: border-box; }
+
+  body.printing-delivery-note #delivery-note-print-content {
+    width: 210mm;
+    height: 277mm;
+    min-height: 277mm;
+    margin: 0 !important;
+    padding: 18px 28px 10px;
+    overflow: hidden;
+    break-inside: avoid-page;
+    background: #fff;
+    color: #222;
+    font-family: Inter, Arial, sans-serif;
+    font-size: 15px;
+    line-height: normal;
+    display: flex !important;
+    flex-direction: column;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-header {
+  body.printing-delivery-note #delivery-note-print-content .delivery-grid { flex: 1 1 auto; }
+
+  body.printing-delivery-note #delivery-note-print-content .document-header {
     display: flex;
-    min-height: 42mm;
+    min-height: 140px;
     align-items: flex-end;
     justify-content: space-between;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-brand {
-    text-align: center;
-  }
+  body.printing-delivery-note #delivery-note-print-content .brand { text-align: center; }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-brand img {
-    display: block;
-    width: 34mm;
+  body.printing-delivery-note #delivery-note-print-content .brand img {
+    width: 126px;
     height: auto;
     object-fit: contain;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-contact {
-    display: grid;
-    gap: 0.7mm;
-    align-items: end;
-    padding-bottom: 2mm;
+  body.printing-delivery-note #delivery-note-print-content .contact {
     color: #666;
-    font-family: Cinzel, Georgia, 'Times New Roman', serif;
-    font-size: 8pt;
-    font-style: italic !important;
-    line-height: 1.2;
+    font-family: Cinzel, serif;
+    font-size: 9px;
+    line-height: 1.35;
     text-align: left;
     text-transform: uppercase;
+    padding-bottom: 8px;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-contact,
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-contact * {
-    font-style: italic !important;
-  }
-
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-contact div {
+  body.printing-delivery-note #delivery-note-print-content .contact div {
     display: grid;
-    grid-template-columns: 5mm auto;
-    gap: 1mm;
+    grid-template-columns: 20px auto;
+    gap: 2px;
     align-items: center;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-contact svg {
-    width: 3.2mm;
-    height: 3.2mm;
-    stroke-width: 1.8;
-  }
+  body.printing-delivery-note #delivery-note-print-content .contact i { font-size: 9px; text-align: center; }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-grid {
+  body.printing-delivery-note #delivery-note-print-content .delivery-grid {
     width: 100%;
+    margin-top: 0;
     table-layout: fixed;
-    border: 1px solid #d9ddd7;
     border-collapse: collapse;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-grid caption {
+  body.printing-delivery-note #delivery-note-print-content .delivery-grid caption {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -113,298 +115,237 @@ const deliveryNoteStyles = `
     clip: rect(0 0 0 0);
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-grid td,
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-grid th {
-    height: 6.2mm;
-    border: 1px solid #d9ddd7;
-    padding: 1mm 1.2mm;
+  body.printing-delivery-note #delivery-note-print-content .delivery-grid td,
+  body.printing-delivery-note #delivery-note-print-content .delivery-grid th {
+    width: auto;
+    height: 22px;
+    border: 0;
+    padding: 1px 4px;
+    text-align: left;
     vertical-align: middle;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-title-cell {
-    height: 17mm !important;
+  body.printing-delivery-note #delivery-note-print-content .delivery-grid th:first-child,
+  body.printing-delivery-note #delivery-note-print-content .delivery-grid td:first-child,
+  body.printing-delivery-note #delivery-note-print-content .delivery-grid th:last-child,
+  body.printing-delivery-note #delivery-note-print-content .delivery-grid td:last-child {
+    width: auto;
+    text-align: left;
+  }
+
+  body.printing-delivery-note #delivery-note-print-content .title-cell {
+    height: 46px !important;
     color: #456f3d;
     text-align: right;
     vertical-align: bottom !important;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-title-cell h1 {
+  body.printing-delivery-note #delivery-note-print-content .title-cell h2 {
     margin: 0;
-    color: #456f3d;
-    font-family: Cinzel, Georgia, 'Times New Roman', serif;
-    font-size: 18pt;
+    font-family: Cinzel, serif;
+    font-size: 20px;
     font-weight: 700;
     line-height: 1.05;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-title-cell p {
-    margin: 1mm 0 0;
-    font-size: 8.5pt;
+  body.printing-delivery-note #delivery-note-print-content .title-cell p {
+    margin: 2px 0 0;
+    font-size: 11px;
     font-weight: 600;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-title-cell span {
-    text-decoration: underline;
-  }
+  body.printing-delivery-note #delivery-note-print-content .title-cell span { text-decoration: underline; }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-recipient {
-    padding-right: 1mm !important;
-    font-size: 9pt;
+  body.printing-delivery-note #delivery-note-print-content .recipient {
+    padding-right: 3px !important;
+    font-size: 12px;
     line-height: 1;
     text-align: right;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-reference {
-    height: 6.2mm !important;
-    border: 2px solid #456f3d !important;
+  body.printing-delivery-note #delivery-note-print-content .reference {
+    height: 22px !important;
     color: #456f3d;
-    font-size: 9pt;
+    font-size: 13px;
     font-weight: 700;
-    text-align: left;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-detail {
-    font-size: 9pt;
-    text-align: left;
-  }
+  body.printing-delivery-note #delivery-note-print-content .detail { font-size: 12px; }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-item-head th {
-    height: 7.2mm;
+  body.printing-delivery-note #delivery-note-print-content .item-head th {
+    height: 24px;
     border: 2px solid #111;
-    padding: 1mm;
+    padding: 1px 3px;
     background: #fff;
-    font-size: 9pt;
+    font-size: 11px;
     font-weight: 700;
     line-height: 1;
     text-align: center;
-    text-transform: uppercase;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-item-row td,
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-empty-row td {
-    height: 6.2mm;
+  body.printing-delivery-note #delivery-note-print-content .item-row { page-break-inside: avoid; }
+
+  body.printing-delivery-note #delivery-note-print-content .item-row td {
+    height: 22px;
     border: 1px solid #111;
-    font-size: 8.5pt;
-    line-height: 1.15;
+    font-size: 10px;
+    line-height: 1;
     text-align: center;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-item-row.tall td {
-    height: 8mm;
-  }
+  body.printing-delivery-note #delivery-note-print-content .item-row .description { text-align: left; }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-item-row .description {
-    text-align: left;
-  }
-
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-lower-cell {
-    height: 100mm !important;
+  body.printing-delivery-note #delivery-note-print-content .lower-cell {
+    height: 260px !important;
     padding: 0 !important;
     vertical-align: top !important;
+    page-break-inside: avoid;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-lower-field {
+  body.printing-delivery-note #delivery-note-print-content .lower-field {
     position: relative;
-    min-height: 100mm;
     height: 100%;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-company,
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-received,
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-signatures {
+  body.printing-delivery-note #delivery-note-print-content .company-name,
+  body.printing-delivery-note #delivery-note-print-content .received-label,
+  body.printing-delivery-note #delivery-note-print-content .signature-fields,
+  body.printing-delivery-note #delivery-note-print-content .iso-certification {
     position: absolute;
     background: #fff;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-company {
-    top: 8mm;
-    left: 1mm;
-    padding-right: 1mm;
-    font-size: 9pt;
+  body.printing-delivery-note #delivery-note-print-content .company-name {
+    top: 48px;
+    left: 4px;
+    padding-right: 4px;
+    font-size: 14px;
     text-transform: uppercase;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-received {
-    top: 13mm;
+  body.printing-delivery-note #delivery-note-print-content .received-label {
+    top: 68px;
     left: 68%;
-    padding: 0 1mm;
-    font-size: 8.5pt;
+    padding: 0 4px;
+    font-size: 13px;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-signatures {
-    top: 22mm;
+  body.printing-delivery-note #delivery-note-print-content .signature-fields {
+    top: 82px;
     left: 54%;
     width: 40%;
-    padding: 0 1mm;
-    font-size: 8.5pt;
+    padding: 0 4px;
+    font-size: 10px;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-signatures div {
+  body.printing-delivery-note #delivery-note-print-content .signature-fields div {
     display: flex;
-    height: 7mm;
+    height: 18px;
     align-items: flex-end;
-    gap: 1.5mm;
+    gap: 5px;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-signatures span:first-child {
-    width: 17mm;
+  body.printing-delivery-note #delivery-note-print-content .signature-fields span:first-child { width: 54px; }
+  body.printing-delivery-note #delivery-note-print-content .signature-fields .line { flex: 1; border-bottom: 1px solid #222; }
+
+  body.printing-delivery-note #delivery-note-print-content .iso-certification {
+    top: 190px;
+    left: 63%;
+    width: 165px;
+    height: 45px;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-signatures .line {
-    flex: 1;
-    border-bottom: 1px solid #222;
-  }
-
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-tree {
-    position: relative;
-    display: block;
-    height: 15mm;
-    margin: 0;
-    overflow: hidden;
-    line-height: 0;
-  }
-
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-tree img {
-    position: absolute;
-    z-index: 2;
-    inset: 0;
+  body.printing-delivery-note #delivery-note-print-content .iso-certification img {
     display: block;
     width: 100%;
     height: 100%;
-    object-fit: cover;
-    object-position: center;
-    opacity: 0.25;
+    object-fit: contain;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-tree-revision {
+  body.printing-delivery-note #delivery-note-print-content .tree-line {
+    position: relative;
+    height: 90px;
+    margin-top: auto;
+    overflow: hidden;
+  }
+
+  body.printing-delivery-note #delivery-note-print-content .tree-line img {
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    opacity: .17;
+    filter: invert(40%) sepia(60%) saturate(500%) hue-rotate(55deg);
+  }
+
+  body.printing-delivery-note #delivery-note-print-content .tree-revision {
     position: absolute;
     z-index: 3;
-    right: 1mm;
-    bottom: 1mm;
+    right: 3px;
+    bottom: 22px;
     color: #555;
-    font-family: Georgia, 'Times New Roman', serif;
-    font-size: 7pt;
-    line-height: 1;
+    font-family: Georgia, serif;
+    font-size: 8px;
+    opacity: .8;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-footer {
+  body.printing-delivery-note #delivery-note-print-content .document-footer {
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    margin-top: 1mm;
-    color: #666;
-    font-family: Cinzel, Georgia, 'Times New Roman', serif;
-    font-size: 7pt;
+    margin-top: 2px;
+    font-family: Georgia, serif;
+    font-size: 9px;
     text-align: center;
   }
 
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-footer > span:first-child {
-    text-align: left;
-  }
-
-  body.printing-delivery-note #delivery-note-print-content .delivery-note-footer > span:last-child {
-    text-align: right;
-  }
+  body.printing-delivery-note #delivery-note-print-content .document-footer div:first-child { text-align: left; }
+  body.printing-delivery-note #delivery-note-print-content .document-footer div:last-child { text-align: right; }
 }
 `
 
-function formatDeliveryDate(value?: string) {
-  return value ? deliveryDateFormatter.format(new Date(value)) : BLANK_VALUE
-}
-
-function displayValue(value: string | null | undefined) {
-  return value?.trim() || BLANK_VALUE
-}
-
-function formatProductSpecs(product: InternalRequestProduct) {
-  return [
-    product.height ? `Height ${product.height}` : null,
-    product.potSize ? `Pot ${product.potSize}` : null,
-    product.lengthCm != null ? `L ${product.lengthCm} cm` : null,
-    product.widthCm != null ? `W ${product.widthCm} cm` : null,
-    product.heightCm != null ? `H ${product.heightCm} cm` : null,
-  ].filter(Boolean).join(' · ') || BLANK_VALUE
-}
-
-function getItemRowClassName(item: InternalRequestItem) {
-  return formatProductSpecs(item.product).length > 48
-    ? 'delivery-note-item-row tall'
-    : 'delivery-note-item-row'
-}
-
 export function DeliveryNoteDocument({ request, pickupEvent, pickedItems }: DeliveryNoteDocumentProps): JSX.Element {
-  const emptyRowCount = Math.max(0, MINIMUM_ITEM_ROWS - pickedItems.length)
-
   return (
-    <article
-      id="delivery-note-print-content"
-      className="request-print-document delivery-note-document"
-      aria-label="Printable delivery note"
-    >
+    <article id="delivery-note-print-content" className="request-print-document page" aria-label="Printable delivery note">
       <style>{deliveryNoteStyles}</style>
 
-      <header className="delivery-note-header">
-        <div className="delivery-note-brand">
+      <header className="document-header">
+        <div className="brand">
           <img src="/31.png" alt="Verde logo" />
         </div>
 
-        <address className="delivery-note-contact">
-          <div><Building2 aria-hidden="true" /><span>GROUND FLOOR</span></div>
-          <div><Landmark aria-hidden="true" /><span>BUILDING 106</span></div>
-          <div><MapPin aria-hidden="true" /><span>STRT 102 | ZONE 69</span></div>
-          <div><Phone aria-hidden="true" /><span>+974 40 17 35 25</span></div>
-          <div><MessageCircle aria-hidden="true" /><span>+974 66 67 08 50</span></div>
-          <div><Printer aria-hidden="true" /><span>+974 40 17 20 62</span></div>
-          <div><Mail aria-hidden="true" /><span>VERDEQATAR</span></div>
-          <div><Globe aria-hidden="true" /><span>VERDEQATAR.COM</span></div>
-          <div><Signpost aria-hidden="true" /><span>31403, DOHA, QATAR</span></div>
+        <address className="contact">
+          <div><i className="fas fa-building" aria-hidden="true" /><span>Ground Floor</span></div>
+          <div><i className="fas fa-building" aria-hidden="true" /><span>Building 106</span></div>
+          <div><i className="fas fa-map-marker-alt" aria-hidden="true" /><span>Strt 102 | Zone 69</span></div>
+          <div><i className="fas fa-phone" aria-hidden="true" /><span>+974 40 17 35 25</span></div>
+          <div><i className="fab fa-whatsapp" aria-hidden="true" /><span>+974 66 67 08 50</span></div>
+          <div><i className="fas fa-fax" aria-hidden="true" /><span>+974 40 17 20 62</span></div>
+          <div><i className="fas fa-envelope" aria-hidden="true" /><span>Verde Qatar</span></div>
+          <div><i className="fas fa-globe" aria-hidden="true" /><span>Verdeqatar.com</span></div>
+          <div><i className="fas fa-signs-post" aria-hidden="true" /><span>31403, Doha, Qatar</span></div>
         </address>
       </header>
 
-      <table className="delivery-note-grid">
+      <table className="delivery-grid">
         <caption>Delivery note {request.id}</caption>
-        <colgroup>
-          <col span={12} />
-        </colgroup>
+        <colgroup><col span={12} /></colgroup>
         <tbody>
           <tr>
-            <td className="delivery-note-title-cell" colSpan={12}>
-              <h1>Delivery Note</h1>
+            <td className="title-cell" colSpan={12}>
+              <h2>Delivery Note</h2>
               <p>Ref. No: <span>{displayValue(request.id)}</span></p>
             </td>
           </tr>
-          <tr>
-            <td />
-            <td colSpan={5} />
-            <td colSpan={3} />
-            <td colSpan={3} />
-          </tr>
-          <tr>
-            <td colSpan={9} />
-            <td className="delivery-note-recipient" colSpan={3}>{displayValue(request.project.client)}</td>
-          </tr>
-          <tr>
-            <td colSpan={9} />
-            <td className="delivery-note-recipient" colSpan={3}>{displayValue(request.project.location)}</td>
-          </tr>
-          <tr>
-            <td className="delivery-note-reference" colSpan={12}>Ref: {displayValue(request.requester.id)}</td>
-          </tr>
-          <tr>
-            <td colSpan={6} />
-            <td colSpan={3} />
-            <td colSpan={3} />
-          </tr>
-          <tr>
-            <td className="delivery-note-detail" colSpan={6}>PROJECT : {displayValue(request.project.name)}</td>
-            <td colSpan={3} />
-            <td colSpan={3} />
-          </tr>
-          <tr>
-            <td className="delivery-note-detail" colSpan={6}>SUBJECT : {displayValue(request.notes)}</td>
-            <td colSpan={3} />
-            <td colSpan={3} />
-          </tr>
-          <tr className="delivery-note-item-head">
+          <tr><td /><td colSpan={5} /><td colSpan={3} /><td colSpan={3} /></tr>
+          <tr><td colSpan={9} /><td className="recipient" colSpan={3}>{displayValue(request.project.client)}</td></tr>
+          <tr><td colSpan={9} /><td className="recipient" colSpan={3}>{displayValue(request.project.location)}</td></tr>
+          <tr><td className="reference" colSpan={12}>Ref: {displayValue(request.requester.id)}</td></tr>
+          <tr><td colSpan={6} /><td colSpan={3} /><td colSpan={3} /></tr>
+          <tr><td className="detail" colSpan={6}>PROJECT : {displayValue(request.project.name)}</td><td colSpan={3} /><td colSpan={3} /></tr>
+          <tr><td className="detail" colSpan={6}>SUBJECT : {displayValue(request.notes)}</td><td colSpan={3} /><td colSpan={3} /></tr>
+          <tr className="item-head">
             <th scope="col">ITEM</th>
             <th scope="col" colSpan={5}>DESCRIPTION</th>
             <th scope="col" colSpan={3}>Specs</th>
@@ -412,7 +353,7 @@ export function DeliveryNoteDocument({ request, pickupEvent, pickedItems }: Deli
             <th scope="col" colSpan={2}>QUANTITY</th>
           </tr>
           {pickedItems.map((item, index) => (
-            <tr className={getItemRowClassName(item)} key={item.id}>
+            <tr className="item-row" key={item.id}>
               <td>{index + 1}</td>
               <td className="description" colSpan={5}>{displayValue(item.product.name)}</td>
               <td colSpan={3}>{formatProductSpecs(item.product)}</td>
@@ -420,24 +361,18 @@ export function DeliveryNoteDocument({ request, pickupEvent, pickedItems }: Deli
               <td colSpan={2}>{item.fulfilledQuantity ?? BLANK_VALUE}</td>
             </tr>
           ))}
-          {Array.from({ length: emptyRowCount }, (_, index) => (
-            <tr className="delivery-note-empty-row" key={`empty-${index}`} aria-hidden="true">
-              <td>{BLANK_VALUE}</td>
-              <td colSpan={5}>{BLANK_VALUE}</td>
-              <td colSpan={3}>{BLANK_VALUE}</td>
-              <td>{BLANK_VALUE}</td>
-              <td colSpan={2}>{BLANK_VALUE}</td>
-            </tr>
-          ))}
           <tr>
-            <td className="delivery-note-lower-cell" colSpan={12}>
-              <div className="delivery-note-lower-field">
-                <div className="delivery-note-company">VERDE LANDSCAPING &amp; GARDENING</div>
-                <div className="delivery-note-received">Received by:</div>
-                <div className="delivery-note-signatures">
+            <td className="lower-cell" colSpan={12}>
+              <div className="lower-field">
+                <div className="company-name">Verde Landscaping &amp; Gardening</div>
+                <div className="received-label">Received by:</div>
+                <div className="signature-fields">
                   <div><span>Name:</span><span className="line" /></div>
                   <div><span>Mobile:</span><span className="line" /></div>
                   <div><span>Signature:</span><span className="line" /></div>
+                </div>
+                <div className="iso-certification">
+                  <img src="/iso-certification.svg" alt="Verde ISO 9001 certification" />
                 </div>
               </div>
             </td>
@@ -445,15 +380,15 @@ export function DeliveryNoteDocument({ request, pickupEvent, pickedItems }: Deli
         </tbody>
       </table>
 
-      <div className="delivery-note-tree" aria-label="Revision artwork">
+      <div className="tree-line" aria-label="Revision artwork">
+        <span className="tree-revision">CR-41355</span>
         <img src={treesImage} alt="" />
-        <span className="delivery-note-tree-revision">CR-4135S</span>
       </div>
 
-      <footer className="delivery-note-footer">
-        <span>Doc. No.: F-209</span>
-        <span>Rev. No.: 00</span>
-        <span>Rev. Date : {formatDeliveryDate(pickupEvent?.createdAt)}</span>
+      <footer className="document-footer">
+        <div>Doc. No.: F-209</div>
+        <div>Rev. No.: 00</div>
+        <div>Rev. Date : {formatDeliveryDate(pickupEvent?.createdAt)}</div>
       </footer>
     </article>
   )
