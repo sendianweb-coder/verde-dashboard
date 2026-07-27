@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useFieldArray, useForm } from 'react-hook-form'
+import { useFieldArray, useForm, useWatch } from 'react-hook-form'
 import { useState } from 'react'
 import { toast } from 'sonner'
 
 import { DialogFormActions } from '@/components/shared/DialogFormActions'
 import { FormField } from '@/components/shared/FormField'
+import { ProjectOptionSelect } from '@/components/shared/ProjectOptionSelect'
 import { Button } from '@/components/ui/button'
 import {
   Dialog,
@@ -16,14 +17,13 @@ import {
 } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { useProducts } from '@/hooks/useProducts'
-import { useProjects } from '@/hooks/useProjects'
 import { useCreateRequest } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
 import { createRequestSchema, type CreateRequestFormValues } from '@/lib/validators'
 
 export function QuickRequestDialog() {
   const [open, setOpen] = useState(false)
-  const projectsQuery = useProjects()
+  const [selectedProject, setSelectedProject] = useState<{ id: string; name: string } | null>(null)
   const productsQuery = useProducts()
   const createRequestMutation = useCreateRequest()
 
@@ -33,7 +33,6 @@ export function QuickRequestDialog() {
     handleSubmit,
     setValue,
     reset,
-    watch,
     formState: { errors },
   } = useForm<CreateRequestFormValues>({
     resolver: zodResolver(createRequestSchema),
@@ -49,9 +48,9 @@ export function QuickRequestDialog() {
     name: 'items',
   })
 
-  const projects = projectsQuery.data ?? []
   const products = productsQuery.data ?? []
-  const watchedItems = watch('items') ?? []
+  const watchedProjectId = useWatch({ control, name: 'projectId' })
+  const watchedItems = useWatch({ control, name: 'items' }) ?? []
   const selectedProductIds = new Set(watchedItems.map((item) => item.productId).filter(Boolean))
   const productById = new Map(products.map((product) => [product.id, product]))
 
@@ -73,6 +72,7 @@ export function QuickRequestDialog() {
 
       toast.success('Request submitted successfully')
       setOpen(false)
+      setSelectedProject(null)
       reset({
         projectId: '',
         notes: '',
@@ -83,7 +83,7 @@ export function QuickRequestDialog() {
     }
   }
 
-  const isLoadingDependencies = projectsQuery.isLoading || productsQuery.isLoading
+  const isLoadingDependencies = productsQuery.isLoading
 
   return (
     <Dialog
@@ -91,6 +91,7 @@ export function QuickRequestDialog() {
       onOpenChange={(nextOpen) => {
         setOpen(nextOpen)
         if (!nextOpen) {
+          setSelectedProject(null)
           reset({
             projectId: '',
             notes: '',
@@ -110,28 +111,23 @@ export function QuickRequestDialog() {
 
         {isLoadingDependencies ? (
           <p className="text-sm text-text-secondary">Loading projects and products...</p>
-        ) : projectsQuery.isError || productsQuery.isError ? (
+        ) : productsQuery.isError ? (
           <p className="rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-sm text-error" role="alert">
-            {getErrorMessage(projectsQuery.error ?? productsQuery.error, { context: 'load' })}
+            {getErrorMessage(productsQuery.error, { context: 'load' })}
           </p>
         ) : (
           <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
             <div className="grid gap-4 md:grid-cols-2">
               <FormField htmlFor="quick-projectId" label="Project" error={errors.projectId?.message}>
-                <select
+                <ProjectOptionSelect
                   id="quick-projectId"
-                  className="h-9 w-full rounded-lg border border-border bg-background px-3 text-sm text-text-primary focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600"
-                  {...register('projectId')}
-                >
-                  <option value="">Select project</option>
-                  {projects
-                    .filter((project) => project.isActive)
-                    .map((project) => (
-                      <option key={project.id} value={project.id}>
-                        {project.name}
-                      </option>
-                    ))}
-                </select>
+                  value={watchedProjectId}
+                  selectedOption={selectedProject}
+                  onChange={(option) => {
+                    setSelectedProject(option)
+                    setValue('projectId', option?.id ?? '', { shouldValidate: true })
+                  }}
+                />
               </FormField>
 
               <FormField htmlFor="quick-notes" label="Notes (optional)" error={errors.notes?.message}>

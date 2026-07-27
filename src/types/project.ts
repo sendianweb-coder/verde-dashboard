@@ -18,6 +18,11 @@ export interface ProjectAssignment {
   user: ProjectUserSummary
 }
 
+export interface ProjectOption {
+  id: string
+  name: string
+}
+
 export interface Project {
   id: string
   name: string

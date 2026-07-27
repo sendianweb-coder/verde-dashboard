@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 
 import { PageHeader } from '@/components/layout/PageHeader'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
+import { ProjectOptionSelect } from '@/components/shared/ProjectOptionSelect'
 import { ProductScanSheet } from '@/components/shared/ProductScanSheet'
 import { ProductCatalogRow, RequestTray, type RequestTrayProduct } from '@/components/shared/RequestCatalog'
 import { Button } from '@/components/ui/button'
@@ -15,7 +16,7 @@ import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { useCategories } from '@/hooks/useCategories'
 import { usePaginatedProducts } from '@/hooks/useProducts'
-import { useCreateProject, useProjects } from '@/hooks/useProjects'
+import { useCreateProject } from '@/hooks/useProjects'
 import { useCreateRequest } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
 import { stockFilterLabels, type ProductStockFilter } from '@/lib/requestCatalog'
@@ -31,6 +32,7 @@ export function AdminNewRequestPage() {
   const [isCreateProjectOpen, setIsCreateProjectOpen] = useState(false)
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectDescription, setNewProjectDescription] = useState('')
+  const [selectedProject, setSelectedProject] = useState<{ id: string; name: string } | null>(null)
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('all')
   const [stockFilter, setStockFilter] = useState<ProductStockFilter>('all')
@@ -41,7 +43,6 @@ export function AdminNewRequestPage() {
   const highlightTimeoutRef = useRef<number | null>(null)
   const deferredSearch = useDeferredValue(search)
 
-  const projectsQuery = useProjects()
   const categoriesQuery = useCategories()
   const createRequestMutation = useCreateRequest()
   const createProjectMutation = useCreateProject()
@@ -76,7 +77,6 @@ export function AdminNewRequestPage() {
   const watchedProjectId = useWatch({ control, name: 'projectId' })
   const watchedItemsValue = useWatch({ control, name: 'items' })
 
-  const projects = projectsQuery.data ?? []
   const categories = categoriesQuery.data ?? []
   const products = productsQuery.data?.data ?? EMPTY_PRODUCTS
   const totalProducts = productsQuery.data?.pagination.total ?? 0
@@ -101,16 +101,16 @@ export function AdminNewRequestPage() {
   })
   const canSubmit = Boolean(watchedProjectId) && watchedItems.length > 0 && !hasStockConflict
 
-  if (projectsQuery.isLoading || categoriesQuery.isLoading) {
+  if (categoriesQuery.isLoading) {
     return <PageSkeleton />
   }
 
-  if (projectsQuery.isError || categoriesQuery.isError) {
+  if (categoriesQuery.isError) {
     return (
       <section className="space-y-6">
         <PageHeader title="New Request" subtitle="Create an operational request from the admin workspace." />
         <p className="rounded-lg border border-error/30 bg-error/5 px-3 py-2 text-sm text-error" role="alert">
-          {getErrorMessage(projectsQuery.error ?? categoriesQuery.error, { context: 'load' })}
+          {getErrorMessage(categoriesQuery.error, { context: 'load' })}
         </p>
       </section>
     )
@@ -277,6 +277,7 @@ export function AdminNewRequestPage() {
         description: newProjectDescription.trim() || undefined,
       })
 
+      setSelectedProject({ id: project.id, name: project.name })
       setValue('projectId', project.id, { shouldValidate: true })
       setIsCreateProjectOpen(false)
       setNewProjectName('')
@@ -371,24 +372,15 @@ export function AdminNewRequestPage() {
                   </Dialog>
                 </div>
 
-                <Select
-                  value={watchedProjectId || 'none'}
-                  onValueChange={(value) => setValue('projectId', value === 'none' ? '' : value, { shouldValidate: true })}
-                >
-                  <SelectTrigger id="admin-projectId">
-                    <SelectValue placeholder="Select project" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="none">Select project</SelectItem>
-                    {projects
-                      .filter((project) => project.isActive)
-                      .map((project) => (
-                        <SelectItem key={project.id} value={project.id}>
-                          {project.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <ProjectOptionSelect
+                  id="admin-projectId"
+                  value={watchedProjectId}
+                  selectedOption={selectedProject}
+                  onChange={(option) => {
+                    setSelectedProject(option)
+                    setValue('projectId', option?.id ?? '', { shouldValidate: true })
+                  }}
+                />
                 {errors.projectId ? <p className="mt-1 text-xs text-error">{errors.projectId.message}</p> : null}
               </div>
 

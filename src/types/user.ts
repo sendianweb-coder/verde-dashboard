@@ -3,6 +3,13 @@ import type { PaginationMeta } from '@/types/common'
 import type { ApprovalEvent, RequestStatus } from '@/types/request'
 import type { AuditLogEntry } from '@/types/audit'
 
+export interface AssignableUserOption {
+  id: string
+  name: string
+  email: string
+  role: UserRole
+}
+
 export interface User {
   id: string
   name: string

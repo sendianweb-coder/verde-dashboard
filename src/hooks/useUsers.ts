@@ -4,8 +4,10 @@ import {
   createUser,
   deactivateUser,
   deleteUser,
+  getAssignableUserOptions,
   getUserById,
   getUsers,
+  type GetAssignableUserOptionsParams,
   type GetUsersParams,
   updateUser,
 } from '@/api/users.api'
@@ -17,7 +19,7 @@ const USERS_DETAIL_STALE_TIME = 30_000
 export const usersQueryKeys = {
   all: ['users'] as const,
   list: (params?: GetUsersParams) => ['users', 'list', params] as const,
-  assignableProjectUsers: () => ['users', 'assignable-project-users'] as const,
+  assignableProjectUsers: (params?: GetAssignableUserOptionsParams) => ['users', 'assignable-project-users', params] as const,
   detail: (id: string) => ['users', 'detail', id] as const,
 }
 
@@ -29,26 +31,10 @@ export function useUsers(params?: GetUsersParams) {
   })
 }
 
-export function useAssignableProjectUsers(enabled: boolean) {
+export function useAssignableProjectUsers(params?: GetAssignableUserOptionsParams, enabled = true) {
   return useQuery({
-    queryKey: usersQueryKeys.assignableProjectUsers(),
-    queryFn: async () => {
-      const [employees, storeKeepers] = await Promise.all([
-        getUsers({ role: 'EMPLOYEE', isActive: true }),
-        getUsers({ role: 'STORE_KEEPER', isActive: true }),
-      ])
-
-      const seenUserIds = new Set<string>()
-
-      return [...employees, ...storeKeepers].filter((user) => {
-        if (seenUserIds.has(user.id)) {
-          return false
-        }
-
-        seenUserIds.add(user.id)
-        return true
-      })
-    },
+    queryKey: usersQueryKeys.assignableProjectUsers(params),
+    queryFn: () => getAssignableUserOptions(params),
     enabled,
     staleTime: USERS_LIST_STALE_TIME,
   })

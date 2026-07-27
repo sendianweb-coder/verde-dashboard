@@ -65,7 +65,7 @@ export function StoreKeeperOrdersPage() {
                 <Package className="size-4" />
               </span>
               <div className="min-w-0">
-                <p className="truncate font-medium text-text-primary">Order {order.id.slice(0, 8)}</p>
+                <p className="truncate font-medium text-text-primary">Order {order.id}</p>
                 <p className="text-xs tabular-nums text-text-muted">Customer {order.customerId.slice(0, 8)}</p>
               </div>
             </div>

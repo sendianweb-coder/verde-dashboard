@@ -27,7 +27,7 @@ export function AdminAuditLogPage() {
       { accessorKey: 'actorId', header: 'Actor' },
       { accessorKey: 'action', header: 'Action' },
       { accessorKey: 'entity', header: 'Entity' },
-      { accessorKey: 'entityId', header: 'Entity ID' },
+      { accessorKey: 'entityId', header: 'Entity reference' },
       {
         accessorKey: 'createdAt',
         header: 'Timestamp',

@@ -1,6 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import type { FormEvent } from 'react'
-import { useMemo, useState } from 'react'
+import { useDeferredValue, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { Eye, Filter, MoreHorizontal, Pencil, Power, Shapes, UsersRound } from 'lucide-react'
@@ -27,8 +27,8 @@ import { useAssignableProjectUsers } from '@/hooks/useUsers'
 import { getErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
 import { useAuthStore } from '@/store/authStore'
-import type { Project } from '@/types/project'
-import type { User } from '@/types/user'
+import type { Project, ProjectUserSummary } from '@/types/project'
+import type { AssignableUserOption } from '@/types/user'
 
 type ProjectStatusFilter = 'all' | 'active' | 'inactive'
 type ProjectDateFilter = 'all' | 'today' | 'last7days' | 'last30days'
@@ -51,6 +51,7 @@ const projectDateFormatter = new Intl.DateTimeFormat('en-US', {
   day: 'numeric',
   year: 'numeric',
 })
+const EMPTY_ASSIGNABLE_USERS: AssignableUserOption[] = []
 
 interface ProjectsManagementPageProps {
   projectDetailBasePath: string
@@ -73,6 +74,10 @@ function optionalProjectField(value: string) {
 
 function getProjectAssignmentIds(project: Project) {
   return project.assignments.map((assignment) => assignment.userId)
+}
+
+function isAssignableUserOption(user: ProjectUserSummary): user is AssignableUserOption {
+  return user.role === 'EMPLOYEE' || user.role === 'STORE_KEEPER'
 }
 
 function isWithinProjectDateFilter(value: string, filter: ProjectDateFilter) {
@@ -117,23 +122,22 @@ function ProjectStatusBadge({ isActive }: { isActive: boolean }) {
 
 interface AssignedUsersFieldProps {
   idPrefix: string
-  users: User[]
   selectedUserIds: string[]
-  isLoading: boolean
-  hasError: boolean
+  initialUsers?: AssignableUserOption[]
   disabled: boolean
   onToggle: (userId: string) => void
 }
 
-function AssignedUsersField({
-  idPrefix,
-  users,
-  selectedUserIds,
-  isLoading,
-  hasError,
-  disabled,
-  onToggle,
-}: AssignedUsersFieldProps) {
+function AssignedUsersField({ idPrefix, selectedUserIds, initialUsers = EMPTY_ASSIGNABLE_USERS, disabled, onToggle }: AssignedUsersFieldProps) {
+  const [search, setSearch] = useState('')
+  const deferredSearch = useDeferredValue(search)
+  const usersQuery = useAssignableProjectUsers({ search: deferredSearch.trim() || undefined, limit: 20, offset: 0 })
+  const users = usersQuery.data?.data ?? []
+  const total = usersQuery.data?.pagination.total ?? 0
+  const visibleUsers = Array.from(
+    new Map<string, AssignableUserOption>([...initialUsers, ...users].map((user) => [user.id, user])).values(),
+  )
+
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-3">
@@ -142,14 +146,22 @@ function AssignedUsersField({
       </div>
 
       <div className="rounded-lg border border-border bg-surface p-2">
-        {isLoading ? <p className="px-2 py-3 text-sm text-text-secondary">Loading assignable users...</p> : null}
-        {hasError ? <p className="px-2 py-3 text-sm text-error">Unable to load assignable users.</p> : null}
-        {!isLoading && !hasError && users.length === 0 ? (
+        <Input
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+          placeholder="Search by name or email..."
+          disabled={disabled}
+          className="mb-2"
+          aria-label="Search assignable users"
+        />
+        {usersQuery.isLoading ? <p className="px-2 py-3 text-sm text-text-secondary">Loading assignable users...</p> : null}
+        {usersQuery.isError ? <p className="px-2 py-3 text-sm text-error">Unable to load assignable users.</p> : null}
+        {!usersQuery.isLoading && !usersQuery.isError && visibleUsers.length === 0 ? (
           <p className="px-2 py-3 text-sm text-text-secondary">No active employees or store keepers found.</p>
         ) : null}
-        {!isLoading && !hasError && users.length > 0 ? (
+        {!usersQuery.isLoading && !usersQuery.isError && visibleUsers.length > 0 ? (
           <div className="max-h-44 space-y-1 overflow-y-auto">
-            {users.map((user) => {
+            {visibleUsers.map((user) => {
               const checkboxId = `${idPrefix}-${user.id}`
 
               return (
@@ -174,6 +186,9 @@ function AssignedUsersField({
               )
             })}
           </div>
+        ) : null}
+        {!usersQuery.isLoading && total > users.length ? (
+          <p className="px-2 pt-2 text-xs text-text-muted">Showing the first 20 matches. Refine your search.</p>
         ) : null}
       </div>
     </div>
@@ -204,7 +219,6 @@ export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManage
   const [dateFilter, setDateFilter] = useState<ProjectDateFilter>('all')
 
   const projectsQuery = useProjects()
-  const assignableUsersQuery = useAssignableProjectUsers(canManageAssignments)
   const createProjectMutation = useCreateProject()
   const updateProjectMutation = useUpdateProject()
   const deactivateProjectMutation = useDeactivateProject()
@@ -572,10 +586,7 @@ export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManage
             {canManageAssignments ? (
               <AssignedUsersField
                 idPrefix="new-project-assignee"
-                users={assignableUsersQuery.data ?? []}
                 selectedUserIds={newProjectAssignedUserIds}
-                isLoading={assignableUsersQuery.isLoading}
-                hasError={assignableUsersQuery.isError}
                 disabled={createProjectMutation.isPending}
                 onToggle={(userId) => toggleAssignedUser(userId, newProjectAssignedUserIds, setNewProjectAssignedUserIds)}
               />
@@ -685,10 +696,8 @@ export function ProjectsManagementPage({ projectDetailBasePath }: ProjectsManage
             {canManageAssignments ? (
               <AssignedUsersField
                 idPrefix="update-project-assignee"
-                users={assignableUsersQuery.data ?? []}
                 selectedUserIds={updatedProjectAssignedUserIds}
-                isLoading={assignableUsersQuery.isLoading}
-                hasError={assignableUsersQuery.isError}
+                initialUsers={(editingProject?.assignments ?? []).map((assignment) => assignment.user).filter(isAssignableUserOption)}
                 disabled={updateProjectMutation.isPending}
                 onToggle={(userId) =>
                   toggleAssignedUser(userId, updatedProjectAssignedUserIds, setUpdatedProjectAssignedUserIds)

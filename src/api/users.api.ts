@@ -1,6 +1,6 @@
 import { apiClient } from '@/api/client'
-import type { ApiSuccessResponse } from '@/types/common'
-import type { CreateUserPayload, UpdateUserPayload, User, UserActivityProfile } from '@/types/user'
+import type { ApiSuccessResponse, OffsetPaginatedResponse } from '@/types/common'
+import type { AssignableUserOption, CreateUserPayload, UpdateUserPayload, User, UserActivityProfile } from '@/types/user'
 
 export interface GetUsersParams {
   role?: User['role']
@@ -13,6 +13,19 @@ export interface GetUsersParams {
 export async function getUsers(params?: GetUsersParams): Promise<User[]> {
   const { data } = await apiClient.get<ApiSuccessResponse<User[]>>('/users', { params })
   return data.data
+}
+
+export interface GetAssignableUserOptionsParams {
+  search?: string
+  limit?: number
+  offset?: number
+}
+
+export async function getAssignableUserOptions(
+  params?: GetAssignableUserOptionsParams,
+): Promise<OffsetPaginatedResponse<AssignableUserOption>> {
+  const { data } = await apiClient.get<OffsetPaginatedResponse<AssignableUserOption>>('/users/options', { params })
+  return data
 }
 
 export async function getUserById(id: string, params?: { page?: number; limit?: number }): Promise<UserActivityProfile> {

@@ -523,7 +523,6 @@ export function InventoryGridPage() {
     updatedAtCellsRef.current.clear()
     imagePreviewUrlsRef.current.clear()
     imagePreviewCache.clear()
-    container.replaceChildren()
 
     const { univer, univerAPI } = createUniver({
       locale: LocaleType.EN_US,
@@ -720,9 +719,7 @@ export function InventoryGridPage() {
       }
       activeWorkbookRef.current = null
       univerAPIRef.current = null
-      univerAPI.dispose()
       univer.dispose()
-      container.replaceChildren()
     }
   }, [invalidateAffectedImagePreviews, isInventoryGridFullscreen, rebuildDirtyRowsFromRuntime, refreshActiveImagePreviewCanvas, workbook, workbookData])
 

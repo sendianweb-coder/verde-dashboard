@@ -85,7 +85,7 @@ function formatBulkFailureDescription(results: BulkRequestStatusResultItem[]) {
 
   const shownFailures = failedResults.slice(0, 3).map((result) => {
     const message = result.error ?? result.code ?? 'Update failed'
-    return `Request ${result.requestId.slice(0, 8)}: ${message}`
+    return `Request ${result.requestId}: ${message}`
   })
   const remainingCount = failedResults.length - shownFailures.length
 
@@ -256,7 +256,7 @@ export function AdminRequestsPage() {
             </span>
             <div className="min-w-0">
               <p className="truncate font-medium text-text-primary">{request.project.name}</p>
-              <p className="text-xs tabular-nums text-text-muted">Request {request.id.slice(0, 8)}</p>
+              <p className="text-xs tabular-nums text-text-muted">Request {request.id}</p>
             </div>
           </div>
         )

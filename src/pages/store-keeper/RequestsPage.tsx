@@ -145,7 +145,7 @@ export function StoreKeeperRequestsPage() {
               </span>
               <div className="min-w-0">
                 <p className="truncate font-medium text-text-primary">{request.project.name}</p>
-                <p className="text-xs tabular-nums text-text-muted">Request {request.id.slice(0, 8)}</p>
+                <p className="text-xs tabular-nums text-text-muted">Request {request.id}</p>
               </div>
             </div>
           )
