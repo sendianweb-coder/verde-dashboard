@@ -11,6 +11,7 @@ import {
   getRequests,
   pickupRequest,
   rejectRequest,
+  returnRequest,
   updateRequest,
   type GetRequestsParams,
 } from '@/api/requests.api'
@@ -20,6 +21,7 @@ import type {
   CreateRequestPayload,
   PickupRequestPayload,
   RequestStatusActionPayload,
+  ReturnRequestPayload,
   UpdateRequestPayload,
 } from '@/types/request'
 import { productsQueryKeys } from './useProducts'
@@ -97,6 +99,7 @@ type RequestActionMutationPayload =
   | { id: string; payload: ApproveRequestPayload }
   | { id: string; payload: PickupRequestPayload }
   | { id: string; payload: RequestStatusActionPayload }
+  | { id: string; payload: ReturnRequestPayload }
 
 function useRequestActionMutation(
   mutationFn: ({ id, payload }: RequestActionMutationPayload) => Promise<unknown>,
@@ -128,6 +131,10 @@ export function usePickupRequest() {
 
 export function useCompleteRequest() {
   return useRequestActionMutation(({ id, payload }) => completeRequest(id, payload as RequestStatusActionPayload))
+}
+
+export function useReturnRequest() {
+  return useRequestActionMutation(({ id, payload }) => returnRequest(id, payload as ReturnRequestPayload))
 }
 
 interface CancelRequestMutationPayload {

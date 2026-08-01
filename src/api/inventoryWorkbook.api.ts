@@ -1,6 +1,9 @@
 import { apiClient } from '@/api/client'
 import type { ApiSuccessResponse } from '@/types/common'
 import type {
+  ArchiveInventoryWorkbookRowPayload,
+  CreateInventoryGridProductPayload,
+  InventoryGridProductResult,
   InventoryWorkbookChangesResponse,
   InventoryWorkbookImageUploadPayload,
   InventoryWorkbookImageUploadResult,
@@ -8,6 +11,9 @@ import type {
   InventoryWorkbookSaveResponse,
   SaveInventoryWorkbookChangesRequest,
   SaveInventoryWorkbookRequest,
+  StagedInventoryImageUploadResult,
+  UploadInventoryGridProductImagePayload,
+  UploadStagedInventoryImagePayload,
 } from '@/types/inventoryWorkbook'
 
 interface GetInventoryWorkbookOptions {
@@ -24,6 +30,10 @@ export async function getInventoryWorkbook({
   })
 
   return data.data
+}
+
+export async function archiveInventoryWorkbookRow({ rowToken }: ArchiveInventoryWorkbookRowPayload): Promise<void> {
+  await apiClient.delete('/inventory/workbook/rows', { data: { rowToken } })
 }
 
 export async function uploadInventoryWorkbookImage({
@@ -43,6 +53,48 @@ export async function uploadInventoryWorkbookImage({
       // multipart boundary.
       headers: { 'Content-Type': undefined },
     },
+  )
+
+  return data.data
+}
+
+export async function createInventoryGridProduct({
+  category,
+  body,
+}: CreateInventoryGridProductPayload): Promise<InventoryGridProductResult> {
+  const { data } = await apiClient.post<ApiSuccessResponse<InventoryGridProductResult>>(
+    `/inventory/${encodeURIComponent(category)}`,
+    body,
+  )
+
+  return data.data
+}
+
+export async function uploadStagedInventoryImage({ image }: UploadStagedInventoryImagePayload): Promise<StagedInventoryImageUploadResult> {
+  const formData = new FormData()
+  formData.append('image', image)
+
+  const { data } = await apiClient.post<ApiSuccessResponse<StagedInventoryImageUploadResult>>(
+    '/inventory/images/staged',
+    formData,
+    { headers: { 'Content-Type': undefined } },
+  )
+
+  return data.data
+}
+
+export async function uploadInventoryGridProductImage({
+  category,
+  id,
+  image,
+}: UploadInventoryGridProductImagePayload): Promise<InventoryGridProductResult> {
+  const formData = new FormData()
+  formData.append('image', image)
+
+  const { data } = await apiClient.post<ApiSuccessResponse<InventoryGridProductResult>>(
+    `/inventory/${encodeURIComponent(category)}/${encodeURIComponent(id)}/image`,
+    formData,
+    { headers: { 'Content-Type': undefined } },
   )
 
   return data.data

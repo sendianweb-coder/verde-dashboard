@@ -8,6 +8,7 @@ import type {
   InternalRequest,
   PickupRequestPayload,
   RequestStatusActionPayload,
+  ReturnRequestPayload,
   UpdateRequestPayload,
 } from '@/types/request'
 
@@ -58,6 +59,11 @@ export async function rejectRequest(id: string, payload: RequestStatusActionPayl
 
 export async function pickupRequest(id: string, payload: PickupRequestPayload): Promise<InternalRequest> {
   const { data } = await apiClient.post<ApiSuccessResponse<InternalRequest>>(`/requests/${id}/pickup`, payload)
+  return data.data
+}
+
+export async function returnRequest(id: string, payload: ReturnRequestPayload): Promise<InternalRequest> {
+  const { data } = await apiClient.post<ApiSuccessResponse<InternalRequest>>(`/requests/${id}/return`, payload)
   return data.data
 }
 

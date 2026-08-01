@@ -101,9 +101,61 @@ export interface InventoryWorkbookImageUploadPayload {
   image: File
 }
 
+export interface ArchiveInventoryWorkbookRowPayload {
+  rowToken: string
+}
+
 export interface InventoryWorkbookImageUploadResult {
   attachmentId: number
   imageUrl: string
+}
+
+export interface CreateInventoryGridProductBody {
+  sku: string
+  name: string
+  latinName?: string | null
+  potSize?: string | null
+  height?: string | null
+  price?: number
+  totalQuantity?: number
+  imageUrl?: string | null
+  published?: boolean
+  imageUploadPending?: boolean
+}
+
+export interface CreateInventoryGridProductPayload {
+  category: string
+  body: CreateInventoryGridProductBody
+}
+
+export interface InventoryGridProductResult {
+  id: string
+  sku: string
+  name: string
+  imageUrl: string | null
+  published: boolean
+}
+
+export interface UploadInventoryGridProductImagePayload {
+  category: string
+  id: string
+  image: File
+}
+
+export interface UploadStagedInventoryImagePayload {
+  image: File
+}
+
+export interface StagedInventoryImageUploadResult {
+  attachmentId: number
+  imageUrl: string
+}
+
+export interface DraftInventoryImageTarget {
+  kind: 'draft'
+  sheetId: string
+  rowIndex: number
+  columnIndex: number
 }
 
 export interface SaveInventoryWorkbookRequest {

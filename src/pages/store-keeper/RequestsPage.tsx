@@ -1,5 +1,5 @@
 import type { ColumnDef, SortingState } from '@tanstack/react-table'
-import { Check, CheckCircle2, Eye, Filter, PackageCheck, X } from 'lucide-react'
+import { Check, CheckCircle2, Eye, Filter, PackageCheck, Undo2, X } from 'lucide-react'
 import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
@@ -7,6 +7,7 @@ import { toast } from 'sonner'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { DataTable } from '@/components/shared/DataTable'
+import { RequestReturnDialog } from '@/components/shared/RequestReturnDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -291,6 +292,17 @@ export function StoreKeeperRequestsPage() {
                   trigger={
                     <Button type="button" size="icon" className="size-8" disabled={completeRequestMutation.isPending} aria-label="Complete request">
                       <CheckCircle2 className="size-4" />
+                    </Button>
+                  }
+                />
+              ) : null}
+
+              {request.status === 'PICKED_UP' || request.status === 'COMPLETED' ? (
+                <RequestReturnDialog
+                  request={request}
+                  trigger={
+                    <Button type="button" variant="secondary" size="icon" className="size-8" aria-label="Return items">
+                      <Undo2 className="size-4" />
                     </Button>
                   }
                 />

@@ -42,6 +42,7 @@ export interface InternalRequestItem {
   requestedQuantity?: number
   approvedQuantity?: number | null
   fulfilledQuantity?: number
+  returnedQuantity: number
   itemStatus?: InternalRequestItemStatus
   issueReason?: RequestItemIssueReason | null
   issueComment?: string | null
@@ -125,6 +126,16 @@ export interface AdjustItemsPayload {
 
 export interface PickupRequestPayload {
   comment?: string
+}
+
+export interface ReturnRequestItemPayload {
+  itemId: string
+  quantity: number
+}
+
+export interface ReturnRequestPayload {
+  note: string
+  items: ReturnRequestItemPayload[]
 }
 
 // --- Legacy payload types ---

@@ -140,6 +140,32 @@ export class ImagePreviewCache {
   }
 }
 
+export const drawDraftImageAdd = (
+  context: CanvasRenderingContext2D,
+  cell: { startX: number; startY: number; endX: number; endY: number },
+) => {
+  const width = cell.endX - cell.startX
+  const height = cell.endY - cell.startY
+  const size = Math.min(24, width - 12, height - 8)
+  if (size <= 0) return
+
+  const x = cell.startX + (width - size) / 2
+  const y = cell.startY + (height - size) / 2
+  context.clearRect(cell.startX + 1, cell.startY + 1, Math.max(width - 2, 0), Math.max(height - 2, 0))
+  context.fillStyle = '#f0fdf4'
+  context.fillRect(x, y, size, size)
+  context.strokeStyle = '#16a34a'
+  context.strokeRect(x + 0.5, y + 0.5, Math.max(size - 1, 0), Math.max(size - 1, 0))
+  context.strokeStyle = '#15803d'
+  context.lineWidth = 1.5
+  context.beginPath()
+  context.moveTo(x + size / 2, y + size * 0.28)
+  context.lineTo(x + size / 2, y + size * 0.72)
+  context.moveTo(x + size * 0.28, y + size / 2)
+  context.lineTo(x + size * 0.72, y + size / 2)
+  context.stroke()
+}
+
 export const drawImagePreview = (
   context: CanvasRenderingContext2D,
   cell: { startX: number; startY: number; endX: number; endY: number },

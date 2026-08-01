@@ -2,18 +2,26 @@ import { UniverSheetsCorePreset } from '@univerjs/preset-sheets-core'
 import enUS from '@univerjs/preset-sheets-core/locales/en-US'
 import { createUniver, LocaleType } from '@univerjs/presets'
 import type { IWorkbookData } from '@univerjs/presets'
-import { AlertCircle, CheckCircle2, Maximize2, Minimize2, RefreshCw, Save } from 'lucide-react'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AlertCircle, CheckCircle2, Maximize2, Minimize2, RefreshCw, Save, Trash2 } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 
 import '@univerjs/preset-sheets-core/lib/index.css'
 import './inventoryGrid.css'
 
-import { ImageUrlEditorDialog, type ImageUrlEditorTarget } from '@/components/shared/inventory/ImageUrlEditorDialog'
+import { ImageUrlEditorDialog, type ImageUrlEditorTarget, type InventoryImageEditorTarget } from '@/components/shared/inventory/ImageUrlEditorDialog'
+import { DialogFormActions } from '@/components/shared/DialogFormActions'
+import { FormField } from '@/components/shared/FormField'
 import { PageHeader } from '@/components/layout/PageHeader'
 import { Button } from '@/components/ui/button'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
 import {
+  useArchiveInventoryWorkbookRow,
+  useCreateInventoryGridCategory,
+  useCreateInventoryGridProduct,
   useInventoryWorkbook,
   useSaveInventoryWorkbookChanges,
+  useUploadStagedInventoryImage,
   useUploadInventoryWorkbookImage,
 } from '@/hooks/useInventoryWorkbook'
 import { getErrorMessage } from '@/lib/errors'
@@ -23,6 +31,7 @@ import {
   getUpdatedAtCells,
 } from '@/lib/inventoryGrid/dateTimeCells'
 import {
+  drawDraftImageAdd,
   drawImagePreview,
   getImagePreviewCellKey,
   getImagePreviewCells,
@@ -36,12 +45,15 @@ import {
   isPublishedToggleEnabled,
 } from '@/lib/inventoryGrid/publishedToggle'
 import { cn } from '@/lib/utils'
+import { useAuthStore } from '@/store/authStore'
 import type {
+  CreateInventoryGridProductBody,
   InventoryWorkbookChangesResponse,
   InventoryWorkbookFieldValue,
   InventoryWorkbookResponse,
   InventoryWorkbookRowChange,
   InventoryWorkbookSaveResponse,
+  InventoryWorkbookSheetMetadata,
   InventoryWorkbookWritableField,
   UniverCellPrimitive,
   UniverWorkbookSnapshot,
@@ -49,6 +61,7 @@ import type {
 
 const AUTOSAVE_ENABLED = import.meta.env.VITE_INVENTORY_WORKBOOK_AUTOSAVE_ENABLED === 'true'
 const AUTOSAVE_DEBOUNCE_MS = 2_000
+const ARCHIVE_TOOLBAR_COMMAND_ID = 'verde.inventory.archive-product'
 
 const writableFieldKeys = new Set<InventoryWorkbookWritableField>([
   'sku',
@@ -125,6 +138,30 @@ type StagedImageUpload = {
   target: ImageUrlEditorTarget
   image: File
   previewUrl: string
+}
+
+type ArchiveTarget = {
+  rowToken: string
+  sheetName: string
+  rowIndex: number
+}
+
+type DraftInventoryRowStatus = 'editing' | 'creating' | 'created' | 'failed'
+
+type DraftInventoryRow = {
+  sheetId: string
+  sheetName: string
+  categoryId: string
+  rowIndex: number
+  status: DraftInventoryRowStatus
+  error?: string
+}
+
+type DraftSaveResult = {
+  key: string
+  label: string
+  status: 'created' | 'failed'
+  message?: string
 }
 
 type BaselineRow = {
@@ -295,6 +332,43 @@ const buildWorkbookBaseline = (workbookData?: InventoryWorkbookResponse): Workbo
   return baseline
 }
 
+const buildDraftProductBody = (
+  workbook: UniverWorkbookSnapshot,
+  draft: DraftInventoryRow,
+  sheet: InventoryWorkbookSheetMetadata,
+): { body: CreateInventoryGridProductBody } | { error: string } => {
+  const valueFor = (field: InventoryWorkbookWritableField) => {
+    const column = sheet.columns.find((candidate) => candidate.key === field)
+    return column ? normalizeWorkbookCellValue(field, getCellValue(workbook, draft.sheetId, draft.rowIndex, column.columnIndex)) : undefined
+  }
+  const sku = valueFor('sku')
+  const name = valueFor('name')
+  const price = valueFor('price')
+  const totalQuantity = valueFor('totalQuantity')
+  const imageUrl = valueFor('imageUrl')
+
+  if (typeof sku !== 'string' || !sku) return { error: 'SKU is required.' }
+  if (typeof name !== 'string' || !name) return { error: 'Name is required.' }
+  if (typeof price === 'number' && (!Number.isFinite(price) || price < 0)) return { error: 'Price must be a non-negative number.' }
+  if (typeof totalQuantity === 'number' && (!Number.isFinite(totalQuantity) || totalQuantity < 0)) {
+    return { error: 'Total quantity must be a non-negative whole number.' }
+  }
+
+  return {
+    body: {
+      sku,
+      name,
+      latinName: valueFor('latinName') as string | null | undefined,
+      potSize: valueFor('potSize') as string | null | undefined,
+      height: valueFor('height') as string | null | undefined,
+      ...(typeof price === 'number' ? { price } : {}),
+      ...(typeof totalQuantity === 'number' ? { totalQuantity } : {}),
+      ...(typeof imageUrl === 'string' ? { imageUrl } : {}),
+      published: Boolean(valueFor('published')),
+    },
+  }
+}
+
 const buildDirtyRowsFromWorkbook = (workbook: UniverWorkbookSnapshot, baseline: WorkbookBaseline): DirtyRows => {
   const dirtyRows: DirtyRows = new Map()
 
@@ -346,17 +420,38 @@ export function InventoryGridPage() {
   const imagePreviewUrlsRef = useRef<Map<string, string>>(new Map())
   const stagedImageUploadsRef = useRef<Map<string, StagedImageUpload>>(new Map())
   const stagedImagePreviewUrlsRef = useRef<Map<string, string>>(new Map())
+  const draftRowsRef = useRef<Map<string, DraftInventoryRow>>(new Map())
+  const draftImageCellsRef = useRef<Set<string>>(new Set())
   const imagePreviewCacheRef = useRef(new ImagePreviewCache())
-  const toolbarActionsRef = useRef<{ refresh: () => void; save: () => void }>({ refresh: () => undefined, save: () => undefined })
+  const toolbarActionsRef = useRef<{ refresh: () => void; save: () => void; archive: () => void; canArchive: () => boolean; addProduct: () => void; createCategory: () => void }>({
+    refresh: () => undefined,
+    save: () => undefined,
+    archive: () => undefined,
+    canArchive: () => false,
+    addProduct: () => undefined,
+    createCategory: () => undefined,
+  })
+  const refreshArchiveToolbarRef = useRef<() => void>(() => undefined)
   const saveInFlightRef = useRef(false)
   const queuedAutosaveRef = useRef(false)
   const inventoryWorkbookQuery = useInventoryWorkbook()
   const saveWorkbookChangesMutation = useSaveInventoryWorkbookChanges()
+  const archiveInventoryWorkbookRowMutation = useArchiveInventoryWorkbookRow()
+  const createInventoryGridProductMutation = useCreateInventoryGridProduct()
+  const uploadStagedInventoryImageMutation = useUploadStagedInventoryImage()
+  const createInventoryGridCategoryMutation = useCreateInventoryGridCategory()
   const uploadInventoryWorkbookImageMutation = useUploadInventoryWorkbookImage()
+  const currentUserRole = useAuthStore((state) => state.role)
   const [dirtyRows, setDirtyRows] = useState<DirtyRows>(() => new Map())
   const [saveResult, setSaveResult] = useState<InventoryWorkbookChangesResponse | null>(null)
   const [hasConflict, setHasConflict] = useState(false)
-  const [imageUrlEditorTarget, setImageUrlEditorTarget] = useState<ImageUrlEditorTarget | null>(null)
+  const [imageUrlEditorTarget, setImageUrlEditorTarget] = useState<InventoryImageEditorTarget | null>(null)
+  const [draftRowCount, setDraftRowCount] = useState(0)
+  const [draftSaveResults, setDraftSaveResults] = useState<DraftSaveResult[]>([])
+  const [archiveTarget, setArchiveTarget] = useState<ArchiveTarget | null>(null)
+  const [isCreateCategoryOpen, setIsCreateCategoryOpen] = useState(false)
+  const [newCategoryName, setNewCategoryName] = useState('')
+  const [newCategoryDescription, setNewCategoryDescription] = useState('')
   const [stagedImageUploadCount, setStagedImageUploadCount] = useState(0)
   const [isSavingStagedImages, setIsSavingStagedImages] = useState(false)
   const [stagedImageUploadError, setStagedImageUploadError] = useState<unknown>(null)
@@ -375,10 +470,13 @@ export function InventoryGridPage() {
   const workbookBaseline = useMemo(() => buildWorkbookBaseline(workbookData), [workbookData])
   const dirtyRowCount = dirtyRows.size
   const dirtyCellCount = [...dirtyRows.values()].reduce((total, row) => total + Object.keys(row.fields).length, 0)
+  const hasClientWork = dirtyCellCount > 0 || stagedImageUploadCount > 0 || draftRowCount > 0
 
   useEffect(() => {
     const stagedUploads = stagedImageUploadsRef.current
     const stagedPreviewUrls = stagedImagePreviewUrlsRef.current
+    const draftRows = draftRowsRef.current
+    const draftImageCells = draftImageCellsRef.current
 
     return () => {
       for (const { previewUrl } of stagedUploads.values()) {
@@ -386,8 +484,59 @@ export function InventoryGridPage() {
       }
       stagedUploads.clear()
       stagedPreviewUrls.clear()
+      draftRows.clear()
+      draftImageCells.clear()
     }
   }, [])
+
+  const registerDraftRow = useCallback((sheet: InventoryWorkbookSheetMetadata, rowIndex: number) => {
+    const key = rowKey(sheet.sheetId, rowIndex)
+    if (draftRowsRef.current.has(key)) return
+
+    const imageColumn = sheet.columns.find((column) => column.key === 'imageUrl')
+    const publishedColumn = sheet.columns.find((column) => column.key === 'published')
+    draftRowsRef.current.set(key, {
+      sheetId: sheet.sheetId,
+      sheetName: sheet.categoryName,
+      categoryId: sheet.categoryId,
+      rowIndex,
+      status: 'editing',
+    })
+    if (imageColumn) draftImageCellsRef.current.add(getImagePreviewCellKey({ sheetId: sheet.sheetId, rowIndex, columnIndex: imageColumn.columnIndex }))
+    if (publishedColumn) publishedToggleCellsRef.current.add(getPublishedToggleCellKey({ sheetId: sheet.sheetId, rowIndex, columnIndex: publishedColumn.columnIndex }))
+    setDraftRowCount(draftRowsRef.current.size)
+    univerAPIRef.current?.getActiveWorkbook()?.getSheetBySheetId(sheet.sheetId)?.refreshCanvas()
+  }, [])
+
+  const syncDraftRowsFromChange = useCallback((event: SheetValueChangedEvent) => {
+    if (!workbookData) return
+
+    for (const range of event.effectedRanges ?? []) {
+      const sheet = workbookData.metadata.sheets.find((candidate) => candidate.sheetId === range.getSheetId())
+      const worksheet = univerAPIRef.current?.getActiveWorkbook()?.getSheetBySheetId(range.getSheetId())
+      if (!sheet || !worksheet) continue
+
+      const writableColumns = sheet.columns.filter((column) => !column.readOnly)
+      for (let rowIndex = Math.max(range.getRow(), sheet.firstDataRowIndex); rowIndex <= range.getLastRow(); rowIndex += 1) {
+        const key = rowKey(sheet.sheetId, rowIndex)
+        if (workbookBaseline.rows.has(key)) continue
+
+        const isEmpty = writableColumns.every((column) => isBlank(worksheet.getRange(rowIndex, column.columnIndex).getValue()))
+        const draft = draftRowsRef.current.get(key)
+        if (isEmpty && draft && draft.status !== 'created') {
+          draftRowsRef.current.delete(key)
+          const imageColumn = sheet.columns.find((column) => column.key === 'imageUrl')
+          const publishedColumn = sheet.columns.find((column) => column.key === 'published')
+          if (imageColumn) draftImageCellsRef.current.delete(getImagePreviewCellKey({ sheetId: sheet.sheetId, rowIndex, columnIndex: imageColumn.columnIndex }))
+          if (publishedColumn) publishedToggleCellsRef.current.delete(getPublishedToggleCellKey({ sheetId: sheet.sheetId, rowIndex, columnIndex: publishedColumn.columnIndex }))
+          setDraftRowCount(draftRowsRef.current.size)
+          worksheet.refreshCanvas()
+        } else if (!isEmpty && !draft) {
+          registerDraftRow(sheet, rowIndex)
+        }
+      }
+    }
+  }, [registerDraftRow, workbookBaseline.rows, workbookData])
 
   const rebuildDirtyRowsFromRuntime = useCallback(async (): Promise<DirtyRows> => {
     const fWorkbook = activeWorkbookRef.current ?? (univerAPIRef.current?.getActiveWorkbook() as unknown as SaveableWorkbook | null)
@@ -596,23 +745,66 @@ export function InventoryGridPage() {
     }
     headerSetupFrame = window.requestAnimationFrame(initializeHeaders)
 
-    univerAPI
-      .createSubmenu({ id: 'verde.inventory.tools', title: 'Tools', tooltip: 'Inventory workbook tools' })
-      .addSubmenu(
+    univerAPI.registerComponent('verde.inventory.archive-product-icon', Trash2)
+    univerAPI.createMenu({
+      id: ARCHIVE_TOOLBAR_COMMAND_ID,
+      icon: 'verde.inventory.archive-product-icon',
+      title: 'Archive product',
+      tooltip: 'Archive the selected product',
+      action: () => toolbarActionsRef.current.archive(),
+      order: 99,
+    }).appendTo('ribbon.start.history')
+
+    const refreshArchiveToolbar = () => {
+      const button = container.querySelector<HTMLButtonElement>(`[data-u-command="${ARCHIVE_TOOLBAR_COMMAND_ID}"]`)
+      if (!button) return
+
+      const enabled = toolbarActionsRef.current.canArchive()
+      button.disabled = !enabled
+      button.setAttribute('aria-disabled', String(!enabled))
+      button.style.cursor = enabled ? '' : 'not-allowed'
+      button.style.opacity = enabled ? '' : '0.4'
+    }
+    refreshArchiveToolbarRef.current = refreshArchiveToolbar
+    const refreshArchiveToolbarAfterSelection = () => window.requestAnimationFrame(refreshArchiveToolbar)
+    container.addEventListener('pointerup', refreshArchiveToolbarAfterSelection)
+    container.addEventListener('keyup', refreshArchiveToolbarAfterSelection)
+    window.requestAnimationFrame(refreshArchiveToolbar)
+
+    const toolsMenu = univerAPI.createSubmenu({ id: 'verde.inventory.tools', title: 'Tools', tooltip: 'Inventory workbook tools' })
+    toolsMenu.addSubmenu(
+      univerAPI.createMenu({
+        id: 'verde.inventory.tools.save',
+        title: 'Save changes',
+        action: () => toolbarActionsRef.current.save(),
+      }),
+    )
+    toolsMenu.addSubmenu(
+      univerAPI.createMenu({
+        id: 'verde.inventory.tools.refresh',
+        title: 'Refresh workbook',
+        action: () => toolbarActionsRef.current.refresh(),
+      }),
+    )
+    if (currentUserRole === 'ADMIN' || currentUserRole === 'STORE_KEEPER') {
+      toolsMenu.addSubmenu(
         univerAPI.createMenu({
-          id: 'verde.inventory.tools.save',
-          title: 'Save changes',
-          action: () => toolbarActionsRef.current.save(),
+          id: 'verde.inventory.tools.add-product',
+          title: 'Add product row',
+          action: () => toolbarActionsRef.current.addProduct(),
         }),
       )
-      .addSubmenu(
+    }
+    if (currentUserRole === 'ADMIN') {
+      toolsMenu.addSubmenu(
         univerAPI.createMenu({
-          id: 'verde.inventory.tools.refresh',
-          title: 'Refresh workbook',
-          action: () => toolbarActionsRef.current.refresh(),
+          id: 'verde.inventory.tools.create-category',
+          title: 'Create category',
+          action: () => toolbarActionsRef.current.createCategory(),
         }),
       )
-      .appendTo('ribbon.start.others')
+    }
+    toolsMenu.appendTo('ribbon.start.others')
 
     const imagePreviewCells = getImagePreviewCells(workbookData)
     imagePreviewCellsRef.current = new Map(imagePreviewCells.map((cell) => [getImagePreviewCellKey(cell), cell]))
@@ -637,6 +829,18 @@ export function InventoryGridPage() {
               return
             }
 
+            const draft = draftRowsRef.current.get(rowKey(info.subUnitId, info.row))
+            if (draftImageCellsRef.current.has(cellKey) && draft) {
+              const imageUrl = typeof value === 'string' ? value.trim() : ''
+              if (imageUrl) {
+                const image = imagePreviewCacheRef.current.get(imageUrl, refreshActiveImagePreviewCanvas)
+                drawImagePreview(context, info.primaryWithCoord, image)
+              } else {
+                drawDraftImageAdd(context, info.primaryWithCoord)
+              }
+              return
+            }
+
             if (imagePreviewCellsRef.current.has(cellKey)) {
               const imageUrl = stagedImagePreviewUrlsRef.current.get(cellKey) ?? (typeof value === 'string' ? value.trim() : '')
               const image = imagePreviewCacheRef.current.get(imageUrl, refreshActiveImagePreviewCanvas)
@@ -651,6 +855,7 @@ export function InventoryGridPage() {
       if (eventApi.Event?.SheetValueChanged) {
         disposables.push(
           eventApi.addEvent(eventApi.Event.SheetValueChanged, (event) => {
+            syncDraftRowsFromChange(event as SheetValueChangedEvent)
             void rebuildDirtyRowsFromRuntime()
             invalidateAffectedImagePreviews(event as SheetValueChangedEvent)
           }),
@@ -666,8 +871,14 @@ export function InventoryGridPage() {
               rowIndex: cellEvent.row,
               columnIndex: cellEvent.column,
             })
+            const draft = draftRowsRef.current.get(rowKey(cellEvent.worksheet.getSheetId(), cellEvent.row))
+            if (draft && draft.status === 'created') {
+              cellEvent.cancel = true
+              return
+            }
             if (
               publishedToggleCellsRef.current.has(cellKey) ||
+              draftImageCellsRef.current.has(cellKey) ||
               updatedAtCellsRef.current.has(cellKey) ||
               imagePreviewCellsRef.current.has(cellKey)
             ) {
@@ -693,13 +904,25 @@ export function InventoryGridPage() {
               return
             }
 
+            const draft = draftRowsRef.current.get(rowKey(cellEvent.worksheet.getSheetId(), cellEvent.row))
+            if (draft && draftImageCellsRef.current.has(cellKey)) {
+              if (draft.status === 'created') return
+              setImageUrlEditorTarget({
+                kind: 'draft',
+                sheetId: draft.sheetId,
+                rowIndex: draft.rowIndex,
+                columnIndex: cellEvent.column,
+              })
+              return
+            }
+
             const previewCell = imagePreviewCellsRef.current.get(cellKey)
             if (!previewCell) {
               return
             }
 
             const value = cellEvent.worksheet.getRange(cellEvent.row, cellEvent.column).getValue()
-            setImageUrlEditorTarget({ ...previewCell, imageUrl: typeof value === 'string' ? value : '' })
+            setImageUrlEditorTarget({ kind: 'persisted', ...previewCell, imageUrl: typeof value === 'string' ? value : '' })
           }),
         )
       }
@@ -719,9 +942,12 @@ export function InventoryGridPage() {
       }
       activeWorkbookRef.current = null
       univerAPIRef.current = null
+      refreshArchiveToolbarRef.current = () => undefined
+      container.removeEventListener('pointerup', refreshArchiveToolbarAfterSelection)
+      container.removeEventListener('keyup', refreshArchiveToolbarAfterSelection)
       univer.dispose()
     }
-  }, [invalidateAffectedImagePreviews, isInventoryGridFullscreen, rebuildDirtyRowsFromRuntime, refreshActiveImagePreviewCanvas, workbook, workbookData])
+  }, [currentUserRole, invalidateAffectedImagePreviews, isInventoryGridFullscreen, rebuildDirtyRowsFromRuntime, refreshActiveImagePreviewCanvas, syncDraftRowsFromChange, workbook, workbookData])
 
   const handleApplyImageUrl = useCallback(
     async (target: ImageUrlEditorTarget, imageUrl: string) => {
@@ -741,8 +967,33 @@ export function InventoryGridPage() {
     [],
   )
 
+  const clearDraftRows = useCallback(() => {
+    draftRowsRef.current.clear()
+    draftImageCellsRef.current.clear()
+    setDraftRowCount(0)
+    setDraftSaveResults([])
+  }, [])
+
   const handleStageImage = useCallback(
-    async (target: ImageUrlEditorTarget, image: File) => {
+    async (target: InventoryImageEditorTarget, image: File) => {
+      if (target.kind === 'draft') {
+        const key = rowKey(target.sheetId, target.rowIndex)
+        const draft = draftRowsRef.current.get(key)
+        const worksheet = univerAPIRef.current?.getActiveWorkbook()?.getSheetBySheetId(target.sheetId)
+        if (!draft || draft.status === 'created' || !worksheet) return
+
+        const { imageUrl } = await uploadStagedInventoryImageMutation.mutateAsync({ image })
+        const cellKey = getImagePreviewCellKey(target)
+        imagePreviewCacheRef.current.invalidate(imagePreviewUrlsRef.current.get(cellKey))
+        imagePreviewCacheRef.current.invalidate(imageUrl)
+        imagePreviewUrlsRef.current.set(cellKey, imageUrl)
+        worksheet.getRange(target.rowIndex, target.columnIndex).setValue(imageUrl)
+        worksheet.refreshCanvas()
+        setStagedImageUploadError(null)
+        setImageUrlEditorTarget(null)
+        return
+      }
+
       const cellKey = getImagePreviewCellKey(target)
       const existing = stagedImageUploadsRef.current.get(cellKey)
       if (existing) {
@@ -757,8 +1008,107 @@ export function InventoryGridPage() {
       univerAPIRef.current?.getActiveWorkbook()?.getSheetBySheetId(target.sheetId)?.refreshCanvas()
       setImageUrlEditorTarget(null)
     },
-    [],
+    [uploadStagedInventoryImageMutation],
   )
+
+  const getSelectedArchiveTarget = useCallback((): ArchiveTarget | null => {
+    const activeRange = univerAPIRef.current?.getActiveWorkbook()?.getActiveRange()
+    if (!activeRange || activeRange.getRow() !== activeRange.getLastRow()) return null
+
+    const sheetId = activeRange.getSheetId()
+    const sheet = workbookData?.metadata.sheets.find((candidate) => candidate.sheetId === sheetId)
+    const selection = activeRange.getRange()
+    if (!sheet || selection.startColumn !== 0 || selection.endColumn < sheet.columns.length - 1) return null
+
+    const baseline = workbookBaseline.rows.get(rowKey(sheetId, activeRange.getRow()))
+    if (!baseline) return null
+
+    return {
+      rowToken: baseline.rowToken,
+      sheetName: baseline.sheetName,
+      rowIndex: baseline.rowIndex,
+    }
+  }, [workbookBaseline.rows, workbookData])
+
+  const handleArchiveProduct = useCallback(async () => {
+    if (!archiveTarget) return
+
+    try {
+      await archiveInventoryWorkbookRowMutation.mutateAsync({ rowToken: archiveTarget.rowToken })
+      setArchiveTarget(null)
+      await inventoryWorkbookQuery.refetch()
+    } catch (error) {
+      setStagedImageUploadError(error)
+    }
+  }, [archiveInventoryWorkbookRowMutation, archiveTarget, inventoryWorkbookQuery])
+
+  const handleArchiveToolbarAction = useCallback(() => {
+    const archive = getSelectedArchiveTarget()
+    if (!archive || hasClientWork) return
+
+    setArchiveTarget(archive)
+  }, [getSelectedArchiveTarget, hasClientWork])
+
+  const handleAddProductRow = useCallback(() => {
+    const activeSheet = univerAPIRef.current?.getActiveWorkbook()?.getActiveSheet()
+    const sheetId = activeSheet?.getSheetId()
+    const sheetMetadata = workbookData?.metadata.sheets.find((sheet) => sheet.sheetId === sheetId)
+    const worksheet = sheetId ? univerAPIRef.current?.getActiveWorkbook()?.getSheetBySheetId(sheetId) : undefined
+    const sheet = sheetId ? workbookData?.workbook.sheets[sheetId] : undefined
+
+    if (!activeSheet || !sheetId || !sheetMetadata || !worksheet || !sheet) {
+      setStagedImageUploadError(new Error('Select a category sheet before adding a product.'))
+      return
+    }
+
+    const writableColumns = sheetMetadata.columns.filter((column) => !column.readOnly)
+    let rowIndex: number | undefined
+    for (let candidate = sheetMetadata.firstDataRowIndex; candidate < sheet.rowCount; candidate += 1) {
+      const key = rowKey(sheetId, candidate)
+      const isUnused = !workbookBaseline.rows.has(key) && !draftRowsRef.current.has(key)
+      const isBlankRow = writableColumns.every((column) => isBlank(worksheet.getRange(candidate, column.columnIndex).getValue()))
+      if (isUnused && isBlankRow) {
+        rowIndex = candidate
+        break
+      }
+    }
+
+    if (rowIndex === undefined) {
+      setStagedImageUploadError(new Error('No buffered row is available. Refresh the workbook before adding another product.'))
+      return
+    }
+
+    for (const column of writableColumns) {
+      const value = column.key === 'price' || column.key === 'totalQuantity' ? 0 : column.key === 'published' ? true : ''
+      worksheet.getRange(rowIndex, column.columnIndex).setValue(value)
+    }
+
+    registerDraftRow(sheetMetadata, rowIndex)
+    setStagedImageUploadError(null)
+    worksheet.refreshCanvas()
+  }, [registerDraftRow, workbookBaseline.rows, workbookData])
+
+  const handleCreateCategory = useCallback(async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    const name = newCategoryName.trim()
+    if (!name) {
+      setStagedImageUploadError(new Error('Category name is required.'))
+      return
+    }
+
+    try {
+      await createInventoryGridCategoryMutation.mutateAsync({
+        name,
+        ...(newCategoryDescription.trim() ? { description: newCategoryDescription.trim() } : {}),
+      })
+      setIsCreateCategoryOpen(false)
+      setNewCategoryName('')
+      setNewCategoryDescription('')
+      await inventoryWorkbookQuery.refetch()
+    } catch (error) {
+      setStagedImageUploadError(error)
+    }
+  }, [createInventoryGridCategoryMutation, inventoryWorkbookQuery, newCategoryDescription, newCategoryName])
 
   const uploadStagedImagesForManualSave = useCallback(async () => {
     const stagedUploads = [...stagedImageUploadsRef.current.entries()]
@@ -788,7 +1138,7 @@ export function InventoryGridPage() {
   }, [handleApplyImageUrl, uploadInventoryWorkbookImageMutation])
 
   const flushDeltaSave = useCallback(
-    async (saveMode: 'manual' | 'autosave') => {
+    async (saveMode: 'manual' | 'autosave', shouldRefetch = true) => {
       const hasStagedImages = stagedImageUploadsRef.current.size > 0
       if (!workbookData || (dirtyRows.size === 0 && !hasStagedImages) || (hasConflict && saveMode === 'autosave')) {
         return null
@@ -844,7 +1194,7 @@ export function InventoryGridPage() {
           return nextDirtyRows
         })
 
-        if (result.summary.failedRows === 0 && result.summary.conflictedRows === 0) {
+        if (shouldRefetch && draftRowsRef.current.size === 0 && result.summary.failedRows === 0 && result.summary.conflictedRows === 0) {
           await inventoryWorkbookQuery.refetch()
         }
 
@@ -868,6 +1218,52 @@ export function InventoryGridPage() {
     ],
   )
 
+  const saveDraftRows = useCallback(async () => {
+    const fWorkbook = activeWorkbookRef.current ?? (univerAPIRef.current?.getActiveWorkbook() as unknown as SaveableWorkbook | null)
+    if (!fWorkbook || !workbookData) return [] as DraftSaveResult[]
+
+    const runtimeWorkbook = (await Promise.resolve(fWorkbook.save())) as unknown as UniverWorkbookSnapshot
+    const results = await Promise.all(
+      [...draftRowsRef.current.entries()]
+        .filter(([, draft]) => draft.status === 'editing' || draft.status === 'failed')
+        .map(async ([key, draft]): Promise<DraftSaveResult> => {
+          const sheet = workbookData.metadata.sheets.find((candidate) => candidate.sheetId === draft.sheetId)
+          const label = `${draft.sheetName} row ${draft.rowIndex + 1}`
+          if (!sheet) {
+            draft.status = 'failed'
+            draft.error = 'The draft category sheet is no longer available.'
+            return { key, label, status: 'failed', message: draft.error }
+          }
+
+          const payload = buildDraftProductBody(runtimeWorkbook, draft, sheet)
+          if ('error' in payload) {
+            draft.status = 'failed'
+            draft.error = payload.error
+            return { key, label, status: 'failed', message: payload.error }
+          }
+
+          draft.status = 'creating'
+          draft.error = undefined
+          try {
+            await createInventoryGridProductMutation.mutateAsync({
+              category: draft.categoryId,
+              body: payload.body,
+            })
+            draft.status = 'created'
+            return { key, label, status: 'created' }
+          } catch (error) {
+            draft.status = 'failed'
+            draft.error = getErrorMessage(error, { context: 'create' })
+            return { key, label, status: 'failed', message: draft.error }
+          }
+        }),
+    )
+
+    setDraftSaveResults(results)
+    setDraftRowCount(draftRowsRef.current.size)
+    return results
+  }, [createInventoryGridProductMutation, workbookData])
+
   useEffect(() => {
     if (!AUTOSAVE_ENABLED || dirtyRows.size === 0 || stagedImageUploadCount > 0 || hasConflict) {
       return
@@ -883,40 +1279,64 @@ export function InventoryGridPage() {
   const handleSave = useCallback(async () => {
     setStagedImageUploadError(null)
     try {
-      await flushDeltaSave('manual')
+      const [deltaResult, draftResult] = await Promise.allSettled([
+        flushDeltaSave('manual', false),
+        saveDraftRows(),
+      ])
+      if (deltaResult.status === 'rejected') {
+        setStagedImageUploadError(deltaResult.reason)
+      }
+      if (draftResult.status === 'rejected') {
+        setStagedImageUploadError(draftResult.reason)
+      }
+
+      const deltaHasProblems = deltaResult.status === 'rejected' || (
+        deltaResult.value !== null &&
+        (deltaResult.value.summary.failedRows > 0 || deltaResult.value.summary.conflictedRows > 0)
+      )
+      const hasUnresolvedDrafts = [...draftRowsRef.current.values()].some((draft) => draft.status !== 'created')
+
+      if (!deltaHasProblems && !hasUnresolvedDrafts && stagedImageUploadsRef.current.size === 0) {
+        const refresh = await inventoryWorkbookQuery.refetch()
+        if (!refresh.isError) clearDraftRows()
+      }
     } catch (error) {
       setStagedImageUploadError(error)
     }
-  }, [flushDeltaSave])
+  }, [clearDraftRows, flushDeltaSave, inventoryWorkbookQuery, saveDraftRows])
+
+  const isSaving = saveWorkbookChangesMutation.isPending || archiveInventoryWorkbookRowMutation.isPending || isSavingStagedImages || createInventoryGridProductMutation.isPending || uploadStagedInventoryImageMutation.isPending
 
   useEffect(() => {
     toolbarActionsRef.current = {
       refresh: () => {
-        if (!inventoryWorkbookQuery.isFetching && !saveWorkbookChangesMutation.isPending && stagedImageUploadCount === 0 && dirtyCellCount === 0) {
+        if (!inventoryWorkbookQuery.isFetching && !isSaving && !hasClientWork) {
           void inventoryWorkbookQuery.refetch()
         }
       },
       save: () => {
-        if (workbookData && (dirtyCellCount > 0 || stagedImageUploadCount > 0) && !saveWorkbookChangesMutation.isPending && !isSavingStagedImages && !inventoryWorkbookQuery.isFetching) {
+        if (workbookData && hasClientWork && !isSaving && !inventoryWorkbookQuery.isFetching) {
           void handleSave()
         }
       },
+      archive: handleArchiveToolbarAction,
+      canArchive: () => !isSaving && !hasClientWork && getSelectedArchiveTarget() !== null,
+      addProduct: handleAddProductRow,
+      createCategory: () => {
+        if (hasClientWork) {
+          setStagedImageUploadError(new Error('Save or resolve workbook changes before creating a category.'))
+          return
+        }
+        setIsCreateCategoryOpen(true)
+      },
     }
-  }, [
-    dirtyCellCount,
-    handleSave,
-    inventoryWorkbookQuery,
-    isSavingStagedImages,
-    saveWorkbookChangesMutation.isPending,
-    stagedImageUploadCount,
-    workbookData,
-  ])
+    refreshArchiveToolbarRef.current()
+  }, [getSelectedArchiveTarget, handleAddProductRow, handleArchiveToolbarAction, handleSave, hasClientWork, inventoryWorkbookQuery, isSaving, workbookData])
 
-  const isSaving = saveWorkbookChangesMutation.isPending || isSavingStagedImages
   const saveButtonText = isSaving
     ? 'Saving...'
-    : dirtyCellCount > 0 || stagedImageUploadCount > 0
-      ? `Save ${dirtyRowCount} row${dirtyRowCount === 1 ? '' : 's'} / ${dirtyCellCount} cell${dirtyCellCount === 1 ? '' : 's'}${stagedImageUploadCount > 0 ? ` · ${stagedImageUploadCount} image${stagedImageUploadCount === 1 ? '' : 's'} staged` : ''}`
+    : hasClientWork
+      ? `Save ${dirtyRowCount} row${dirtyRowCount === 1 ? '' : 's'} / ${dirtyCellCount} cell${dirtyCellCount === 1 ? '' : 's'}${draftRowCount > 0 ? ` · ${draftRowCount} new product${draftRowCount === 1 ? '' : 's'}` : ''}${stagedImageUploadCount > 0 ? ` · ${stagedImageUploadCount} image${stagedImageUploadCount === 1 ? '' : 's'} staged` : ''}`
       : 'Saved'
 
   const statusText = isSaving
@@ -925,7 +1345,7 @@ export function InventoryGridPage() {
       ? 'Conflict'
       : saveWorkbookChangesMutation.isError
         ? 'Save failed'
-        : dirtyCellCount > 0 || stagedImageUploadCount > 0
+        : hasClientWork
           ? 'Unsaved'
           : 'Saved'
 
@@ -939,7 +1359,7 @@ export function InventoryGridPage() {
             <Button
               type="button"
               variant="secondary"
-              disabled={inventoryWorkbookQuery.isFetching || isSaving || stagedImageUploadCount > 0 || dirtyCellCount > 0}
+              disabled={inventoryWorkbookQuery.isFetching || isSaving || hasClientWork}
               onClick={() => void inventoryWorkbookQuery.refetch()}
             >
               <RefreshCw className={cn('size-4', inventoryWorkbookQuery.isFetching && 'animate-spin')} />
@@ -947,7 +1367,7 @@ export function InventoryGridPage() {
             </Button>
             <Button
               type="button"
-              disabled={!workbookData || (dirtyCellCount === 0 && stagedImageUploadCount === 0) || isSaving || inventoryWorkbookQuery.isFetching}
+              disabled={!workbookData || !hasClientWork || isSaving || inventoryWorkbookQuery.isFetching}
               onClick={() => void handleSave()}
             >
               <Save className={cn('size-4', isSaving && 'animate-pulse')} />
@@ -970,6 +1390,84 @@ export function InventoryGridPage() {
       {saveWorkbookChangesMutation.isError ? <InventoryGridSaveError error={saveWorkbookChangesMutation.error} /> : null}
       {stagedImageUploadError ? <InventoryGridSaveError error={stagedImageUploadError} /> : null}
       {saveResult ? <InventoryGridSaveSummary result={saveResult} /> : null}
+      {draftSaveResults.length > 0 ? (
+        <div className="rounded-xl border border-border bg-surface p-4 text-sm">
+          <p className="font-semibold text-text-primary">New product results</p>
+          <ul className="mt-2 space-y-1 text-text-secondary">
+            {draftSaveResults.map((result) => (
+              <li key={result.key} className={result.status === 'created' ? 'text-green-700' : 'text-red-700'}>
+                {result.label}: {result.status === 'created' ? 'created' : result.message ?? 'needs attention'}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
+      <Dialog open={Boolean(archiveTarget)} onOpenChange={(open) => !open && setArchiveTarget(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Archive this product?</DialogTitle>
+            <DialogDescription>
+              {archiveTarget ? `The product in ${archiveTarget.sheetName}, row ${archiveTarget.rowIndex + 1}, will no longer appear in the workbook. Stock and audit history will remain available.` : ''}
+            </DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={(event) => {
+            event.preventDefault()
+            void handleArchiveProduct()
+          }}>
+            <DialogFormActions
+              isSubmitting={archiveInventoryWorkbookRowMutation.isPending}
+              submitLabel="Archive product"
+              submittingLabel="Archiving..."
+              onCancel={() => setArchiveTarget(null)}
+            />
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {currentUserRole === 'ADMIN' ? (
+      <Dialog
+        open={isCreateCategoryOpen}
+        onOpenChange={(open) => {
+          setIsCreateCategoryOpen(open)
+          if (!open) {
+            setNewCategoryName('')
+            setNewCategoryDescription('')
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Create category</DialogTitle>
+            <DialogDescription>Add a local category and refresh the workbook to create its sheet.</DialogDescription>
+          </DialogHeader>
+          <form className="space-y-4" onSubmit={handleCreateCategory}>
+            <FormField htmlFor="inventory-category-name" label="Category name">
+              <Input
+                id="inventory-category-name"
+                value={newCategoryName}
+                onChange={(event) => setNewCategoryName(event.target.value)}
+                disabled={createInventoryGridCategoryMutation.isPending}
+              />
+            </FormField>
+            <FormField htmlFor="inventory-category-description" label="Description" hint="Optional">
+              <Input
+                id="inventory-category-description"
+                value={newCategoryDescription}
+                onChange={(event) => setNewCategoryDescription(event.target.value)}
+                disabled={createInventoryGridCategoryMutation.isPending}
+              />
+            </FormField>
+            <DialogFormActions
+              isSubmitting={createInventoryGridCategoryMutation.isPending}
+              submitLabel="Create category"
+              submittingLabel="Creating..."
+              onCancel={() => setIsCreateCategoryOpen(false)}
+            />
+          </form>
+        </DialogContent>
+      </Dialog>
+      ) : null}
 
       <ImageUrlEditorDialog
         target={imageUrlEditorTarget}
@@ -985,6 +1483,7 @@ export function InventoryGridPage() {
               <p className="text-sm text-text-secondary">
                 {productCount ?? 0} products · {sheetCount} workbook sheet{sheetCount === 1 ? '' : 's'} · {statusText}
                 {dirtyCellCount > 0 ? ` · ${dirtyRowCount} changed rows / ${dirtyCellCount} cells` : ''}
+                {draftRowCount > 0 ? ` · ${draftRowCount} new product${draftRowCount === 1 ? '' : 's'} staged` : ''}
                 {AUTOSAVE_ENABLED ? ' · autosave on' : ''}
               </p>
             </div>

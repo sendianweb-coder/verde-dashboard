@@ -1,13 +1,13 @@
-import { AlertTriangle, ArrowLeft, Boxes, CalendarClock, CheckCircle2, ClipboardList, MinusCircle, Package, Printer, UserRound, XCircle } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, MinusCircle, Package, Printer, Undo2, XCircle } from 'lucide-react'
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { toast } from 'sonner'
 
-import { PageHeader } from '@/components/layout/PageHeader'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { DeliveryNoteDocument } from '@/components/shared/DeliveryNoteDocument'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
+import { RequestReturnDialog } from '@/components/shared/RequestReturnDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -27,6 +27,7 @@ import {
   useRequest,
 } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
+import { cn } from '@/lib/utils'
 import type { InternalRequestItem } from '@/types/request'
 import type { ApproveRequestPayload, AdjustItemsPayload } from '@/types/request'
 
@@ -122,10 +123,15 @@ function getItemIssueLabel(item: InternalRequestItem) {
 
 function ProductMarker({ item }: { item: InternalRequestItem }) {
   return item.product.imageUrl ? (
-    <img src={item.product.imageUrl} alt={item.product.name} className="size-10 rounded-lg border border-border bg-surface object-cover" loading="lazy" />
+    <img
+      src={item.product.imageUrl}
+      alt={item.product.name}
+      className="size-16 shrink-0 rounded-lg border border-border bg-surface object-cover"
+      loading="lazy"
+    />
   ) : (
-    <div className="flex size-10 items-center justify-center rounded-lg border border-border bg-surface text-text-muted">
-      <Package className="size-4" />
+    <div className="flex size-16 shrink-0 items-center justify-center rounded-lg border border-border bg-surface text-text-muted">
+      <Package className="size-5" />
     </div>
   )
 }
@@ -146,6 +152,24 @@ function ItemStatusBadge({ status }: { status: string }) {
       {status === 'PARTIALLY_FULFILLED' ? <MinusCircle className="size-3" /> : null}
       {status.replace(/_/g, ' ')}
     </span>
+  )
+}
+
+function CardSectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3.5">
+      <h2 className="text-xs font-semibold uppercase tracking-wider text-text-secondary">{title}</h2>
+      {action}
+    </div>
+  )
+}
+
+function StockMetric({ label, value, highlight }: { label: string; value: React.ReactNode; highlight?: boolean }) {
+  return (
+    <div className="px-3 py-2.5 text-center">
+      <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">{label}</p>
+      <p className={cn('mt-0.5 text-sm font-semibold tabular-nums', highlight ? 'text-pending-text' : 'text-text-primary')}>{value}</p>
+    </div>
   )
 }
 
@@ -194,9 +218,13 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
   const requestHistory = request.history ?? []
   const pickupEvent = requestHistory.find((event) => event.action === 'PICKED_UP')
   const pickedItems = request.items.filter((item) => (item.fulfilledQuantity ?? 0) > 0)
+  const canReturnItems =
+    (request.status === 'PICKED_UP' || request.status === 'COMPLETED') &&
+    request.items.some((item) => (item.fulfilledQuantity ?? 0) > item.returnedQuantity)
   const submittedAt = formatRequestDateTime(request.createdAt)
   const statusLabel = request.status.replace(/_/g, ' ')
   const projectDetails = [request.project.client, request.project.location, request.project.projectType].filter(Boolean).join(' / ')
+  const itemCount = request.summary?.itemCount ?? request.items.length
 
   const handlePrint = (printClass: 'printing-request' | 'printing-delivery-note', printTitle?: string) => {
     const previousTitle = document.title
@@ -266,7 +294,6 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
   // --- Item-level approval handlers ---
 
   const enterItemApprovalMode = () => {
-    // Initialize item approvals from current request items
     const initial: Record<string, { approvedQuantity: number; status: 'APPROVED' | 'REJECTED'; reason: string; comment: string }> = {}
     for (const item of request.items) {
       initial[item.id] = {
@@ -344,7 +371,6 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
   }
 
   const submitItemAdjusts = async () => {
-    // Send every line where quantity, status, reason, or comment changed.
     const changedItems: Array<{ itemId: string; approvedQuantity: number; status: 'APPROVED' | 'REJECTED'; reason?: string; comment?: string }> = request.items
       .map((item) => {
         const edit = itemAdjusts[item.id]
@@ -395,36 +421,62 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
   }
 
   return (
-    <section className="space-y-6">
-      <div className="request-screen-content">
-        <PageHeader
-          title="Request Detail"
-          subtitle={`Submitted ${submittedAt}`}
-          action={
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button type="button" variant="secondary" onClick={() => handlePrint('printing-request')}>
-                <Printer className="h-4 w-4" />
-                Print Details
+    <section className="mx-auto w-full max-w-6xl space-y-6">
+      {/* ===== Screen header ===== */}
+      <div className="request-screen-content space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={() => navigate(backToPath)}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-text-secondary transition-colors hover:text-text-primary"
+          >
+            <ArrowLeft className="size-4" />
+            Back to queue
+          </button>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="secondary" size="sm" onClick={() => handlePrint('printing-request')}>
+              <Printer className="size-4" />
+              Print Details
+            </Button>
+            {showDeliveryNote && (request.status === 'PICKED_UP' || request.status === 'COMPLETED') ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => handlePrint('printing-delivery-note', createDeliveryNoteFilename())}
+              >
+                <Printer className="size-4" />
+                Delivery Note
               </Button>
-              {showDeliveryNote && (request.status === 'PICKED_UP' || request.status === 'COMPLETED') ? (
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={() => handlePrint('printing-delivery-note', createDeliveryNoteFilename())}
-                >
-                  <Printer className="h-4 w-4" />
-                  Print Delivery Note
-                </Button>
-              ) : null}
-              <Button type="button" variant="secondary" onClick={() => navigate(backToPath)}>
-                <ArrowLeft className="h-4 w-4" />
-                Back to queue
-              </Button>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-end justify-between gap-3">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="truncate text-2xl font-semibold tracking-tight text-text-primary">
+                Request <span className="tabular-nums">{request.id.slice(0, 8)}</span>
+              </h1>
+              <StatusBadge status={request.status} />
             </div>
-          }
-        />
+            <p className="mt-1 text-sm text-text-secondary">Submitted {submittedAt}</p>
+          </div>
+
+          <div className="flex items-center gap-2.5 text-right">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Requester</p>
+              <p className="text-sm font-medium text-text-primary">{request.requester.name}</p>
+            </div>
+            <span className="flex size-11 items-center justify-center rounded-full border border-border bg-surface text-sm font-semibold text-text-secondary">
+              {request.requester.name.split(' ').filter(Boolean).map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'E'}
+            </span>
+          </div>
+        </div>
       </div>
 
+      {/* ===== Printable request document (unchanged output) ===== */}
       <article id="request-print-content" className="request-print-document" aria-label="Printable request details">
         <header className="request-print-header">
           <h1>Request Details</h1>
@@ -538,353 +590,465 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
 
       {showDeliveryNote ? <DeliveryNoteDocument request={request} pickupEvent={pickupEvent} pickedItems={pickedItems} /> : null}
 
-      <section className="request-screen-content rounded-xl border border-border bg-surface-raised p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <ClipboardList className="size-4 text-brand-600" />
-              <h2 className="text-lg font-semibold text-text-primary">Request summary</h2>
+      {/* ===== Two-column body ===== */}
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+        {/* ---- Main column ---- */}
+        <div className="request-screen-content space-y-6">
+          {/* Summary card */}
+          <section className="overflow-hidden rounded-xl border border-border bg-surface-raised">
+            <CardSectionHeader title="Request Summary" />
+            <div className="grid gap-x-8 gap-y-5 p-5 sm:grid-cols-2">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">Project</p>
+                <p className="mt-1 text-sm font-medium text-text-primary">{request.project.name}</p>
+                {projectDetails ? <p className="mt-0.5 text-xs text-text-muted">{projectDetails}</p> : null}
+              </div>
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">Submitted</p>
+                <p className="mt-1 text-sm font-medium tabular-nums text-text-primary">{formatRequestDate(request.createdAt)}</p>
+                <p className="mt-0.5 text-xs tabular-nums text-text-muted">{itemCount} items</p>
+              </div>
+              {request.project.description ? (
+                <div className="sm:col-span-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">Project Description</p>
+                  <p className="mt-1 text-sm text-text-secondary">{request.project.description}</p>
+                </div>
+              ) : null}
+              {request.notes?.trim() ? (
+                <div className="sm:col-span-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-widest text-text-muted">Requester Notes</p>
+                  <p className="mt-1 text-sm leading-relaxed text-text-secondary">{request.notes}</p>
+                </div>
+              ) : null}
             </div>
-            <p className="mt-1 text-sm text-text-secondary">Snapshot of the requester, project, and request status.</p>
-          </div>
-          <StatusBadge status={request.status} />
-        </div>
+          </section>
 
-        <dl className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-lg border border-border bg-background p-3">
-            <dt className="flex items-center gap-1.5 text-sm text-text-secondary">
-              <UserRound className="size-3.5" />
-              Requester
-            </dt>
-            <dd className="mt-1 text-sm font-medium text-text-primary">{request.requester.name}</dd>
-          </div>
-          <div className="rounded-lg border border-border bg-background p-3">
-            <dt className="flex items-center gap-1.5 text-sm text-text-secondary">
-              <CalendarClock className="size-3.5" />
-              Submitted
-            </dt>
-            <dd className="mt-1 text-sm font-medium tabular-nums text-text-primary">{formatRequestDate(request.createdAt)}</dd>
-          </div>
-          <div className="rounded-lg border border-border bg-background p-3 md:col-span-2">
-            <dt className="text-sm text-text-secondary">Project</dt>
-            <dd className="mt-1 text-sm font-medium text-text-primary">{request.project.name}</dd>
-            {projectDetails ? <p className="mt-1 text-xs text-text-muted">{projectDetails}</p> : null}
-          </div>
-        </dl>
-
-        {request.project.description ? <p className="mt-4 rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-secondary">{'Description: ' + request.project.description}</p> : null}
-      </section>
-
-      <section className="request-screen-content rounded-xl border border-border bg-surface-raised p-5">
-        <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-text-primary">Requested items</h2>
-            <p className="text-sm text-text-secondary">Request-time stock is the source of truth; current stock is shown for context only.</p>
-          </div>
-          <span className="inline-flex w-fit items-center gap-1 rounded-lg border border-border bg-background px-2 py-1 text-xs font-medium tabular-nums text-text-secondary">
-            <Boxes className="size-3.5" />
-            {request.summary?.itemCount ?? request.items.length} items / {request.summary?.totalRequestedQuantity ?? request.items.reduce((total, item) => total + item.quantity, 0)} units
-            {request.summary?.totalApprovedQuantity != null ? ` | ${request.summary.totalApprovedQuantity} approved` : ''}
-            {request.summary?.totalFulfilledQuantity != null ? ` / ${request.summary.totalFulfilledQuantity} fulfilled` : ''}
-            {request.summary?.hasItemIssues ? ' | Has issues' : ''}
-          </span>
-        </div>
-
-        <div className="mt-4 divide-y divide-border overflow-hidden rounded-lg border border-border bg-background">
-          {request.items.map((item) => {
-            const itemStatus = item.itemStatus ?? 'PENDING'
-            const hasApproved = item.approvedQuantity != null
-            const hasFulfilled = item.fulfilledQuantity != null
-            const isEditingApproval = itemApprovalMode && itemApprovals[item.id] != null
-            const isEditingAdjust = itemAdjustMode && itemAdjusts[item.id] != null
-            const isEditing = isEditingApproval || isEditingAdjust
-
-            return (
-              <article key={item.id} className="px-3 py-3">
-                <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-                  <div className="flex min-w-0 gap-3">
-                    <ProductMarker item={item} />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-medium text-text-primary">{item.product.name}</p>
-                        <ItemStatusBadge status={itemStatus} />
-                      </div>
-                      <p className="text-xs text-text-muted">SKU {item.product.sku || 'N/A'}</p>
-                      {item.issueReason ? (
-                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-pending-text">
-                          <AlertTriangle className="size-3 shrink-0" />
-                          <span className="inline-flex rounded-md border border-warning bg-pending-bg px-1.5 py-0.5 font-medium tabular-nums text-pending-text">
-                            {getItemIssueLabel(item)}
-                          </span>
-                          {item.issueComment ? <span className="text-text-muted">{item.issueComment}</span> : null}
-                        </div>
-                      ) : null}
-                    </div>
+          {/* Items card */}
+          <section className="overflow-hidden rounded-xl border border-border bg-surface-raised">
+            <CardSectionHeader
+              title={`Requested Items (${itemCount})`}
+              action={
+                request.status === 'PENDING' && !itemApprovalMode ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void onApprove()
+                      }}
+                      disabled={approveRequestMutation.isPending}
+                      className="text-xs font-medium text-brand-700 hover:underline disabled:opacity-50"
+                    >
+                      Approve All
+                    </button>
+                    <span className="h-3 w-px bg-border" />
+                    <button
+                      type="button"
+                      onClick={enterItemApprovalMode}
+                      className="text-xs font-medium text-brand-700 hover:underline"
+                    >
+                      Approve by Item
+                    </button>
                   </div>
+                ) : request.status === 'APPROVED' && !itemAdjustMode ? (
+                  <button
+                    type="button"
+                    onClick={enterItemAdjustMode}
+                    className="text-xs font-medium text-brand-700 hover:underline"
+                  >
+                    Edit Approved Items
+                  </button>
+                ) : null
+              }
+            />
 
-                  {!isEditing ? (
-                    <dl className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-right sm:grid-cols-4 sm:min-w-[440px]">
-                      <div>
-                        <dt className="text-xs text-text-muted">Requested</dt>
-                        <dd className="text-sm font-medium tabular-nums text-text-primary">{item.quantity}</dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-text-muted">Approved</dt>
-                        <dd className="text-sm font-medium tabular-nums text-text-primary">
-                          {hasApproved ? item.approvedQuantity : '—'}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-text-muted">Fulfilled</dt>
-                        <dd className="text-sm font-medium tabular-nums text-text-primary">
-                          {hasFulfilled ? item.fulfilledQuantity : '—'}
-                        </dd>
-                      </div>
-                      <div>
-                        <dt className="text-xs text-text-muted">Current Stock</dt>
-                        <dd className="text-sm font-medium tabular-nums text-text-primary">{item.currentStock.availableQuantity}</dd>
-                      </div>
-                    </dl>
-                  ) : null}
+            <div className="divide-y divide-border">
+              {request.items.map((item) => {
+                const itemStatus = item.itemStatus ?? 'PENDING'
+                const hasApproved = item.approvedQuantity != null
+                const hasFulfilled = item.fulfilledQuantity != null
+                const isEditingApproval = itemApprovalMode && itemApprovals[item.id] != null
+                const isEditingAdjust = itemAdjustMode && itemAdjusts[item.id] != null
+                const rowEditing = isEditingApproval || isEditingAdjust
+                const currentAvailable = item.currentStock.availableQuantity
+                // Stock warnings are scoped to the approval decision. Once the request leaves
+                // PENDING the quantities are reserved/decided and live availability is
+                // context only — never rendered as a warning.
+                const shortageForDecision = request.status === 'PENDING' ? Math.max(0, item.quantity - currentAvailable) : 0
+                const showStockWarning = shortageForDecision > 0
 
-                  {isEditingApproval || isEditingAdjust ? (
-                    <div className="flex flex-col gap-2 sm:min-w-[400px]">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <div className="flex items-center gap-1.5">
-                          <label className="text-xs text-text-muted whitespace-nowrap">Qty:</label>
-                          <Input
-                            type="number"
-                            min={0}
-                            max={item.quantity}
-                            className="h-8 w-20 text-sm"
-                            value={isEditingApproval ? itemApprovals[item.id].approvedQuantity : itemAdjusts[item.id].approvedQuantity}
-                            onChange={(e) => {
-                              const val = clampQuantity(Number(e.target.value), item.quantity)
-                              const status = val === 0 ? 'REJECTED' : 'APPROVED'
-                              if (isEditingApproval) {
-                                updateItemApproval(item.id, 'approvedQuantity', val)
-                                updateItemApproval(item.id, 'status', status)
-                              }
-                              if (isEditingAdjust) {
-                                updateItemAdjust(item.id, 'approvedQuantity', val)
-                                updateItemAdjust(item.id, 'status', status)
-                              }
-                            }}
-                          />
+                return (
+                  <article key={item.id} className="p-5">
+                    <div className="flex flex-col gap-4 sm:flex-row">
+                      <ProductMarker item={item} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-medium text-text-primary">{item.product.name}</p>
+                            <p className="text-xs text-text-muted">SKU {item.product.sku || 'N/A'}</p>
+                          </div>
+                          <ItemStatusBadge status={itemStatus} />
                         </div>
-                        <Select
-                          value={isEditingApproval ? itemApprovals[item.id].status : itemAdjusts[item.id].status}
-                          onValueChange={(val: 'APPROVED' | 'REJECTED') => {
-                            const approvedQuantity = val === 'REJECTED'
-                              ? 0
-                              : getPositiveQuantity(
-                                  item.quantity,
-                                  isEditingApproval ? itemApprovals[item.id].approvedQuantity : itemAdjusts[item.id].approvedQuantity,
-                                )
-                            if (isEditingApproval) {
-                              updateItemApproval(item.id, 'status', val)
-                              updateItemApproval(item.id, 'approvedQuantity', approvedQuantity)
-                            }
-                            if (isEditingAdjust) {
-                              updateItemAdjust(item.id, 'status', val)
-                              updateItemAdjust(item.id, 'approvedQuantity', approvedQuantity)
-                            }
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-[120px] text-sm">
-                            <SelectValue />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="APPROVED">Approve</SelectItem>
-                            <SelectItem value="REJECTED">Reject</SelectItem>
-                          </SelectContent>
-                        </Select>
-                        <Select
-                          value={getReasonSelectValue(isEditingApproval ? itemApprovals[item.id].reason : itemAdjusts[item.id].reason)}
-                          onValueChange={(val: string) => {
-                            const reason = normalizeReasonSelectValue(val)
-                            if (isEditingApproval) updateItemApproval(item.id, 'reason', reason)
-                            if (isEditingAdjust) updateItemAdjust(item.id, 'reason', reason)
-                          }}
-                        >
-                          <SelectTrigger className="h-8 w-[140px] text-sm">
-                            <SelectValue placeholder="Reason" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={NO_REASON_VALUE}>No reason</SelectItem>
-                            <SelectItem value="OUT_OF_STOCK">Out of stock</SelectItem>
-                            <SelectItem value="DAMAGED">Damaged</SelectItem>
-                            <SelectItem value="MISSING">Missing</SelectItem>
-                            <SelectItem value="OTHER">Other</SelectItem>
-                          </SelectContent>
-                        </Select>
+
+                        {/* Stock panel */}
+                        <div className="mt-3 grid grid-cols-2 divide-x divide-border rounded-lg border border-border bg-surface sm:grid-cols-4">
+                          <StockMetric label="Requested" value={item.quantity} />
+                          <StockMetric label="At Request" value={item.stockAtRequest?.availableQuantity ?? '—'} />
+                          <StockMetric label="Available now" value={currentAvailable} highlight={showStockWarning} />
+                          {rowEditing ? (
+                            <div className="px-3 py-2.5 text-center">
+                              <p className="text-[10px] font-semibold uppercase tracking-widest text-text-muted">Approved</p>
+                              <Input
+                                type="number"
+                                min={0}
+                                max={item.quantity}
+                                className="mx-auto mt-0.5 h-7 w-20 px-1 text-center text-sm font-semibold tabular-nums"
+                                value={isEditingApproval ? itemApprovals[item.id].approvedQuantity : itemAdjusts[item.id].approvedQuantity}
+                                onChange={(e) => {
+                                  const val = clampQuantity(Number(e.target.value), item.quantity)
+                                  const status = val === 0 ? 'REJECTED' : 'APPROVED'
+                                  if (isEditingApproval) {
+                                    updateItemApproval(item.id, 'approvedQuantity', val)
+                                    updateItemApproval(item.id, 'status', status)
+                                  }
+                                  if (isEditingAdjust) {
+                                    updateItemAdjust(item.id, 'approvedQuantity', val)
+                                    updateItemAdjust(item.id, 'status', status)
+                                  }
+                                }}
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <StockMetric label="Approved" value={hasApproved ? item.approvedQuantity : '—'} />
+                            </>
+                          )}
+                        </div>
+
+                        {hasFulfilled && hasApproved && request.status !== 'PENDING' && !rowEditing ? (
+                          <p className="mt-2 text-xs tabular-nums text-text-secondary">
+                            Fulfilled <span className="font-medium text-text-primary">{item.fulfilledQuantity}</span> of {item.approvedQuantity ?? item.quantity}
+                            {item.returnedQuantity > 0 ? (
+                              <> · Returned <span className="font-medium text-text-primary">{item.returnedQuantity}</span></>
+                            ) : null}
+                          </p>
+                        ) : null}
+
+                        {/* Issue / stock alerts */}
+                        {!rowEditing && showStockWarning ? (
+                          <div className="mt-2 flex items-center gap-1.5 text-pending-text">
+                            <AlertTriangle className="size-3.5 shrink-0" />
+                            <p className="text-xs font-medium">
+                              Only {currentAvailable} unit{currentAvailable === 1 ? '' : 's'} available right now — requested {item.quantity}. Reduce the approved quantity or reject the shortfall.
+                            </p>
+                          </div>
+                        ) : null}
+
+                        {!rowEditing && item.issueReason ? (
+                          <div className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-pending-text">
+                            <AlertTriangle className="size-3 shrink-0" />
+                            <span className="inline-flex rounded-md border border-warning bg-pending-bg px-1.5 py-0.5 font-medium tabular-nums text-pending-text">
+                              {getItemIssueLabel(item)}
+                            </span>
+                            {item.issueComment ? <span className="text-text-muted">{item.issueComment}</span> : null}
+                          </div>
+                        ) : null}
+
+                        {/* Row edit controls */}
+                        {rowEditing ? (
+                          <div className="mt-3 flex flex-wrap items-center gap-2">
+                            <Select
+                              value={isEditingApproval ? itemApprovals[item.id].status : itemAdjusts[item.id].status}
+                              onValueChange={(val: 'APPROVED' | 'REJECTED') => {
+                                const approvedQuantity = val === 'REJECTED'
+                                  ? 0
+                                  : getPositiveQuantity(
+                                      item.quantity,
+                                      isEditingApproval ? itemApprovals[item.id].approvedQuantity : itemAdjusts[item.id].approvedQuantity,
+                                    )
+                                if (isEditingApproval) {
+                                  updateItemApproval(item.id, 'status', val)
+                                  updateItemApproval(item.id, 'approvedQuantity', approvedQuantity)
+                                }
+                                if (isEditingAdjust) {
+                                  updateItemAdjust(item.id, 'status', val)
+                                  updateItemAdjust(item.id, 'approvedQuantity', approvedQuantity)
+                                }
+                              }}
+                            >
+                              <SelectTrigger className="h-8 w-[120px] text-sm">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="APPROVED">Approve</SelectItem>
+                                <SelectItem value="REJECTED">Reject</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Select
+                              value={getReasonSelectValue(isEditingApproval ? itemApprovals[item.id].reason : itemAdjusts[item.id].reason)}
+                              onValueChange={(val: string) => {
+                                const reason = normalizeReasonSelectValue(val)
+                                if (isEditingApproval) updateItemApproval(item.id, 'reason', reason)
+                                if (isEditingAdjust) updateItemAdjust(item.id, 'reason', reason)
+                              }}
+                            >
+                              <SelectTrigger className="h-8 w-[140px] text-sm">
+                                <SelectValue placeholder="Reason" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_REASON_VALUE}>No reason</SelectItem>
+                                <SelectItem value="OUT_OF_STOCK">Out of stock</SelectItem>
+                                <SelectItem value="DAMAGED">Damaged</SelectItem>
+                                <SelectItem value="MISSING">Missing</SelectItem>
+                                <SelectItem value="OTHER">Other</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <Input
+                              placeholder="Line comment (optional)"
+                              className="h-8 min-w-[180px] flex-1 text-sm"
+                              value={isEditingApproval ? itemApprovals[item.id].comment : itemAdjusts[item.id].comment}
+                              onChange={(e) => {
+                                if (isEditingApproval) updateItemApproval(item.id, 'comment', e.target.value)
+                                if (isEditingAdjust) updateItemAdjust(item.id, 'comment', e.target.value)
+                              }}
+                            />
+                          </div>
+                        ) : null}
+
+                        {/* Stock snapshot detail */}
+                        {!rowEditing && item.stockAtRequest ? (
+                          <details className="group mt-2">
+                            <summary className="cursor-pointer text-xs text-text-muted hover:text-text-secondary">
+                              Stock record (requested vs. when submitted)
+                            </summary>
+                            <div className="mt-1.5 grid grid-cols-2 gap-4 rounded-md bg-surface px-3 py-2 text-xs">
+                              <div>
+                                <p className="font-medium text-text-secondary">When submitted</p>
+                                <p className="tabular-nums text-text-muted">Total {item.stockAtRequest.totalQuantity} / Reserved {item.stockAtRequest.reservedQuantity} / Available {item.stockAtRequest.availableQuantity}</p>
+                              </div>
+                              <div>
+                                <p className="font-medium text-text-secondary">Live</p>
+                                <p className="tabular-nums text-text-muted">Total {item.currentStock.totalQuantity} / Reserved {item.currentStock.reservedQuantity} / Available {item.currentStock.availableQuantity}</p>
+                              </div>
+                            </div>
+                          </details>
+                        ) : null}
                       </div>
-                      <Input
-                        placeholder="Line comment (optional)"
-                        className="h-8 text-sm"
-                        value={isEditingApproval ? itemApprovals[item.id].comment : itemAdjusts[item.id].comment}
-                        onChange={(e) => {
-                          if (isEditingApproval) updateItemApproval(item.id, 'comment', e.target.value)
-                          if (isEditingAdjust) updateItemAdjust(item.id, 'comment', e.target.value)
+                    </div>
+                  </article>
+                )
+              })}
+            </div>
+          </section>
+        </div>
+
+        {/* ---- Right rail ---- */}
+        <div className="request-screen-content space-y-6">
+          {/* Action card */}
+          <section className="overflow-hidden rounded-xl border border-border border-t-2 border-t-brand-600 bg-surface-raised">
+            <CardSectionHeader
+              title={
+                request.status === 'PENDING'
+                  ? 'Approval Actions'
+                  : request.status === 'APPROVED'
+                    ? 'Pickup Actions'
+                    : request.status === 'PICKED_UP'
+                      ? 'Completion'
+                      : 'Actions'
+              }
+            />
+            <div className="space-y-4 p-5">
+              <div>
+                <label htmlFor="action-comment" className="mb-1.5 block text-[11px] font-semibold uppercase tracking-widest text-text-muted">
+                  Action comment
+                </label>
+                <textarea
+                  id="action-comment"
+                  value={comment}
+                  onChange={(event) => setComment(event.target.value)}
+                  placeholder="Optional for approve/pickup/complete. Required for reject."
+                  rows={3}
+                  className="w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:border-brand-600 focus:outline-none focus:ring-2 focus:ring-brand-600/20"
+                />
+              </div>
+
+              {request.status === 'PENDING' ? (
+                !itemApprovalMode ? (
+                  <>
+                    <ConfirmDialog
+                      title="Approve all items"
+                      description="Approve this request in full and reserve stock? All requested items will be approved at the requested quantity."
+                      confirmLabel="Approve All"
+                      variant="default"
+                      isLoading={approveRequestMutation.isPending}
+                      onConfirm={onApprove}
+                      trigger={<Button className="w-full bg-brand-600 hover:bg-brand-700">Approve Request</Button>}
+                    />
+                    <div className="flex gap-2">
+                      <Button variant="secondary" className="flex-1" onClick={enterItemApprovalMode}>
+                        Approve by Item
+                      </Button>
+                      <ConfirmDialog
+                        title="Reject entire request"
+                        description="Reject this request? A comment with at least 10 characters is required."
+                        confirmLabel="Reject All"
+                        variant="destructive"
+                        isLoading={rejectRequestMutation.isPending}
+                        onConfirm={async () => {
+                          if (comment.trim().length < 10) {
+                            toast.error('Rejection comment must be at least 10 characters.')
+                            throw new Error('Invalid rejection comment')
+                          }
+
+                          await onReject()
                         }}
+                        trigger={<Button variant="destructive" className="flex-1">Reject All</Button>}
                       />
                     </div>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-text-secondary">
+                      Set quantities, statuses, and reasons per item, then submit.
+                    </p>
+                    <Button
+                      className="w-full bg-brand-600 hover:bg-brand-700"
+                      onClick={submitItemApprovals}
+                      disabled={approveRequestMutation.isPending}
+                    >
+                      {approveRequestMutation.isPending ? 'Submitting...' : 'Submit Item Approvals'}
+                    </Button>
+                    <Button variant="secondary" className="w-full" onClick={cancelItemApprovalMode}>
+                      Cancel
+                    </Button>
+                  </>
+                )
+              ) : null}
+
+              {request.status === 'APPROVED' ? (
+                !itemAdjustMode ? (
+                  <>
+                    <p className="text-xs text-text-secondary">
+                      Pickup fulfills the currently approved quantities exactly. Use Edit Approved Items to change quantities or reject items first.
+                    </p>
+                    <ConfirmDialog
+                      title="Confirm pickup"
+                      description="This will pick up exactly the currently approved quantities. To change quantities or reject products, cancel and use Edit Approved Items first."
+                      confirmLabel="Confirm Pickup"
+                      isLoading={pickupRequestMutation.isPending}
+                      onConfirm={onPickup}
+                      trigger={<Button className="w-full bg-brand-600 hover:bg-brand-700">Confirm Pickup</Button>}
+                    />
+                    <Button variant="secondary" className="w-full" onClick={enterItemAdjustMode}>
+                      Edit Approved Items
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-xs text-text-secondary">
+                      Adjust quantities or reject items. Only changed lines are submitted.
+                    </p>
+                    <Button
+                      className="w-full bg-brand-600 hover:bg-brand-700"
+                      onClick={submitItemAdjusts}
+                      disabled={adjustRequestItemsMutation.isPending}
+                    >
+                      {adjustRequestItemsMutation.isPending ? 'Saving...' : 'Save Item Changes'}
+                    </Button>
+                    <Button variant="secondary" className="w-full" onClick={cancelItemAdjustMode}>
+                      Cancel
+                    </Button>
+                  </>
+                )
+              ) : null}
+
+              {request.status === 'PICKED_UP' ? (
+                <>
+                  <ConfirmDialog
+                    title="Mark complete"
+                    description="Mark this request as completed?"
+                    confirmLabel="Mark Complete"
+                    isLoading={completeRequestMutation.isPending}
+                    onConfirm={onComplete}
+                    trigger={<Button className="w-full bg-brand-600 hover:bg-brand-700">Mark Complete</Button>}
+                  />
+                  {canReturnItems ? (
+                    <RequestReturnDialog
+                      request={request}
+                      trigger={
+                        <Button type="button" variant="secondary" className="w-full">
+                          <Undo2 className="size-4" />
+                          Return items
+                        </Button>
+                      }
+                    />
                   ) : null}
+                </>
+              ) : null}
 
-                </div>
-
-                {item.stockAtRequest ? (
-                  <details className="mt-2 group">
-                    <summary className="cursor-pointer text-xs text-text-muted hover:text-text-secondary">
-                      Stock snapshots
-                    </summary>
-                    <div className="mt-1.5 grid grid-cols-2 gap-4 rounded-md bg-surface px-3 py-2 text-xs">
-                      <div>
-                        <p className="font-medium text-text-secondary">At request time</p>
-                        <p className="text-text-muted">Total {item.stockAtRequest.totalQuantity} / Reserved {item.stockAtRequest.reservedQuantity} / Available {item.stockAtRequest.availableQuantity}</p>
-                      </div>
-                      <div>
-                        <p className="font-medium text-text-secondary">Current</p>
-                        <p className="text-text-muted">Total {item.currentStock.totalQuantity} / Reserved {item.currentStock.reservedQuantity} / Available {item.currentStock.availableQuantity}</p>
-                      </div>
-                    </div>
-                  </details>
-                ) : null}
-              </article>
-            )
-          })}
-        </div>
-      </section>
-
-      <section className="request-screen-content rounded-xl border border-border bg-surface-raised p-5">
-        <label htmlFor="action-comment" className="mb-1.5 block text-sm font-medium text-text-primary">
-          Action comment
-        </label>
-        <Input
-          id="action-comment"
-          value={comment}
-          onChange={(event) => setComment(event.target.value)}
-          placeholder="Optional for approve/pickup/complete. Required for reject."
-        />
-      </section>
-
-      <section className="request-screen-content flex flex-wrap items-center gap-2 rounded-xl border border-border bg-surface-raised p-5">
-        {request.status === 'PENDING' ? (
-          <>
-            {!itemApprovalMode ? (
-              <>
-                <ConfirmDialog
-                  title="Approve all items"
-                  description="Approve this request in full and reserve stock? All requested items will be approved at the requested quantity."
-                  confirmLabel="Approve All"
-                  variant="default"
-                  isLoading={approveRequestMutation.isPending}
-                  onConfirm={onApprove}
-                  trigger={<Button>Approve All</Button>}
-                />
-
-                <Button variant="secondary" onClick={enterItemApprovalMode}>
-                  Approve by Item
-                </Button>
-
-                <ConfirmDialog
-                  title="Reject entire request"
-                  description="Reject this request? A comment with at least 10 characters is required."
-                  confirmLabel="Reject All"
-                  variant="destructive"
-                  isLoading={rejectRequestMutation.isPending}
-                  onConfirm={async () => {
-                    if (comment.trim().length < 10) {
-                      toast.error('Rejection comment must be at least 10 characters.')
-                      throw new Error('Invalid rejection comment')
+              {request.status === 'COMPLETED' ? (
+                canReturnItems ? (
+                  <RequestReturnDialog
+                    request={request}
+                    trigger={
+                      <Button type="button" variant="secondary" className="w-full">
+                        <Undo2 className="size-4" />
+                        Return items
+                      </Button>
                     }
+                  />
+                ) : <p className="text-sm text-text-secondary">This request is completed and has no further actions.</p>
+              ) : null}
 
-                    await onReject()
-                  }}
-                  trigger={<Button variant="destructive">Reject All</Button>}
-                />
-              </>
-            ) : (
-              <>
-                <Button onClick={submitItemApprovals} disabled={approveRequestMutation.isPending}>
-                  Submit Item Approvals
-                </Button>
-                <Button variant="secondary" onClick={cancelItemApprovalMode}>
-                  Cancel
-                </Button>
-              </>
-            )}
-          </>
-        ) : null}
+              {request.status === 'REJECTED' || request.status === 'CANCELED' ? (
+                <p className="text-sm text-text-secondary">This request is {statusLabel.toLowerCase()} and has no further actions.</p>
+              ) : null}
+            </div>
+          </section>
 
-        {request.status === 'APPROVED' ? (
-          <>
-            {!itemAdjustMode ? (
-              <>
-                <p className="w-full text-sm text-text-secondary">
-                  Adjust quantities or reject items before confirming pickup. Pickup will fulfill the approved quantities exactly.
-                </p>
-
-                <Button variant="secondary" onClick={enterItemAdjustMode}>
-                  Edit Approved Items
-                </Button>
-
-                <ConfirmDialog
-                  title="Confirm pickup"
-                  description="This will pick up exactly the currently approved quantities. To change quantities or reject products, cancel and use Edit Approved Items first."
-                  confirmLabel="Confirm Pickup"
-                  isLoading={pickupRequestMutation.isPending}
-                  onConfirm={onPickup}
-                  trigger={<Button>Confirm Pickup</Button>}
-                />
-              </>
-            ) : null}
-
-            {itemAdjustMode ? (
-              <>
-                <Button onClick={submitItemAdjusts} disabled={adjustRequestItemsMutation.isPending}>
-                  Save Item Changes
-                </Button>
-                <Button variant="secondary" onClick={cancelItemAdjustMode}>
-                  Cancel
-                </Button>
-              </>
-            ) : null}
-          </>
-        ) : null}
-
-        {request.status === 'PICKED_UP' ? (
-          <ConfirmDialog
-            title="Mark complete"
-            description="Mark this request as completed?"
-            confirmLabel="Mark Complete"
-            isLoading={completeRequestMutation.isPending}
-            onConfirm={onComplete}
-            trigger={<Button>Mark Complete</Button>}
-          />
-        ) : null}
-      </section>
-
-      <section className="request-screen-content rounded-xl border border-border bg-surface-raised p-5">
-        <h2 className="text-lg font-semibold text-text-primary">Approval timeline</h2>
-        <div className="mt-4 space-y-3">
-          {requestHistory.length === 0 ? (
-            <p className="text-sm text-text-secondary">No approval events yet.</p>
-          ) : (
-            requestHistory.map((event, index) => (
-              <article key={event.id ?? `${event.createdAt}-${event.action}-${index}`} className="rounded-lg border border-border bg-background p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-medium text-text-primary">
-                    {event.actor?.name ?? 'System'} - {event.action.replace(/_/g, ' ')}
-                  </p>
-                  <p className="text-xs tabular-nums text-text-muted">{formatRequestDateTime(event.createdAt)}</p>
-                </div>
-                {event.comment ? <p className="mt-1 text-sm text-text-secondary">{event.comment}</p> : null}
-              </article>
-            ))
-          )}
+          {/* Timeline card */}
+          <section className="overflow-hidden rounded-xl border border-border bg-surface-raised">
+            <CardSectionHeader title="Approval Timeline" />
+            <div className="p-5">
+              {requestHistory.length === 0 ? (
+                <p className="text-sm text-text-secondary">No approval events yet.</p>
+              ) : (
+                <ol className="relative space-y-5 before:absolute before:bottom-2 before:left-[11px] before:top-2 before:w-px before:bg-border">
+                  {requestHistory.map((event, index) => {
+                    const isFirst = index === 0
+                    return (
+                      <li key={event.id ?? `${event.createdAt}-${event.action}-${index}`} className="relative pl-8">
+                        <span
+                          className={cn(
+                            'absolute left-0 top-0.5 flex size-6 items-center justify-center rounded-full border-2 border-surface-raised',
+                            isFirst ? 'bg-brand-600 text-white ring-2 ring-brand-600/20' : 'bg-surface text-text-muted',
+                          )}
+                        >
+                          {isFirst ? <CheckCircle2 className="size-3" /> : <span className="size-1.5 rounded-full bg-current" />}
+                        </span>
+                        <p className="text-xs font-medium text-text-primary">
+                          {event.action.replace(/_/g, ' ')}
+                        </p>
+                        <p className="mt-0.5 text-[11px] text-text-muted">
+                          by {event.actor?.name ?? 'System'}
+                          {event.actor?.role ? ` · ${event.actor.role}` : ''}
+                        </p>
+                        <p className="mt-0.5 text-[11px] tabular-nums uppercase tracking-wide text-text-muted">
+                          {formatRequestDateTime(event.createdAt)}
+                        </p>
+                        {event.comment ? (
+                          <p className="mt-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-xs text-text-secondary">
+                            {event.comment}
+                          </p>
+                        ) : null}
+                      </li>
+                    )
+                  })}
+                </ol>
+              )}
+            </div>
+          </section>
         </div>
-      </section>
+      </div>
     </section>
   )
 }

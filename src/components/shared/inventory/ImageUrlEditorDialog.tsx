@@ -5,8 +5,10 @@ import { FormField } from '@/components/shared/FormField'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { getErrorMessage } from '@/lib/errors'
+import type { DraftInventoryImageTarget } from '@/types/inventoryWorkbook'
 
 export type ImageUrlEditorTarget = {
+  kind: 'persisted'
   sheetId: string
   rowIndex: number
   columnIndex: number
@@ -14,9 +16,11 @@ export type ImageUrlEditorTarget = {
   imageUrl: string
 }
 
+export type InventoryImageEditorTarget = ImageUrlEditorTarget | DraftInventoryImageTarget
+
 type ImageUrlEditorDialogProps = {
-  target: ImageUrlEditorTarget | null
-  onStage: (target: ImageUrlEditorTarget, image: File) => Promise<void>
+  target: InventoryImageEditorTarget | null
+  onStage: (target: InventoryImageEditorTarget, image: File) => Promise<void>
   onClose: () => void
 }
 
@@ -48,6 +52,7 @@ export function ImageUrlEditorDialog({ target, onStage, onClose }: ImageUrlEdito
     try {
       await onStage(target, image)
     } catch (error) {
+      setImage(null)
       setUploadError(getErrorMessage(error, { context: 'update' }))
     } finally {
       setIsUploading(false)
@@ -58,15 +63,22 @@ export function ImageUrlEditorDialog({ target, onStage, onClose }: ImageUrlEdito
     <Dialog open={Boolean(target)} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[480px]">
         <DialogHeader>
-          <DialogTitle>Replace product image</DialogTitle>
-          <DialogDescription>Select a new primary image for inventory row {target ? target.rowIndex + 1 : ''}. It uploads only when you save the workbook.</DialogDescription>
+          <DialogTitle>{target?.kind === 'draft' ? 'Upload product image' : 'Replace product image'}</DialogTitle>
+          <DialogDescription>
+            Select a primary image for inventory row {target ? target.rowIndex + 1 : ''}.{' '}
+            {target?.kind === 'draft'
+              ? 'It uploads to WordPress now and is saved to the new product when you save the workbook.'
+              : 'It uploads only when you save the workbook.'}
+          </DialogDescription>
         </DialogHeader>
 
         <form className="space-y-4" onSubmit={handleSubmit}>
           <FormField
             htmlFor="inventory-grid-image-upload"
             label="Image file"
-            hint="JPEG, PNG, or WebP up to 5 MB. The image is staged locally until Save; the existing gallery and old Media Library file are retained."
+            hint={target?.kind === 'draft'
+              ? 'JPEG, PNG, or WebP up to 5 MB. Failed uploads require selecting the image again.'
+              : 'JPEG, PNG, or WebP up to 5 MB. The image is staged locally until Save; the existing gallery and old Media Library file are retained.'}
           >
             <Input
               id="inventory-grid-image-upload"
@@ -80,8 +92,8 @@ export function ImageUrlEditorDialog({ target, onStage, onClose }: ImageUrlEdito
           {uploadError ? <p role="alert" className="text-sm text-red-600">{uploadError}</p> : null}
           <DialogFormActions
             isSubmitting={isUploading}
-            submitLabel="Stage image"
-            submittingLabel="Staging..."
+            submitLabel={target?.kind === 'draft' ? 'Upload image' : 'Stage image'}
+            submittingLabel={target?.kind === 'draft' ? 'Uploading...' : 'Staging...'}
             onCancel={onClose}
           />
         </form>
