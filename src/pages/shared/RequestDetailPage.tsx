@@ -6,6 +6,7 @@ import { toast } from 'sonner'
 import { ConfirmDialog } from '@/components/shared/ConfirmDialog'
 import { DeliveryNoteDocument } from '@/components/shared/DeliveryNoteDocument'
 import { EmptyState } from '@/components/shared/EmptyState'
+import { InvoiceDocument } from '@/components/shared/InvoiceDocument'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { RequestReturnDialog } from '@/components/shared/RequestReturnDialog'
 import { StatusBadge } from '@/components/shared/StatusBadge'
@@ -34,6 +35,7 @@ import type { ApproveRequestPayload, AdjustItemsPayload } from '@/types/request'
 interface RequestDetailPageProps {
   backToPath: string
   showDeliveryNote?: boolean
+  showInvoice?: boolean
 }
 
 const NO_REASON_VALUE = 'NO_REASON'
@@ -173,7 +175,7 @@ function StockMetric({ label, value, highlight }: { label: string; value: React.
   )
 }
 
-export function RequestDetailPage({ backToPath, showDeliveryNote = false }: RequestDetailPageProps) {
+export function RequestDetailPage({ backToPath, showDeliveryNote = false, showInvoice = false }: RequestDetailPageProps) {
   const navigate = useNavigate()
   const { id = '' } = useParams()
   const [comment, setComment] = useState('')
@@ -226,7 +228,7 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
   const projectDetails = [request.project.client, request.project.location, request.project.projectType].filter(Boolean).join(' / ')
   const itemCount = request.summary?.itemCount ?? request.items.length
 
-  const handlePrint = (printClass: 'printing-request' | 'printing-delivery-note', printTitle?: string) => {
+  const handlePrint = (printClass: 'printing-request' | 'printing-delivery-note' | 'printing-invoice', printTitle?: string) => {
     const previousTitle = document.title
     const cleanupPrintClass = () => {
       document.body.classList.remove(printClass)
@@ -450,6 +452,17 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
                 Delivery Note
               </Button>
             ) : null}
+            {showInvoice && request.invoice ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => handlePrint('printing-invoice', request.invoice!.number.toLowerCase())}
+              >
+                <Printer className="size-4" />
+                Invoice
+              </Button>
+            ) : null}
           </div>
         </div>
 
@@ -589,6 +602,7 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false }: Requ
       </article>
 
       {showDeliveryNote ? <DeliveryNoteDocument request={request} pickupEvent={pickupEvent} pickedItems={pickedItems} /> : null}
+      {showInvoice ? <InvoiceDocument request={request} /> : null}
 
       {/* ===== Two-column body ===== */}
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">

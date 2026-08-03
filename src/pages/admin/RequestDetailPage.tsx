@@ -1,5 +1,5 @@
 import { RequestDetailPage } from '@/pages/shared/RequestDetailPage'
 
 export function AdminRequestDetailPage() {
-  return <RequestDetailPage backToPath="/admin/requests" showDeliveryNote />
+  return <RequestDetailPage backToPath="/admin/requests" showDeliveryNote showInvoice />
 }

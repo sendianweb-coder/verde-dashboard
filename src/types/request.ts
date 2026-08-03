@@ -13,6 +13,8 @@ export type RequestItemIssueReason =
   | 'MISSING'
   | 'OTHER'
 
+export type InvoicePriceSource = 'PICKUP_SNAPSHOT' | 'CURRENT_CATALOGUE'
+
 export interface InternalRequestProduct {
   id: string
   sku: string
@@ -69,6 +71,16 @@ export interface InternalRequestSummary {
   hasInsufficientStock: boolean
 }
 
+export interface InternalRequestInvoice {
+  number: string
+  issuedAt: string
+  items: Array<{
+    requestItemId: string
+    unitPrice: number
+    priceSource: InvoicePriceSource
+  }>
+}
+
 export interface InternalRequest {
   id: string
   status: RequestStatus
@@ -87,6 +99,7 @@ export interface InternalRequest {
     location: string | null
     projectType: string | null
   }
+  invoice?: InternalRequestInvoice
   summary?: InternalRequestSummary
   history?: ApprovalEvent[]
 }

@@ -29,28 +29,30 @@
     margin: 0 !important;
   }
 
-  body:is(.printing-request, .printing-delivery-note) #root,
-  body:is(.printing-request, .printing-delivery-note) main,
-  body:is(.printing-request, .printing-delivery-note) .min-h-screen {
+  body:is(.printing-request, .printing-delivery-note, .printing-invoice) #root,
+  body:is(.printing-request, .printing-delivery-note, .printing-invoice) main,
+  body:is(.printing-request, .printing-delivery-note, .printing-invoice) .min-h-screen {
     min-height: 0 !important;
   }
 
-  body:is(.printing-request, .printing-delivery-note) main {
+  body:is(.printing-request, .printing-delivery-note, .printing-invoice) main {
     padding: 0 !important;
   }
 
-  body:is(.printing-request, .printing-delivery-note) * {
+  body:is(.printing-request, .printing-delivery-note, .printing-invoice) * {
     visibility: hidden;
   }
 
-  body:is(.printing-request, .printing-delivery-note) .request-screen-content {
+  body:is(.printing-request, .printing-delivery-note, .printing-invoice) .request-screen-content {
     display: none !important;
   }
 
   body.printing-request #request-print-content,
   body.printing-request #request-print-content *,
   body.printing-delivery-note #delivery-note-print-content,
-  body.printing-delivery-note #delivery-note-print-content * {
+  body.printing-delivery-note #delivery-note-print-content *,
+  body.printing-invoice #invoice-print-content,
+  body.printing-invoice #invoice-print-content * {
     visibility: visible;
   }
 
@@ -69,7 +71,7 @@
     line-height: 1.35;
   }
 
-  :is(body.printing-request #request-print-content, body.printing-delivery-note #delivery-note-print-content) * {
+  :is(body.printing-request #request-print-content, body.printing-delivery-note #delivery-note-print-content, body.printing-invoice #invoice-print-content) * {
     box-shadow: none !important;
   }
 
