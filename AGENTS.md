@@ -11,6 +11,10 @@ Co-Authored-By: (the agent model's name and attribution byline)
 ```
 Example: `Co-Authored-By: GPT-5.5 <noreply@example.com>`
 
+## Commit Scope
+- Before committing or pushing, review and commit **all** tracked and untracked changes in this repository, including work outside the current task.
+- Do not selectively stage only the current task or leave unrelated changes behind.
+
 ## File-Scoped Commands
 | Task | Command |
 |------|---------|

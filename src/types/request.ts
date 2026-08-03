@@ -102,6 +102,22 @@ export interface InternalRequest {
   invoice?: InternalRequestInvoice
   summary?: InternalRequestSummary
   history?: ApprovalEvent[]
+  returnHistory?: RequestReturnHistoryEvent[]
+}
+
+export interface RequestReturnHistoryEvent {
+  id: string
+  action: 'RETURN'
+  createdAt: string
+  note: string
+  actor?: {
+    name: string
+    role: string
+  }
+  items: Array<{
+    productName: string
+    quantity: number
+  }>
 }
 
 export interface ApprovalEvent {

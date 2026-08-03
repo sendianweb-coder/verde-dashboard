@@ -40,7 +40,7 @@ const deliveryNoteStyles = `
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
 @media print {
-  @page { size: A4; margin: 10mm 0; }
+  @page { size: A4; margin: 0; }
 
   body.printing-delivery-note { background: #fff; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 
@@ -48,12 +48,14 @@ const deliveryNoteStyles = `
   body.printing-delivery-note #delivery-note-print-content * { box-sizing: border-box; }
 
   body.printing-delivery-note #delivery-note-print-content {
+    position: fixed;
+    top: 0;
+    left: 0;
     width: 210mm;
-    height: 277mm;
-    min-height: 277mm;
+    height: 297mm;
+    min-height: 1123px;
     margin: 0 !important;
     padding: 18px 28px 10px;
-    overflow: hidden;
     break-inside: avoid-page;
     background: #fff;
     color: #222;
@@ -76,14 +78,17 @@ const deliveryNoteStyles = `
   body.printing-delivery-note #delivery-note-print-content .brand { text-align: center; }
 
   body.printing-delivery-note #delivery-note-print-content .brand img {
-    width: 126px;
+    display: inline;
+    width: 110px;
     height: auto;
     object-fit: contain;
+    vertical-align: baseline;
   }
 
   body.printing-delivery-note #delivery-note-print-content .contact {
     color: #666;
     font-family: Cinzel, serif;
+    margin-bottom: 10px;
     font-size: 9px;
     line-height: 1.35;
     text-align: left;
@@ -117,20 +122,10 @@ const deliveryNoteStyles = `
 
   body.printing-delivery-note #delivery-note-print-content .delivery-grid td,
   body.printing-delivery-note #delivery-note-print-content .delivery-grid th {
-    width: auto;
     height: 22px;
     border: 0;
     padding: 1px 4px;
-    text-align: left;
     vertical-align: middle;
-  }
-
-  body.printing-delivery-note #delivery-note-print-content .delivery-grid th:first-child,
-  body.printing-delivery-note #delivery-note-print-content .delivery-grid td:first-child,
-  body.printing-delivery-note #delivery-note-print-content .delivery-grid th:last-child,
-  body.printing-delivery-note #delivery-note-print-content .delivery-grid td:last-child {
-    width: auto;
-    text-align: left;
   }
 
   body.printing-delivery-note #delivery-note-print-content .title-cell {
@@ -173,7 +168,6 @@ const deliveryNoteStyles = `
   body.printing-delivery-note #delivery-note-print-content .detail { font-size: 12px; }
 
   body.printing-delivery-note #delivery-note-print-content .item-head th {
-    height: 24px;
     border: 2px solid #111;
     padding: 1px 3px;
     background: #fff;
@@ -249,7 +243,7 @@ const deliveryNoteStyles = `
   body.printing-delivery-note #delivery-note-print-content .signature-fields .line { flex: 1; border-bottom: 1px solid #222; }
 
   body.printing-delivery-note #delivery-note-print-content .iso-certification {
-    top: 190px;
+    top: 340px;
     left: 63%;
     width: 165px;
     height: 45px;

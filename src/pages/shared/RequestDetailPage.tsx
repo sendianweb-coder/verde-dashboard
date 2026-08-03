@@ -29,7 +29,7 @@ import {
 } from '@/hooks/useRequests'
 import { getErrorMessage } from '@/lib/errors'
 import { cn } from '@/lib/utils'
-import type { InternalRequestItem } from '@/types/request'
+import type { ApprovalEvent, InternalRequestItem, RequestReturnHistoryEvent } from '@/types/request'
 import type { ApproveRequestPayload, AdjustItemsPayload } from '@/types/request'
 
 interface RequestDetailPageProps {
@@ -157,6 +157,10 @@ function ItemStatusBadge({ status }: { status: string }) {
   )
 }
 
+type TimelineEvent =
+  | (ApprovalEvent & { kind: 'approval' })
+  | (RequestReturnHistoryEvent & { kind: 'return' })
+
 function CardSectionHeader({ title, action }: { title: string; action?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between border-b border-border bg-surface px-5 py-3.5">
@@ -217,8 +221,11 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false, showIn
     return <EmptyState title="Request not found" description="The request could not be loaded or no longer exists." />
   }
 
-  const requestHistory = request.history ?? []
-  const pickupEvent = requestHistory.find((event) => event.action === 'PICKED_UP')
+  const timelineEvents: TimelineEvent[] = [
+    ...(request.history ?? []).map((event) => ({ ...event, kind: 'approval' as const })),
+    ...(request.returnHistory ?? []).map((event) => ({ ...event, kind: 'return' as const })),
+  ].sort((first, second) => new Date(first.createdAt).getTime() - new Date(second.createdAt).getTime())
+  const pickupEvent = (request.history ?? []).find((event) => event.action === 'PICKED_UP')
   const pickedItems = request.items.filter((item) => (item.fulfilledQuantity ?? 0) > 0)
   const canReturnItems =
     (request.status === 'PICKED_UP' || request.status === 'COMPLETED') &&
@@ -549,26 +556,33 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false, showIn
           </table>
         </section>
 
-        <section className="request-print-section request-print-grid-section" aria-label="Request notes and approval timeline">
+        <section className="request-print-section request-print-grid-section" aria-label="Request notes and timeline">
           <div>
             <h2>Notes</h2>
             <p className="request-print-notes">{request.notes?.trim() || 'No notes provided.'}</p>
           </div>
 
           <div>
-            <h2>Approval Timeline</h2>
-            {requestHistory.length === 0 ? (
-              <p className="request-print-muted">No approval events yet.</p>
+            <h2>Request Timeline</h2>
+            {timelineEvents.length === 0 ? (
+              <p className="request-print-muted">No request events yet.</p>
             ) : (
               <div className="request-print-timeline">
-                {requestHistory.map((event, index) => (
+                {timelineEvents.map((event, index) => (
                   <div key={event.id ?? `${event.createdAt}-${event.action}-${index}`} className="request-print-timeline-event">
                     <p>
                       <strong>{formatRequestDateTime(event.createdAt)}</strong>
                       <span>{event.action.replace(/_/g, ' ')}</span>
                       <span>by {event.actor?.name ?? 'System'}</span>
                     </p>
-                    {event.comment ? <p className="request-print-muted">{event.comment}</p> : null}
+                    {event.kind === 'return' ? (
+                      <>
+                        {event.note ? <p className="request-print-muted">{event.note}</p> : null}
+                        <p className="request-print-muted">
+                          Returned: {event.items.map((item) => `${item.productName} × ${item.quantity}`).join(', ')}
+                        </p>
+                      </>
+                    ) : event.comment ? <p className="request-print-muted">{event.comment}</p> : null}
                   </div>
                 ))}
               </div>
@@ -1021,26 +1035,29 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false, showIn
 
           {/* Timeline card */}
           <section className="overflow-hidden rounded-xl border border-border bg-surface-raised">
-            <CardSectionHeader title="Approval Timeline" />
+            <CardSectionHeader title="Request Timeline" />
             <div className="p-5">
-              {requestHistory.length === 0 ? (
-                <p className="text-sm text-text-secondary">No approval events yet.</p>
+              {timelineEvents.length === 0 ? (
+                <p className="text-sm text-text-secondary">No request events yet.</p>
               ) : (
                 <ol className="relative space-y-5 before:absolute before:bottom-2 before:left-[11px] before:top-2 before:w-px before:bg-border">
-                  {requestHistory.map((event, index) => {
+                  {timelineEvents.map((event, index) => {
                     const isFirst = index === 0
+                    const isReturn = event.kind === 'return'
                     return (
                       <li key={event.id ?? `${event.createdAt}-${event.action}-${index}`} className="relative pl-8">
                         <span
                           className={cn(
                             'absolute left-0 top-0.5 flex size-6 items-center justify-center rounded-full border-2 border-surface-raised',
-                            isFirst ? 'bg-brand-600 text-white ring-2 ring-brand-600/20' : 'bg-surface text-text-muted',
+                            isReturn
+                              ? 'bg-brand-50 text-brand-700'
+                              : isFirst ? 'bg-brand-600 text-white ring-2 ring-brand-600/20' : 'bg-surface text-text-muted',
                           )}
                         >
-                          {isFirst ? <CheckCircle2 className="size-3" /> : <span className="size-1.5 rounded-full bg-current" />}
+                          {isReturn ? <Undo2 className="size-3" /> : isFirst ? <CheckCircle2 className="size-3" /> : <span className="size-1.5 rounded-full bg-current" />}
                         </span>
                         <p className="text-xs font-medium text-text-primary">
-                          {event.action.replace(/_/g, ' ')}
+                          {isReturn ? 'Items returned' : event.action.replace(/_/g, ' ')}
                         </p>
                         <p className="mt-0.5 text-[11px] text-text-muted">
                           by {event.actor?.name ?? 'System'}
@@ -1049,7 +1066,19 @@ export function RequestDetailPage({ backToPath, showDeliveryNote = false, showIn
                         <p className="mt-0.5 text-[11px] tabular-nums uppercase tracking-wide text-text-muted">
                           {formatRequestDateTime(event.createdAt)}
                         </p>
-                        {event.comment ? (
+                        {event.kind === 'return' ? (
+                          <div className="mt-1.5 space-y-2 rounded-md border border-brand-200 bg-brand-50/50 px-2 py-2 text-xs text-text-secondary">
+                            {event.note ? <p>{event.note}</p> : null}
+                            <ul className="space-y-1" aria-label="Returned items">
+                              {event.items.map((item, itemIndex) => (
+                                <li key={`${event.id}-${itemIndex}`} className="flex justify-between gap-3 text-text-primary">
+                                  <span className="min-w-0 truncate">{item.productName}</span>
+                                  <span className="shrink-0 font-medium tabular-nums">× {item.quantity}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : event.comment ? (
                           <p className="mt-1.5 rounded-md border border-border bg-background px-2 py-1.5 text-xs text-text-secondary">
                             {event.comment}
                           </p>
