@@ -1,10 +1,12 @@
 import { Clock, FolderKanban, Package, Search, ShoppingCart } from 'lucide-react'
-import { useState } from 'react'
-import type { ElementType, ReactNode } from 'react'
+import { useRef, useState } from 'react'
+import type { ElementType, KeyboardEvent, ReactNode } from 'react'
 
+import { OrderAnalyticsPanel } from '@/components/admin/dashboard/OrderAnalyticsPanel'
 import { EmptyState } from '@/components/shared/EmptyState'
 import { PageSkeleton } from '@/components/shared/PageSkeleton'
 import { StatusBadge } from '@/components/shared/StatusBadge'
+import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { useAdminDashboardOverview } from '@/hooks/useAdmin'
 import { useAdminRequestQueue } from '@/hooks/useAdmin'
@@ -122,6 +124,20 @@ export function AdminDashboardPage() {
   const [requestSearch, setRequestSearch] = useState('')
   const [orderSearch, setOrderSearch] = useState('')
   const [activitySearch, setActivitySearch] = useState('')
+  const [activeTab, setActiveTab] = useState<'overview' | 'analytics'>('overview')
+  const tabRefs = useRef<Array<HTMLButtonElement | null>>([])
+  const selectTab = (index: number) => {
+    const tab = index === 0 ? 'overview' : 'analytics'
+    setActiveTab(tab)
+    tabRefs.current[index]?.focus()
+  }
+  const onTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const index = Number(event.currentTarget.dataset.index)
+    if (event.key === 'ArrowLeft') { event.preventDefault(); selectTab((index + 1) % 2) }
+    if (event.key === 'ArrowRight') { event.preventDefault(); selectTab((index + 1) % 2) }
+    if (event.key === 'Home') { event.preventDefault(); selectTab(0) }
+    if (event.key === 'End') { event.preventDefault(); selectTab(1) }
+  }
 
   if (overviewQuery.isLoading || requestQueueQuery.isLoading || ordersQuery.isLoading) {
     return <PageSkeleton />
@@ -204,6 +220,29 @@ export function AdminDashboardPage() {
         </div>
       </header>
 
+      <div role="tablist" aria-label="Admin dashboard views" className="flex flex-wrap gap-2">
+        {(['overview', 'analytics'] as const).map((tab, index) => (
+          <Button
+            key={tab}
+            ref={(element) => { tabRefs.current[index] = element }}
+            type="button"
+            role="tab"
+            id={`dashboard-${tab}-tab`}
+            aria-controls={`dashboard-${tab}-panel`}
+            aria-selected={activeTab === tab}
+            tabIndex={activeTab === tab ? 0 : -1}
+            data-index={index}
+            variant={activeTab === tab ? 'default' : 'secondary'}
+            size="sm"
+            onClick={() => setActiveTab(tab)}
+            onKeyDown={onTabKeyDown}
+          >
+            {tab === 'overview' ? 'Overview' : 'Order analytics'}
+          </Button>
+        ))}
+      </div>
+
+      <section id="dashboard-overview-panel" role="tabpanel" aria-labelledby="dashboard-overview-tab" hidden={activeTab !== 'overview'} className="space-y-[20px]">
       <div className="grid gap-[16px] sm:grid-cols-2 lg:grid-cols-4">
         <StatCard title="Total products" value={overview?.products.total ?? 0} icon={Package} />
         <StatCard title="Pending requests" value={overview?.requests.byStatus.PENDING ?? 0} icon={Clock} tone="pending" />
@@ -332,6 +371,10 @@ export function AdminDashboardPage() {
           )}
         </DashboardListCard>
       </div>
+      </section>
+      <section id="dashboard-analytics-panel" role="tabpanel" aria-labelledby="dashboard-analytics-tab" hidden={activeTab !== 'analytics'}>
+        {activeTab === 'analytics' ? <OrderAnalyticsPanel /> : null}
+      </section>
     </div>
   )
 }

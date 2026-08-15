@@ -1,5 +1,5 @@
 import { apiClient } from '@/api/client'
-import type { ApiSuccessResponse } from '@/types/common'
+import type { ApiSuccessResponse, PaginatedResponse } from '@/types/common'
 import type { Order, UpdateOrderStatusPayload } from '@/types/order'
 
 export interface GetOrdersParams {
@@ -15,6 +15,16 @@ export interface GetOrdersParams {
 export async function getOrders(params?: GetOrdersParams): Promise<Order[]> {
   const { data } = await apiClient.get<ApiSuccessResponse<Order[]>>('/orders', { params })
   return data.data
+}
+
+export interface GetOrdersPageParams extends GetOrdersParams {
+  page: number
+  limit: number
+}
+
+export async function getOrdersPage(params: GetOrdersPageParams): Promise<PaginatedResponse<Order>> {
+  const { data } = await apiClient.get<PaginatedResponse<Order>>('/orders', { params })
+  return data
 }
 
 export async function getMyOrders(params?: Pick<GetOrdersParams, 'status' | 'page' | 'limit'>): Promise<Order[]> {

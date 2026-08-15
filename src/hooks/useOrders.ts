@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { getMyOrders, getOrderById, getOrders, type GetOrdersParams, updateOrderStatus } from '@/api/orders.api'
+import { getMyOrders, getOrderById, getOrders, getOrdersPage, type GetOrdersPageParams, type GetOrdersParams, updateOrderStatus } from '@/api/orders.api'
 import type { UpdateOrderStatusPayload } from '@/types/order'
 
 const ORDERS_LIST_STALE_TIME = 60_000
@@ -11,6 +11,7 @@ type MyOrdersParams = Pick<GetOrdersParams, 'status' | 'page' | 'limit'>
 export const ordersQueryKeys = {
   all: ['orders'] as const,
   list: (params?: GetOrdersParams) => ['orders', 'list', params] as const,
+  page: (params: GetOrdersPageParams) => ['orders', 'page', params] as const,
   mine: (params?: MyOrdersParams) => ['orders', 'mine', params] as const,
   detail: (id: string) => ['orders', 'detail', id] as const,
 }
@@ -19,6 +20,15 @@ export function useOrders(params?: GetOrdersParams, enabled = true) {
   return useQuery({
     queryKey: ordersQueryKeys.list(params),
     queryFn: () => getOrders(params),
+    enabled,
+    staleTime: ORDERS_LIST_STALE_TIME,
+  })
+}
+
+export function useOrdersPage(params: GetOrdersPageParams, enabled = true) {
+  return useQuery({
+    queryKey: ordersQueryKeys.page(params),
+    queryFn: () => getOrdersPage(params),
     enabled,
     staleTime: ORDERS_LIST_STALE_TIME,
   })

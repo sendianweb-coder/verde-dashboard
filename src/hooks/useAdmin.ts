@@ -1,14 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { bulkUpdateRequestStatus, getAdminDashboardOverview, getAdminRequestQueue } from '@/api/admin.api'
+import { bulkUpdateRequestStatus, getAdminDashboardOverview, getAdminOrderAnalytics, getAdminRequestQueue } from '@/api/admin.api'
 import { requestsQueryKeys } from '@/hooks/useRequests'
-import type { AdminRequestQueueParams, BulkRequestStatusPayload } from '@/types/admin'
+import type { AdminOrderAnalyticsParams, AdminRequestQueueParams, BulkRequestStatusPayload } from '@/types/admin'
 
 const ADMIN_DASHBOARD_STALE_TIME = 60_000
 
 export const adminQueryKeys = {
   all: ['admin'] as const,
   dashboardOverview: () => ['admin', 'dashboard', 'overview'] as const,
+  orderAnalytics: (params?: AdminOrderAnalyticsParams) => ['admin', 'dashboard', 'order-analytics', params] as const,
   requestQueue: (params?: AdminRequestQueueParams) => ['admin', 'requests', 'queue', params] as const,
 }
 
@@ -18,6 +19,10 @@ export function useAdminDashboardOverview() {
     queryFn: getAdminDashboardOverview,
     staleTime: ADMIN_DASHBOARD_STALE_TIME,
   })
+}
+
+export function useAdminOrderAnalytics(params?: AdminOrderAnalyticsParams, enabled = true) {
+  return useQuery({ queryKey: adminQueryKeys.orderAnalytics(params), queryFn: () => getAdminOrderAnalytics(params), enabled, staleTime: ADMIN_DASHBOARD_STALE_TIME })
 }
 
 export function useAdminRequestQueue(params?: AdminRequestQueueParams) {

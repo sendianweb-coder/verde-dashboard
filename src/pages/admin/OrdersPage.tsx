@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { useOrders, useUpdateOrderStatus } from '@/hooks/useOrders'
+import { useOrdersPage, useUpdateOrderStatus } from '@/hooks/useOrders'
 import { getErrorMessage } from '@/lib/errors'
 import type { Order, OrderStatus } from '@/types/order'
 
@@ -50,10 +50,14 @@ export function AdminOrdersPage() {
     () => ({
       status: statusFilter === 'ALL' ? undefined : statusFilter,
       search: search.trim() || undefined,
+      page: pageIndex + 1,
+      limit: pageSize,
     }),
-    [search, statusFilter],
+    [pageIndex, pageSize, search, statusFilter],
   )
-  const ordersQuery = useOrders(orderParams, source === 'WEBSITE')
+  const ordersQuery = useOrdersPage(orderParams, source === 'WEBSITE')
+  const orders = ordersQuery.data?.data ?? []
+  const pagination = ordersQuery.data?.pagination
   const updateOrderStatusMutation = useUpdateOrderStatus()
   const hasActiveFilters = statusFilter !== 'ALL'
 
@@ -129,7 +133,7 @@ export function AdminOrdersPage() {
 
       {source === 'WEBSITE' ? (
         <DataTable
-          data={ordersQuery.data ?? []}
+          data={orders}
           columns={columns}
           title="Orders"
           description="Track customer orders, fulfillment status, and totals."
@@ -140,13 +144,17 @@ export function AdminOrdersPage() {
             setSearch(value)
             setPageIndex(0)
           }}
+          manualPagination
           pageIndex={pageIndex}
           pageSize={pageSize}
+          pageCount={pagination?.totalPages ?? 1}
+          totalResults={pagination?.total ?? 0}
           onPageChange={setPageIndex}
           onPageSizeChange={(nextPageSize) => {
             setPageSize(nextPageSize)
             setPageIndex(0)
           }}
+          getRowId={(order) => order.id}
           filters={
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

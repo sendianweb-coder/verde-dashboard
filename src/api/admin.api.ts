@@ -2,6 +2,8 @@ import { apiClient } from '@/api/client'
 import type { ApiSuccessResponse } from '@/types/common'
 import type {
   AdminDashboardOverview,
+  AdminOrderAnalytics,
+  AdminOrderAnalyticsParams,
   AdminRequestQueueParams,
   AdminRequestQueueResponse,
   BulkRequestStatusPayload,
@@ -10,6 +12,11 @@ import type {
 
 export async function getAdminDashboardOverview(): Promise<AdminDashboardOverview> {
   const { data } = await apiClient.get<ApiSuccessResponse<AdminDashboardOverview>>('/admin/dashboard/overview')
+  return data.data
+}
+
+export async function getAdminOrderAnalytics(params?: AdminOrderAnalyticsParams): Promise<AdminOrderAnalytics> {
+  const { data } = await apiClient.get<ApiSuccessResponse<AdminOrderAnalytics>>('/admin/dashboard/order-analytics', { params })
   return data.data
 }
 

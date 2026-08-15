@@ -47,6 +47,15 @@ export interface AdminDashboardOverview {
   }
 }
 
+export type AdminOrderAnalyticsPeriod = 'week' | 'month' | 'year'
+export interface AdminOrderAnalyticsParams { period?: AdminOrderAnalyticsPeriod }
+export interface AdminOrderAnalytics {
+  period: { key: AdminOrderAnalyticsPeriod; from: string; to: string; granularity: 'day' | 'month' }
+  totals: { orderCount: number; netOrderCount: number; netRevenue: number; averageOrderValue: number; unpricedInternalRequestCount: number }
+  revenueSeries: Array<{ date: string; orderCount: number; netRevenue: number }>
+  topProducts: Array<{ productId: string; name: string; quantity: number; netRevenue: number }>
+}
+
 export interface AdminRequestQueueParams {
   status?: RequestStatus
   projectId?: string
