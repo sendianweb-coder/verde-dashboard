@@ -201,6 +201,18 @@ export interface SaveInventoryWorkbookChangesRequest {
 }
 
 export type InventoryWorkbookSaveRowStatus = 'changed' | 'skipped' | 'failed' | 'conflict'
+export type InventoryWorkbookWordPressSyncStatus = 'disabled' | 'created' | 'updated' | 'failed'
+
+export interface InventoryWorkbookWordPressSyncResult {
+  auditId?: string
+  status: InventoryWorkbookWordPressSyncStatus
+  message?: string
+}
+
+export interface InventoryWorkbookFieldChange {
+  from: InventoryWorkbookFieldValue
+  to: InventoryWorkbookFieldValue
+}
 
 export interface InventoryWorkbookSaveRowResult {
   sheetId: string
@@ -210,6 +222,8 @@ export interface InventoryWorkbookSaveRowResult {
   sku?: string
   status: InventoryWorkbookSaveRowStatus
   changedFields?: string[]
+  fieldChanges?: Record<string, InventoryWorkbookFieldChange>
+  wordPressSync?: InventoryWorkbookWordPressSyncResult
   refreshedRowToken?: string
   refreshedUpdatedAt?: string
   message?: string

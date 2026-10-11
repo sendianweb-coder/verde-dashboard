@@ -4,6 +4,7 @@ import { createUniver, LocaleType } from '@univerjs/presets'
 import type { IWorkbookData } from '@univerjs/presets'
 import { AlertCircle, CheckCircle2, Maximize2, Minimize2, RefreshCw, Save, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { toast } from 'sonner'
 
 import '@univerjs/preset-sheets-core/lib/index.css'
 import './inventoryGrid.css'
@@ -181,8 +182,33 @@ type WorkbookBaseline = {
   updatedAtColumnBySheet: Map<string, number>
 }
 
+const formatWorkbookField = (field: string) => field.replace(/([A-Z])/g, ' $1').toLowerCase()
+
+const formatWorkbookValue = (value: InventoryWorkbookFieldValue) => value === null ? '(empty)' : String(value)
+
+const showWorkbookSaveToast = (result: InventoryWorkbookChangesResponse) => {
+  const changedRows = result.rows.filter((row) => row.status === 'changed')
+  if (changedRows.length === 0) return
+
+  const hasWordPressFailure = changedRows.some((row) => row.wordPressSync?.status === 'failed')
+  const details = changedRows.map((row) => {
+    const changes = Object.entries(row.fieldChanges ?? {})
+      .map(([field, change]) => `${formatWorkbookField(field)}: ${formatWorkbookValue(change.from)} → ${formatWorkbookValue(change.to)}`)
+      .join(', ')
+    const wordPressStatus = row.wordPressSync
+      ? `WordPress ${row.wordPressSync.status}`
+      : 'Local save only'
+    return `${row.sheetName} row ${row.displayRowNumber}${row.sku ? ` (${row.sku})` : ''}: ${changes}; ${wordPressStatus}`
+  }).join('\n')
+
+  toast[hasWordPressFailure ? 'warning' : 'success'](
+    hasWordPressFailure ? 'Saved locally; WordPress needs attention' : 'Workbook saved',
+    { description: details },
+  )
+}
+
 function InventoryGridSaveSummary({ result }: { result: InventoryWorkbookSaveResponse }) {
-  const problemRows = result.rows.filter((row) => row.status === 'failed' || row.status === 'conflict').slice(0, 10)
+  const problemRows = result.rows.filter((row) => row.status === 'failed' || row.status === 'conflict' || row.wordPressSync?.status === 'failed').slice(0, 10)
 
   return (
     <div className="rounded-xl border border-border bg-surface p-4">
@@ -1285,6 +1311,8 @@ export function InventoryGridPage() {
       ])
       if (deltaResult.status === 'rejected') {
         setStagedImageUploadError(deltaResult.reason)
+      } else if (deltaResult.value) {
+        showWorkbookSaveToast(deltaResult.value)
       }
       if (draftResult.status === 'rejected') {
         setStagedImageUploadError(draftResult.reason)
